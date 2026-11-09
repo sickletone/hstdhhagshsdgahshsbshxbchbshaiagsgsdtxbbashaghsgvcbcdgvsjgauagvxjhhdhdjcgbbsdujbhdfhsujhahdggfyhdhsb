@@ -72,6 +72,25 @@ Source lives at
 (`main.luau` + `addons/`). `getgenv().Orasense` is set on load
 (`OrasenseUI` alias; legacy `Facility` alias kept for compatibility).
 
+## Icons (Molto)
+
+Every icon is drawn from [Molto](https://molto.pages.dev/) using its `lucide`
+provider: the module is fetched once, the provider is loaded lazily on the first
+icon, and the sheet URL plus rect are cached by Molto itself.
+
+```lua
+local Orasense = loadstring(game:HttpGet("..."))()
+-- Icon names are Molto names: "sliders-horizontal", "settings", "wrench", ...
+window:Tab("misc", "wrench")
+```
+
+Set `Orasense.IconProvider` before the first window is built to switch provider:
+`lucide` (default), `tabler`, `heroicons`, `solar` or `phosphor`. Any `Icon =`
+argument also accepts an `rbxassetid://` image or a raw asset id. The resolver is
+wrapped so that if Molto cannot load (Roblox Studio, no `HttpGet`/`loadstring`,
+unknown provider or unknown icon) the bundled Lucide sprite table in
+`addons/Icons.luau` is used instead — icons never go blank.
+
 ## Component catalog
 
 Every component is available on tabs, sub tabs and sections.

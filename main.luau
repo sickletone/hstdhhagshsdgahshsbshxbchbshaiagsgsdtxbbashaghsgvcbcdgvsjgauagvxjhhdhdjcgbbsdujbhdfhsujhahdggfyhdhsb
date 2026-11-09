@@ -154,6 +154,7 @@ function Library:OnRepaint(callback)
 	return callback
 end
 Library.ThemeAlpha = ThemeAlpha
+Library.IconProvider = "lucide"
 Library.Version = "2026.11.09-orasense-1"
 Library.Name = "Orasense UI"
 
@@ -467,6 +468,33 @@ function Library:PreloadIcons()
 	return IconLib
 end
 
+-- Icons come from Molto (https://molto.pages.dev). It is fetched once and its
+-- provider is loaded lazily; when it cannot load (Studio, no HttpGet/loadstring,
+-- unknown provider) the bundled Lucide sprite table in addons/Icons.luau is used
+-- instead, so an icon never silently disappears.
+local MOLTO_URL = "https://molto.pages.dev/source.lua"
+local MoltoLib, MoltoTried
+
+local function GetMolto()
+	if MoltoTried then return MoltoLib end
+	MoltoTried = true
+	local ok, result = pcall(function()
+		local chunk = loadstring(game:HttpGet(MOLTO_URL))
+		if type(chunk) ~= "function" then return nil end
+		return chunk()
+	end)
+	if not ok or type(result) ~= "table" or type(result.GetAsset) ~= "function" then
+		return nil
+	end
+	local provider = Library.IconProvider or "lucide"
+	if not pcall(result.SetProvider, provider) then return nil end
+	-- Only trust the provider once a known icon actually resolves.
+	local probe, asset = pcall(result.GetAsset, "settings")
+	if not probe or type(asset) ~= "table" then return nil end
+	MoltoLib = result
+	return MoltoLib
+end
+
 local function ResolveIcon(icon)
 	if not icon or icon == 0 or icon == "" then return nil end
 	if type(icon) == "number" then
@@ -476,9 +504,23 @@ local function ResolveIcon(icon)
 	if string.find(icon, "rbxassetid://") == 1 or string.find(icon, "rbxasset://") == 1 then
 		return { Image = icon }
 	end
+	local name = string.lower(string.match(icon, "^%s*(.-)%s*$"))
+
+	local molto = GetMolto()
+	if molto then
+		local ok, asset = pcall(molto.GetAsset, name)
+		if ok and type(asset) == "table" and asset.Url then
+			return {
+				Image = asset.Url,
+				RectSize = asset.ImageRectSize,
+				RectOffset = asset.ImageRectOffset,
+			}
+		end
+	end
+
 	local lib = Library:PreloadIcons()
 	local set = lib and lib["48px"]
-	local entry = set and set[string.lower(string.match(icon, "^%s*(.-)%s*$"))]
+	local entry = set and set[name]
 	if not entry or type(entry[1]) ~= "number" then return nil end
 	return {
 		Image = "rbxassetid://" .. entry[1],
