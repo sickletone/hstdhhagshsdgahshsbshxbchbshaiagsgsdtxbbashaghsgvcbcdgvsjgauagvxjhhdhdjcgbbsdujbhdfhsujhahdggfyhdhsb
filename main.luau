@@ -1,5 +1,11 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+
+-- Touch devices get roomier rows, bigger tap targets and a wider menu.
+local MOBILE = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+local function MSize(desktop, mobile)
+	return MOBILE and mobile or desktop
+end
 local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -685,7 +691,7 @@ end
 local function MakeButton(parent, opts, size, order)
 	local state = { Enabled = true }
 	local btn = New("TextButton", {
-		Size = size or UDim2.new(1, 0, 0, 26),
+		Size = size or UDim2.new(1, 0, 0, MSize(26, 34)),
 		BackgroundColor3 = Theme.Field,
 		AutoButtonColor = false,
 		Text = "",
@@ -722,7 +728,7 @@ end
 
 function Elements:ButtonRow(list)
 	local row = New("Frame", {
-		Size = UDim2.new(1, 0, 0, 26),
+		Size = UDim2.new(1, 0, 0, MSize(26, 34)),
 		BackgroundTransparency = 1,
 		Parent = self.Container,
 	})
@@ -778,7 +784,7 @@ function Elements:Input(opts)
 		cap.Size = UDim2.new(1, 0, 0, 15)
 	end
 	local field = New("Frame", {
-		Size = UDim2.new(1, 0, 0, 26),
+		Size = UDim2.new(1, 0, 0, MSize(26, 34)),
 		BackgroundColor3 = Theme.Field,
 		BorderSizePixel = 0,
 		LayoutOrder = 2,
@@ -888,7 +894,7 @@ function Elements:Toggle(opts)
 	local state = opts.Default == true
 
 	local row = New("Frame", {
-		Size = UDim2.new(1, 0, 0, 22),
+		Size = UDim2.new(1, 0, 0, MSize(22, 32)),
 		BackgroundTransparency = 1,
 		Parent = self.Container,
 	})
@@ -902,7 +908,7 @@ function Elements:Toggle(opts)
 	})
 
 	local box = New("Frame", {
-		Size = UDim2.fromOffset(13, 13),
+		Size = UDim2.fromOffset(MSize(13, 19), MSize(13, 19)),
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 0, 0.5, 0),
 		BackgroundColor3 = Theme.Accent,
@@ -915,12 +921,12 @@ function Elements:Toggle(opts)
 
 	local labelColor, customLabel = LabelColor(opts, Theme.Text)
 	local text = Label(row, opts.Text or "toggle", labelColor)
-	text.Position = UDim2.fromOffset(21, 0)
-	text.Size = UDim2.new(1, -21, 1, 0)
+	text.Position = UDim2.fromOffset(MSize(21, 28), 0)
+	text.Size = UDim2.new(1, -MSize(21, 28), 1, 0)
 
 	local left = New("Frame", {
-		Size = UDim2.new(1, -21, 1, 0),
-		Position = UDim2.fromOffset(21, 0),
+		Size = UDim2.new(1, -MSize(21, 28), 1, 0),
+		Position = UDim2.fromOffset(MSize(21, 28), 0),
 		BackgroundTransparency = 1,
 		Parent = row,
 	})
@@ -1188,7 +1194,7 @@ function Elements:Dropdown(opts)
 	end
 
 	local button = New("TextButton", {
-		Size = UDim2.new(1, 0, 0, 26),
+		Size = UDim2.new(1, 0, 0, MSize(26, 34)),
 		BackgroundColor3 = Theme.Field,
 		AutoButtonColor = false,
 		Text = "",
@@ -1417,7 +1423,7 @@ function Elements:Slider(opts)
 	local value = math.clamp(opts.Default or min, min, max)
 
 	local block = New("Frame", {
-		Size = UDim2.new(1, 0, 0, 30),
+		Size = UDim2.new(1, 0, 0, MSize(30, 40)),
 		BackgroundTransparency = 1,
 		Parent = self.Container,
 	})
@@ -1441,7 +1447,7 @@ function Elements:Slider(opts)
 
 	local track = New("TextButton", {
 		Size = UDim2.new(1, 0, 0, 4),
-		Position = UDim2.new(0, 0, 0, 24),
+		Position = UDim2.new(0, 0, 0, MSize(24, 32)),
 		BackgroundColor3 = Theme.Track,
 		AutoButtonColor = false,
 		Text = "",
@@ -1457,7 +1463,7 @@ function Elements:Slider(opts)
 	})
 	Corner(fill, 2)
 	local knob = New("Frame", {
-		Size = UDim2.fromOffset(9, 9),
+		Size = UDim2.fromOffset(MSize(9, 13), MSize(9, 13)),
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0, 0.5),
 		BackgroundColor3 = Theme.Accent,
@@ -1467,8 +1473,8 @@ function Elements:Slider(opts)
 	Corner(knob, 5)
 
 	local hit = New("TextButton", {
-		Size = UDim2.new(1, 0, 0, 15),
-		Position = UDim2.new(0, 0, 0, 16),
+		Size = UDim2.new(1, 0, 0, MSize(15, 24)),
+		Position = UDim2.new(0, 0, 0, MSize(16, 24)),
 		BackgroundTransparency = 1,
 		AutoButtonColor = false,
 		Text = "",
@@ -1851,7 +1857,7 @@ function Elements:Keybind(opts)
 	local flag = FlagOf(opts)
 	local key = opts.Default
 	local row = New("Frame", {
-		Size = UDim2.new(1, 0, 0, 22),
+		Size = UDim2.new(1, 0, 0, MSize(22, 30)),
 		BackgroundTransparency = 1,
 		Parent = self.Container,
 	})
@@ -1859,7 +1865,7 @@ function Elements:Keybind(opts)
 	name.Size = UDim2.new(1, -80, 1, 0)
 
 	local pill = New("TextButton", {
-		Size = UDim2.new(0, 0, 0, 20),
+		Size = UDim2.new(0, 0, 0, MSize(20, 26)),
 		AutomaticSize = Enum.AutomaticSize.X,
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, 0, 0.5, 0),
@@ -1871,7 +1877,7 @@ function Elements:Keybind(opts)
 	})
 	Corner(pill, 4)
 	Stroke(pill, Theme.Border)
-	Pad(pill, 0, 8)
+	Pad(pill, MSize(0, 3), 8)
 	local pl = Label(pill, "", Theme.TextDim, 12)
 	pl.Size = UDim2.new(0, 0, 1, 0)
 	pl.AutomaticSize = Enum.AutomaticSize.X
@@ -2003,7 +2009,7 @@ function Elements:Search(opts)
 	opts = opts or {}
 	local flag = opts.Flag or nil
 	local row = New("Frame", {
-		Size = UDim2.new(1, 0, 0, 26),
+		Size = UDim2.new(1, 0, 0, MSize(26, 34)),
 		BackgroundTransparency = 1,
 		Parent = self.Container,
 	})
@@ -2776,7 +2782,7 @@ end
 
 function Library:Window(opts)
 	opts = opts or {}
-	local width = opts.Width or 620
+	local width = opts.Width or (MOBILE and 560 or 620)
 	local height = opts.Height or 560
 
 	local gui = New("ScreenGui", {
@@ -2837,6 +2843,7 @@ function Library:Window(opts)
 
 	local titleDivider = New("Frame", {
 		Size = UDim2.fromOffset(1, 14),
+		Visible = false,
 		AnchorPoint = Vector2.new(0, 0.5),
 		BackgroundColor3 = Theme.Border,
 		BorderSizePixel = 0,
@@ -2902,6 +2909,7 @@ function Library:Window(opts)
 	New("Frame", {
 		Size = UDim2.new(1, 0, 0, 1),
 		Position = UDim2.new(0, 0, 0, 46),
+		Visible = false,
 		BackgroundColor3 = Theme.BorderSoft,
 		BorderSizePixel = 0,
 		Parent = main,
@@ -2916,7 +2924,7 @@ function Library:Window(opts)
 		Parent = main,
 	})
 	Corner(shell, 8)
-	Stroke(shell, Theme.SectionBorder)
+	Stroke(shell, Theme.SectionBorder, 1, 1)
 
 	local body = New("Frame", {
 		Size = UDim2.new(1, -24, 1, -24),
@@ -2931,6 +2939,7 @@ function Library:Window(opts)
 		footerLine = New("Frame", {
 			Size = UDim2.new(1, 0, 0, 1),
 			Position = UDim2.new(0, 0, 1, -footerHeight),
+			Visible = false,
 			BackgroundColor3 = Theme.BorderSoft,
 			BorderSizePixel = 0,
 			Parent = main,
@@ -3005,7 +3014,7 @@ function Library:Window(opts)
 		local vp = gui.AbsoluteSize
 		if vp.X <= 0 then return end
 		if window.Resizing then return end
-		local s = math.clamp(math.min((vp.X - 24) / window.Width, (vp.Y - 24) / window.Height), 0.55, 1)
+		local s = math.clamp(math.min((vp.X - 24) / window.Width, (vp.Y - 24) / window.Height), 0.55, MOBILE and 1.3 or 1)
 			* (window.UserScale or 1)
 		window.BaseScale = s
 		if window.Visible then scale.Scale = s end
@@ -5672,19 +5681,32 @@ do
 		local step = opts.Step or 1
 		local value = math.clamp(opts.Default or min, min, max)
 
+		local btnW = MOBILE and 32 or 22
+		local btnH = MOBILE and 24 or 16
+		local rowY = MOBILE and 26 or 22
+		local side = btnW + (MOBILE and 8 or 6)
+		local trackY = rowY + btnH / 2 - 2
+		local hitH = MOBILE and 28 or 18
+
 		local block = New("Frame", {
-			Size = UDim2.new(1, 0, 0, 44),
+			Size = UDim2.new(1, 0, 0, MOBILE and 58 or 44),
 			BackgroundTransparency = 1,
 			Parent = self.Container,
 		})
-		local _, nameLabel, valueLabel = HeaderRow(block, opts.Text or "slider", 16)
+		local _, nameLabel, valueLabel = HeaderRow(block, opts.Text or "slider", MOBILE and 20 or 16)
 
-		local minus = MiniButton(block, opts.MinusText or "-", { Position = UDim2.fromOffset(0, 22) })
-		local plus = MiniButton(block, opts.PlusText or "+", { Position = UDim2.new(1, -22, 0, 22) })
+		local minus = MiniButton(block, opts.MinusText or "-", {
+			Size = UDim2.fromOffset(btnW, btnH),
+			Position = UDim2.fromOffset(0, rowY),
+		})
+		local plus = MiniButton(block, opts.PlusText or "+", {
+			Size = UDim2.fromOffset(btnW, btnH),
+			Position = UDim2.new(1, -btnW, 0, rowY),
+		})
 
 		local track = New("TextButton", {
-			Size = UDim2.new(1, -58, 0, 4),
-			Position = UDim2.new(0, 28, 0, 28),
+			Size = UDim2.new(1, -(side * 2), 0, 4),
+			Position = UDim2.fromOffset(side, trackY),
 			BackgroundColor3 = Theme.Track,
 			AutoButtonColor = false,
 			Text = "",
@@ -5709,8 +5731,8 @@ do
 		})
 		Corner(knob, 5)
 		local hit = New("TextButton", {
-			Size = UDim2.new(1, -58, 0, 18),
-			Position = UDim2.new(0, 28, 0, 21),
+			Size = UDim2.new(1, -(side * 2), 0, hitH),
+			Position = UDim2.fromOffset(side, trackY + 2 - hitH / 2),
 			BackgroundTransparency = 1,
 			AutoButtonColor = false,
 			Text = "",
@@ -5814,16 +5836,20 @@ do
 		local step = opts.Step or 1
 		local value = math.clamp(opts.Default or min, min, max)
 
+		local boxW = MOBILE and 112 or 100
+		local boxH = MOBILE and 28 or 20
+		local stepW = MOBILE and 30 or 22
+
 		local row = New("Frame", {
-			Size = UDim2.new(1, 0, 0, 22),
+			Size = UDim2.new(1, 0, 0, MOBILE and 32 or 22),
 			BackgroundTransparency = 1,
 			Parent = self.Container,
 		})
 		local name = Label(row, tostring(opts.Text or "value"), (LabelColor(opts, Theme.Text)))
-		name.Size = UDim2.new(1, -104, 1, 0)
+		name.Size = UDim2.new(1, -(boxW + 8), 1, 0)
 
 		local box = New("Frame", {
-			Size = UDim2.fromOffset(100, 20),
+			Size = UDim2.fromOffset(boxW, boxH),
 			AnchorPoint = Vector2.new(1, 0.5),
 			Position = UDim2.new(1, 0, 0.5, 0),
 			BackgroundColor3 = Theme.Field,
@@ -5834,7 +5860,7 @@ do
 		Stroke(box, Theme.Border)
 
 		local minus = New("TextButton", {
-			Size = UDim2.fromOffset(22, 20),
+			Size = UDim2.fromOffset(stepW, boxH),
 			BackgroundTransparency = 1,
 			AutoButtonColor = false,
 			Text = "",
@@ -5845,13 +5871,13 @@ do
 		minusLabel.TextXAlignment = Enum.TextXAlignment.Center
 
 		local valueLabel = Label(box, "", Theme.TextBright, 12)
-		valueLabel.Size = UDim2.fromOffset(56, 20)
-		valueLabel.Position = UDim2.fromOffset(22, 0)
+		valueLabel.Size = UDim2.fromOffset(boxW - stepW * 2, boxH)
+		valueLabel.Position = UDim2.fromOffset(stepW, 0)
 		valueLabel.TextXAlignment = Enum.TextXAlignment.Center
 
 		local plus = New("TextButton", {
-			Size = UDim2.fromOffset(22, 20),
-			Position = UDim2.fromOffset(78, 0),
+			Size = UDim2.fromOffset(stepW, boxH),
+			Position = UDim2.fromOffset(boxW - stepW, 0),
 			BackgroundTransparency = 1,
 			AutoButtonColor = false,
 			Text = "",
@@ -5913,7 +5939,7 @@ do
 		local state = opts.Default == true
 
 		local card = New("Frame", {
-			Size = UDim2.new(1, 0, 0, 44),
+			Size = UDim2.new(1, 0, 0, MSize(44, 62)),
 			BackgroundColor3 = Theme.Group,
 			BorderSizePixel = 0,
 			Parent = self.Container,
@@ -5930,8 +5956,8 @@ do
 			Parent = card,
 		})
 		local box = New("Frame", {
-			Size = UDim2.fromOffset(15, 15),
-			Position = UDim2.new(0, 0, 0.5, -8),
+			Size = UDim2.fromOffset(MSize(15, 21), MSize(15, 21)),
+			Position = UDim2.new(0, 0, 0.5, -MSize(8, 10)),
 			BackgroundColor3 = Theme.Accent,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
@@ -5939,15 +5965,15 @@ do
 		})
 		Corner(box, 3)
 		local boxStroke = Stroke(box, Theme.Border)
-		local tick = AttachIcon(box, "check", Theme.TextBright, 11)
-		if tick then tick.Position = UDim2.fromOffset(2, 2) end
+		local tick = AttachIcon(box, "check", Theme.TextBright, MSize(11, 15))
+		if tick then tick.Position = UDim2.fromOffset(MSize(2, 3), MSize(2, 3)) end
 
 		local title = Label(card, tostring(opts.Text or "toggle"), Theme.Text)
-		title.Size = UDim2.new(1, -24, 0, 16)
-		title.Position = UDim2.fromOffset(24, 0)
+		title.Size = UDim2.new(1, -MSize(24, 32), 0, 16)
+		title.Position = UDim2.fromOffset(MSize(24, 32), 0)
 		local description = Label(card, tostring(opts.Hint or opts.Description or ""), Theme.TextDim, 12)
-		description.Size = UDim2.new(1, -24, 0, 14)
-		description.Position = UDim2.fromOffset(24, 16)
+		description.Size = UDim2.new(1, -MSize(24, 32), 0, 14)
+		description.Position = UDim2.fromOffset(MSize(24, 32), MSize(16, 22))
 
 		local api = { Instance = card, State = state }
 
@@ -6003,7 +6029,7 @@ do
 		local flag = FlagOf(opts)
 		local state = opts.Default == true
 		local row = New("Frame", {
-			Size = UDim2.new(1, 0, 0, 20),
+			Size = UDim2.new(1, 0, 0, MSize(20, 30)),
 			BackgroundTransparency = 1,
 			Parent = self.Container,
 		})
@@ -6015,8 +6041,8 @@ do
 			Parent = row,
 		})
 		local box = New("Frame", {
-			Size = UDim2.fromOffset(13, 13),
-			Position = UDim2.new(0, 0, 0.5, -6),
+			Size = UDim2.fromOffset(MSize(13, 19), MSize(13, 19)),
+			Position = UDim2.new(0, 0, 0.5, -MSize(6, 10)),
 			BackgroundColor3 = Theme.Accent,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
@@ -6024,11 +6050,11 @@ do
 		})
 		Corner(box, 3)
 		local boxStroke = Stroke(box, Theme.Border)
-		local tick = AttachIcon(box, "check", Theme.TextBright, 10)
-		if tick then tick.Position = UDim2.fromOffset(2, 2) end
+		local tick = AttachIcon(box, "check", Theme.TextBright, MSize(10, 14))
+		if tick then tick.Position = UDim2.fromOffset(MSize(2, 3), MSize(2, 3)) end
 		local text = Label(row, tostring(opts.Text or "checkbox"), Theme.Text)
-		text.Position = UDim2.fromOffset(21, 0)
-		text.Size = UDim2.new(1, -21, 1, 0)
+		text.Position = UDim2.fromOffset(MSize(21, 27), 0)
+		text.Size = UDim2.new(1, -MSize(21, 27), 1, 0)
 
 		local api = { Instance = row, State = state }
 
@@ -6077,7 +6103,7 @@ do
 		local flag = FlagOf(opts)
 		local state = opts.Default == true
 		local row = New("Frame", {
-			Size = UDim2.new(1, 0, 0, 22),
+			Size = UDim2.new(1, 0, 0, MSize(22, 32)),
 			BackgroundTransparency = 1,
 			Parent = self.Container,
 		})
@@ -6089,10 +6115,10 @@ do
 			Parent = row,
 		})
 		local text = Label(row, tostring(opts.Text or "switch"), Theme.Text)
-		text.Size = UDim2.new(1, -44, 1, 0)
+		text.Size = UDim2.new(1, -MSize(44, 58), 1, 0)
 
 		local switch = New("Frame", {
-			Size = UDim2.fromOffset(32, 16),
+			Size = UDim2.fromOffset(MSize(32, 44), MSize(16, 24)),
 			AnchorPoint = Vector2.new(1, 0.5),
 			Position = UDim2.new(1, 0, 0.5, 0),
 			BackgroundColor3 = Theme.Track,
@@ -6102,8 +6128,8 @@ do
 		Corner(switch, 8)
 		local switchStroke = Stroke(switch, Theme.Border)
 		local knob = New("Frame", {
-			Size = UDim2.fromOffset(12, 12),
-			Position = UDim2.new(0, 2, 0.5, -6),
+			Size = UDim2.fromOffset(MSize(12, 18), MSize(12, 18)),
+			Position = UDim2.new(0, MSize(2, 3), 0.5, -MSize(6, 9)),
 			BackgroundColor3 = Theme.TextDim,
 			BorderSizePixel = 0,
 			Parent = switch,
@@ -6117,7 +6143,7 @@ do
 			Tween(switch, { BackgroundColor3 = state and Theme.Accent or Theme.Track }, info)
 			Tween(switchStroke, { Color = state and Theme.Accent or Theme.Border }, info)
 			Tween(knob, {
-				Position = UDim2.new(0, state and 18 or 2, 0.5, -6),
+				Position = UDim2.new(0, state and MSize(18, 23) or MSize(2, 3), 0.5, -MSize(6, 9)),
 				BackgroundColor3 = state and Theme.TextBright or Theme.TextDim,
 			}, info)
 		end
@@ -6207,7 +6233,7 @@ do
 		for i, option in ipairs(options) do
 			local name = tostring(option)
 			local row = New("TextButton", {
-				Size = UDim2.new(1, 0, 0, 16),
+				Size = UDim2.new(1, 0, 0, MSize(16, 26)),
 				BackgroundTransparency = 1,
 				AutoButtonColor = false,
 				Text = "",
@@ -6215,8 +6241,8 @@ do
 				Parent = inner,
 			})
 			local dot = New("Frame", {
-				Size = UDim2.fromOffset(11, 11),
-				Position = UDim2.new(0, 0, 0.5, -5),
+				Size = UDim2.fromOffset(MSize(11, 16), MSize(11, 16)),
+				Position = UDim2.new(0, 0, 0.5, -MSize(5, 8)),
 				BackgroundColor3 = Theme.Accent,
 				BackgroundTransparency = 1,
 				BorderSizePixel = 0,
@@ -6225,8 +6251,8 @@ do
 			Corner(dot, 6)
 			local stroke = Stroke(dot, Theme.Border)
 			local label = Label(row, name, Theme.Text)
-			label.Position = UDim2.fromOffset(19, 0)
-			label.Size = UDim2.new(1, -19, 1, 0)
+			label.Position = UDim2.fromOffset(MSize(19, 25), 0)
+			label.Size = UDim2.new(1, -MSize(19, 25), 1, 0)
 			rows[name] = { dot = dot, stroke = stroke, label = label }
 			Track(row.Activated:Connect(function()
 				if api.Enabled == false then return end
@@ -6276,14 +6302,14 @@ do
 		if current ~= nil then current = tostring(current) end
 
 		local wrap = New("Frame", {
-			Size = UDim2.new(1, 0, 0, 24),
+			Size = UDim2.new(1, 0, 0, MSize(24, 34)),
 			BackgroundTransparency = 1,
 			Parent = self.Container,
 		})
 		local offset = 0
 		if opts.Text then
 			local label = Label(wrap, tostring(opts.Text), Theme.Text)
-			label.Size = UDim2.fromOffset(104, 24)
+			label.Size = UDim2.fromOffset(104, MSize(24, 34))
 			offset = 110
 		end
 
@@ -7109,6 +7135,8 @@ do
 		"Split",
 		"Card",
 	}
+
+	Library.Mobile = MOBILE
 
 	function Library:ListComponents()
 		local out = {}

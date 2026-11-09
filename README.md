@@ -136,3 +136,17 @@ The settings tab has a **dpi** control next to **ui scale**. It maps the
 classic 96 dpi baseline onto the window scale, so `96` is the default size and
 `120` makes the whole menu a quarter larger. Both controls stay in sync and are
 saved through the config system (`interface_scale`, `interface_dpi`).
+
+## Mobile
+
+On touch devices (touch input without a keyboard) the library switches on
+mobile sizing automatically: every interactive row is taller
+(`Toggle` 22 -> 32, `Slider` 30 -> 40, inputs and buttons 26 -> 34, and the
+same treatment for the component pack), boxes and switches get bigger, and
+windows are created 560 px wide so the fit pass scales the whole menu up
+instead of down. `Library.Mobile` reports the detected mode, and any window
+can still opt out by passing its own `Width`.
+
+Small decorative hairlines (the bar under the title, the footer rule, the
+content outline and the title separator) are no longer drawn, so the menu
+reads as clean surfaces instead of boxed-in panels.
