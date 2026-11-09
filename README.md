@@ -137,9 +137,10 @@ toast:Close()
 
 The settings tab has a **dpi** control and a **menu scale** control, and they
 now do different things. `dpi` resizes the **components** — buttons, rows,
-sliders, inputs, text — around the fixed 96 dpi baseline (`120` makes them a
-quarter larger); the window frame, title bar, tabs and footer stay exactly
-where they are, so the menu no longer grows or moves while you drag it.
+sliders, inputs, text, and the tab labels/icons — around the fixed 96 dpi
+baseline (`120` makes them a quarter larger); the window frame, title bar and
+footer stay exactly where they are, so the menu no longer grows or moves while
+you drag it.
 `menu scale` still scales the whole window. Both are saved through the config
 system (`interface_dpi`, `interface_scale`).
 

@@ -2362,6 +2362,9 @@ function Window:Tab(name, icon)
 	tab.Button = button
 	tab.Label = label
 	tab.Icon = icon
+	tab.LabelBase = Theme.TextSize + MSize(1, 3)
+	tab.IconBase = 15
+	tab.IsSide = side
 
 	function tab:SetActive(active, animate)
 		local info = animate and EASE_FAST or TweenInfo.new(0)
@@ -2398,8 +2401,30 @@ function Window:Tab(name, icon)
 		self:CloseFloating()
 	end))
 
+	self:RefreshTabScale()
 	if not self.ActiveTab then self:SetTab(tab) end
 	return tab
+end
+
+-- The tab bar sits outside the scaled body, so dpi has to resize it explicitly.
+function Window:RefreshTabScale()
+	local factor = self.ContentScaleValue or 1
+	for _, tab in ipairs(self.Tabs or {}) do
+		local base = tab.LabelBase or (Theme.TextSize + 1)
+		if tab.Label then
+			tab.Label.TextSize = math.clamp(math.floor(base * factor + 0.5), 10, 34)
+		end
+		if tab.Icon then
+			local size = math.clamp(math.floor((tab.IconBase or 15) * factor + 0.5), 10, 30)
+			tab.Icon.Size = UDim2.fromOffset(size, size)
+			if tab.Label and tab.IsSide then
+				tab.Label.Size = UDim2.new(1, -math.floor(size * 1.45), 1, 0)
+			end
+		end
+		if tab.Button and tab.IsSide then
+			tab.Button.Size = UDim2.new(1, 0, 0, math.floor(MSize(30, 40) * factor + 0.5))
+		end
+	end
 end
 
 function Window:NextTabOrder()
@@ -2494,6 +2519,9 @@ end
 function Window:SetContentScale(value)
 	if self.ApplyContentScale then
 		self.ApplyContentScale(value)
+	end
+	if self.RefreshTabScale then
+		self:RefreshTabScale()
 	end
 	return self.ContentScaleValue or 1
 end
@@ -3050,7 +3078,7 @@ function Library:Window(opts)
 		window.ContentScaleValue = cs
 		contentScale.Scale = cs
 		body.Size = UDim2.new(1 / cs, -24 / cs, 1 / cs, -24 / cs)
-		body.Position = UDim2.fromOffset(12 / cs, 12 / cs)
+		body.Position = UDim2.fromOffset(12, 12)
 	end
 	window.ApplyContentScale = applyContentScale
 
@@ -3065,10 +3093,9 @@ function Library:Window(opts)
 		if pos.Y < 0 then dy = -pos.Y
 		elseif pos.Y + sz.Y > vp.Y then dy = vp.Y - (pos.Y + sz.Y) end
 		if dx == 0 and dy == 0 then return end
-		local s = math.max(scale.Scale, 0.05)
 		main.Position = UDim2.new(
-			main.Position.X.Scale, main.Position.X.Offset + dx / s,
-			main.Position.Y.Scale, main.Position.Y.Offset + dy / s)
+			main.Position.X.Scale, main.Position.X.Offset + dx,
+			main.Position.Y.Scale, main.Position.Y.Offset + dy)
 	end
 	window.ClampToViewport = clampToViewport
 
@@ -3185,10 +3212,11 @@ function Library:Window(opts)
 			and math.abs(resizeTargetH - window.Height) < 0.5 then
 			return
 		end
+		local s = math.max(scale.Scale, 0.05)
 		window:SetSize(resizeTargetW, resizeTargetH, true)
 		main.Position = UDim2.new(
-			resizeStartPos.X.Scale, resizeStartPos.X.Offset + (resizeTargetW - resizeStartW) * 0.5,
-			resizeStartPos.Y.Scale, resizeStartPos.Y.Offset + (resizeTargetH - resizeStartH) * 0.5)
+			resizeStartPos.X.Scale, resizeStartPos.X.Offset + (resizeTargetW - resizeStartW) * 0.5 * s,
+			resizeStartPos.Y.Scale, resizeStartPos.Y.Offset + (resizeTargetH - resizeStartH) * 0.5 * s)
 	end
 
 	local function stopResize()
