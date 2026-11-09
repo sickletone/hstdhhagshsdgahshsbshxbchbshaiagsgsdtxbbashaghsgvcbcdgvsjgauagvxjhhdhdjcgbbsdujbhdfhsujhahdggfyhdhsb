@@ -23,7 +23,7 @@ assert(SaveManager and InterfaceManager and ThemeManager,
 
 local Window = Library:Window({
 	Title = "orasense",
-	Suffix = ".app",
+	Suffix = ".win",
 	Width = 700,
 	Height = 620,
 	MinWidth = 520,
@@ -49,7 +49,7 @@ local Window = Library:Window({
 	--     FileName        = "OrasenseKey",
 	--     SaveKey         = true,
 	--     GrabKeyFromSite = false,
-	--     Key             = { "FACILITY-2024", "FACILITY-BETA" },
+	--     Key             = { "ORASENSE-2024", "ORASENSE-BETA" },
 	-- },
 })
 
@@ -296,8 +296,6 @@ midBox:Dropdown({ Text = "searchable", Flag = "demo_search", Options = { "alpha"
 local rightBox = demoTab:RightGroupbox("right box")
 rightBox:Dropdown({ Text = "multi select", Flag = "demo_multi", Options = { "a", "b", "c", "d" }, Multi = true, Default = { "a" } })
 
-notes:Label("a full width box can hold as many paragraphs as you need.")
-
 local render = Display:Section("render", 1)
 render:Slider({ Text = "quality", Flag = "render_quality", Min = 1, Max = 10, Default = 8 })
 render:Slider({ Text = "field of view", Flag = "render_fov", Min = 40, Max = 120, Suffix = "°", Default = 70 })
@@ -379,6 +377,12 @@ reference:Split({
 })
 
 
+Window:IconAction("info", function()
+	Library:Notify("footer", "icon action from the footer.", 3)
+end, 1)
+Window:IconAction("check", function()
+	Library:Success("footer", "second icon action.", 3)
+end, 2)
 Window:Action("Connect", function()
 	Library:Notify({ Title = "connected", Text = "session started.", Duration = 3 })
 end)
@@ -515,3 +519,110 @@ local demoToggles = Settings:Section("windows", 1)
 demoToggles:Toggle({ Text = "sub window", Flag = "demo_subwindow", Callback = function(state) sub:SetVisible(state) end })
 demoToggles:Toggle({ Text = "mini window", Flag = "demo_miniwindow", Callback = function(state) mini:SetVisible(state) end })
 demoToggles:Toggle({ Text = "liquid glass", Flag = "demo_liquid", Callback = function(state) Library:SetLiquidGlass(state) end })
+
+
+-- Every component, grouped in sub tabs.
+local Components = Window:Tab("components", "layers")
+local cInputs = Components:SubTab("inputs")
+local cGroups = Components:SubTab("groups")
+local cWindows = Components:SubTab("windows")
+
+local inputsLeft = cInputs:Section("controls", 1)
+inputsLeft:Label("every control, with its default look.")
+inputsLeft:Toggle({ Text = "parent toggle", Flag = "cmp_parent", Default = true })
+	:Dependency(function(dep)
+		dep:Toggle({ Text = "child toggle", Flag = "cmp_child", Default = true })
+		dep:Slider({ Text = "child slider", Flag = "cmp_child_slider", Min = 0, Max = 100, Default = 25 })
+	end)
+inputsLeft:SubToggle({ Text = "sub toggle", Flag = "cmp_sub", Hint = "indented child toggle" })
+inputsLeft:DependencyToggle({ Text = "dependency toggle", Flag = "cmp_dep", Default = false }, function(dep)
+	dep:Input({ Text = "dep input", Flag = "cmp_dep_input", Placeholder = "only visible when on" })
+end)
+inputsLeft:MultiDropdown({
+	Text = "multi dropdown",
+	Flag = "cmp_multi",
+	Options = { "alpha", "beta", "gamma", "delta" },
+	Default = { "alpha", "beta" },
+})
+inputsLeft:Dropdown({
+	Text = "searchable dropdown",
+	Flag = "cmp_search_dropdown",
+	Options = { "one", "two", "three", "four", "five", "six", "seven", "eight" },
+	Default = "one",
+	Search = true,
+})
+
+local inputsRight = cInputs:Section("more inputs", 2)
+inputsRight:Slider({ Text = "slider", Flag = "cmp_slider", Min = 0, Max = 100, Suffix = "%", Default = 40 })
+inputsRight:Keybind({ Text = "hold keybind", Flag = "cmp_hold", Default = "Q", Mode = "hold" })
+inputsRight:Keybind({ Text = "toggle keybind", Flag = "cmp_toggle_key", Default = "T", Mode = "toggle" })
+inputsRight:Input({ Text = "input", Flag = "cmp_input", Placeholder = "type something" })
+inputsRight:Search({ Label = "search", Placeholder = "filter...", Live = true })
+inputsRight:ColorPicker({ Text = "color picker", Flag = "cmp_color", Default = Color3.fromRGB(120, 180, 255) })
+inputsRight:Divider()
+inputsRight:Button({ Text = "button", Callback = function() Library:Notify("button", "clicked.", 2) end })
+inputsRight:ButtonRow({
+	{ Text = "left", Callback = function() Library:Notify("row", "left pressed.", 2) end },
+	{ Text = "right", Callback = function() Library:Notify("row", "right pressed.", 2) end },
+})
+inputsRight:Paragraph({
+	Title = "paragraph",
+	Content = "labels, paragraphs, sliders, keybinds, inputs, search and dividers are all element types.",
+	Style = "success",
+	Icon = "check",
+})
+
+local groupsLeft = cGroups:LeftGroupbox("left box")
+groupsLeft:Toggle({ Text = "left toggle", Flag = "cmp_left_toggle", Default = true })
+groupsLeft:Slider({ Text = "left slider", Flag = "cmp_left_slider", Min = 0, Max = 10, Default = 3 })
+
+local groupsMiddle = cGroups:MiddleGroupbox("middle box")
+groupsMiddle:Label("middle column label.", { Style = "dim" })
+groupsMiddle:Dropdown({ Text = "middle dropdown", Flag = "cmp_mid_dd", Options = { "a", "b", "c" }, Default = "a" })
+
+local groupsRight = cGroups:RightGroupbox("right box")
+groupsRight:Button({ Text = "right button", Callback = function() Library:Success("right", "works.", 2) end })
+local cmpTable = groupsRight:Table({ Columns = { "name", "value" }, MaxRows = 3, EmptyText = "no rows" })
+cmpTable:SetRows({ { "one", "1" }, { "two", "2" } })
+
+local windowsDialogs = cWindows:Section("dialogs", 1)
+windowsDialogs:ButtonRow({
+	{ Text = "modal", Callback = function()
+		local modal = Window:Modal({ Title = "modal", Width = 320, Height = 220 })
+		modal.Content:Label("a modal with its own components.", { Style = "dim" })
+		modal.Content:Toggle({ Text = "modal toggle", Flag = "cmp_modal_toggle", Default = true })
+		modal.Content:Slider({ Text = "modal slider", Flag = "cmp_modal_slider", Min = 0, Max = 100, Default = 30 })
+		modal.Content:Button({ Text = "close", Callback = function() modal:SetOpen(false) end })
+		modal:SetOpen(true)
+	end },
+	{ Text = "confirm", Callback = function()
+		Window:Confirm({
+			Title = "confirm",
+			Text = "this is the built in confirm dialog.",
+			Confirm = "accept",
+			Cancel = "dismiss",
+			OnConfirm = function() Library:Success("accepted", "you pressed accept.", 3) end,
+			OnCancel = function() Library:Notify("dismissed", "you pressed dismiss.", 3) end,
+		})
+	end },
+})
+
+local windowsOverlays = cWindows:Section("overlays", 2)
+windowsOverlays:Button({ Text = "sub window", Callback = function() sub:SetVisible(true) end })
+windowsOverlays:Button({ Text = "mini window", Callback = function() mini:SetVisible(true) end })
+windowsOverlays:Button({ Text = "server browser", Callback = function() servers:SetVisible(true) end })
+windowsOverlays:Button({ Text = "player panel", Callback = function()
+	hudVisible = true
+	hud:SetVisible(true)
+end })
+windowsOverlays:Toggle({ Text = "liquid glass", Flag = "cmp_liquid", Callback = function(state)
+	Library:SetLiquidGlass(state)
+end })
+windowsOverlays:Slider({
+	Text = "glass strength",
+	Flag = "cmp_glass_strength",
+	Min = 0,
+	Max = 150,
+	Default = 100,
+	Callback = function(v) Library:SetGlassStrength(v / 100) end,
+})

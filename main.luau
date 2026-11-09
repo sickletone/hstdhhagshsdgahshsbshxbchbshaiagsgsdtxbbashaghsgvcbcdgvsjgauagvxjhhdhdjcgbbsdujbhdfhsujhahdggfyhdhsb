@@ -2830,7 +2830,7 @@ function Library:Window(opts)
 	titleName.Size = UDim2.new(0, 0, 1, 0)
 	titleName.AutomaticSize = Enum.AutomaticSize.X
 
-	local titleSuffix = Label(title, opts.Suffix or ".app", Theme.Accent, 14, Theme.FontMedium)
+	local titleSuffix = Label(title, opts.Suffix or ".win", Theme.Accent, 14, Theme.FontMedium)
 	titleSuffix.Size = UDim2.new(0, 0, 1, 0)
 	titleSuffix.AutomaticSize = Enum.AutomaticSize.X
 	titleSuffix.LayoutOrder = 2
@@ -3013,30 +3013,43 @@ function Library:Window(opts)
 	Track(gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit))
 	fit()
 
-	local dragging, dragStart, startPos, moveConn, endConn
+	local dragging, dragStart, startPos, moveConn, endConn, dragTouch
+
+	local function stopWindowDrag()
+		dragging = false
+		if moveConn then moveConn:Disconnect() moveConn = nil end
+		if endConn then endConn:Disconnect() endConn = nil end
+		dragTouch = nil
+	end
+
 	Track(topBar.InputBegan:Connect(function(input)
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1
 			and input.UserInputType ~= Enum.UserInputType.Touch then return end
+		stopWindowDrag()
 		dragging = true
 		dragStart = input.Position
 		startPos = main.Position
+		dragTouch = input.UserInputType == Enum.UserInputType.Touch and input or nil
 		window:CloseFloating()
 		moveConn = UserInputService.InputChanged:Connect(function(move)
 			if not dragging then return end
-			if move.UserInputType == Enum.UserInputType.MouseMovement
-				or move.UserInputType == Enum.UserInputType.Touch then
-				local delta = move.Position - dragStart
-				main.Position = UDim2.new(
-					startPos.X.Scale, startPos.X.Offset + delta.X,
-					startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+			if dragTouch then
+				if move ~= dragTouch then return end
+			elseif move.UserInputType ~= Enum.UserInputType.MouseMovement then
+				return
 			end
+			local delta = move.Position - dragStart
+			main.Position = UDim2.new(
+				startPos.X.Scale, startPos.X.Offset + delta.X,
+				startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 		end)
 		endConn = UserInputService.InputEnded:Connect(function(ended)
-			if ended.UserInputType == input.UserInputType then
-				dragging = false
-				if moveConn then moveConn:Disconnect() moveConn = nil end
-				if endConn then endConn:Disconnect() endConn = nil end
+			if dragTouch then
+				if ended ~= dragTouch then return end
+			elseif ended.UserInputType ~= input.UserInputType then
+				return
 			end
+			stopWindowDrag()
 		end)
 	end))
 
@@ -3074,7 +3087,15 @@ function Library:Window(opts)
 		for _, bar in ipairs(gripBars) do Tween(bar, { BackgroundColor3 = Theme.Border }, EASE_FAST) end
 	end))
 
-	local resizeMove, resizeEnd
+	local resizeMove, resizeEnd, resizeTouch
+
+	local function stopResize()
+		window.Resizing = false
+		if resizeMove then resizeMove:Disconnect() resizeMove = nil end
+		if resizeEnd then resizeEnd:Disconnect() resizeEnd = nil end
+		resizeTouch = nil
+	end
+
 	Track(grip.InputBegan:Connect(function(input)
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1
 			and input.UserInputType ~= Enum.UserInputType.Touch then return end
@@ -3083,10 +3104,14 @@ function Library:Window(opts)
 		local origin = input.Position
 		local startW, startH = window.Width, window.Height
 		local startPos = main.Position
+		resizeTouch = input.UserInputType == Enum.UserInputType.Touch and input or nil
 		resizeMove = UserInputService.InputChanged:Connect(function(move)
 			if not window.Resizing then return end
-			if move.UserInputType ~= Enum.UserInputType.MouseMovement
-				and move.UserInputType ~= Enum.UserInputType.Touch then return end
+			if resizeTouch then
+				if move ~= resizeTouch then return end
+			elseif move.UserInputType ~= Enum.UserInputType.MouseMovement then
+				return
+			end
 			local s = math.max(scale.Scale, 0.05)
 			local vp = gui.AbsoluteSize
 			local delta = move.Position - origin
@@ -3098,11 +3123,13 @@ function Library:Window(opts)
 				startPos.Y.Scale, startPos.Y.Offset + (h - startH) * 0.5)
 		end)
 		resizeEnd = UserInputService.InputEnded:Connect(function(ended)
-			if ended.UserInputType ~= input.UserInputType then return end
-			window.Resizing = false
+			if resizeTouch then
+				if ended ~= resizeTouch then return end
+			elseif ended.UserInputType ~= input.UserInputType then
+				return
+			end
+			stopResize()
 			for _, bar in ipairs(gripBars) do Tween(bar, { BackgroundColor3 = Theme.Border }, EASE_FAST) end
-			if resizeMove then resizeMove:Disconnect() resizeMove = nil end
-			if resizeEnd then resizeEnd:Disconnect() resizeEnd = nil end
 		end)
 	end))
 
@@ -3486,26 +3513,40 @@ function Library:Panel(opts)
 	end
 
 	if opts.Draggable ~= false then
-		local origin, startPos, moveConn, endConn
-		Track(frame.InputBegan:Connect(function(input)
-			if input.UserInputType ~= Enum.UserInputType.MouseButton1
-				and input.UserInputType ~= Enum.UserInputType.Touch then return end
-			origin = input.Position
-			startPos = frame.Position
-			moveConn = UserInputService.InputChanged:Connect(function(move)
-				if move.UserInputType ~= Enum.UserInputType.MouseMovement
-					and move.UserInputType ~= Enum.UserInputType.Touch then return end
-				local delta = move.Position - origin
-				frame.Position = UDim2.new(
-					startPos.X.Scale, startPos.X.Offset + delta.X,
-					startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-			end)
-			endConn = UserInputService.InputEnded:Connect(function(ended)
-				if ended.UserInputType ~= input.UserInputType then return end
+			local origin, startPos, moveConn, endConn, dragTouch
+
+			local function stopDrag()
 				if moveConn then moveConn:Disconnect() moveConn = nil end
 				if endConn then endConn:Disconnect() endConn = nil end
-			end)
-		end))
+				dragTouch = nil
+			end
+
+			Track(bar.InputBegan:Connect(function(input)
+				if input.UserInputType ~= Enum.UserInputType.MouseButton1
+					and input.UserInputType ~= Enum.UserInputType.Touch then return end
+				stopDrag()
+				origin = input.Position
+				startPos = root.Position
+				dragTouch = input.UserInputType == Enum.UserInputType.Touch and input or nil
+				self:CloseFloating()
+				moveConn = UserInputService.InputChanged:Connect(function(move)
+					if dragTouch then
+						if move ~= dragTouch then return end
+					elseif move.UserInputType ~= Enum.UserInputType.MouseMovement then
+						return
+					end
+					local delta = move.Position - origin
+					root.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+				end)
+				endConn = UserInputService.InputEnded:Connect(function(ended)
+					if dragTouch then
+						if ended ~= dragTouch then return end
+					elseif ended.UserInputType ~= input.UserInputType then
+						return
+					end
+					stopDrag()
+				end)
+			end))
 	end
 
 	if opts.Visible == false then api:SetVisible(false) end
@@ -3796,27 +3837,47 @@ function Library:CreateMobileButton(opts)
 		Corner(bar, 1)
 	end
 
-	local moved, origin, startPos, moveConn, endConn
+	local moved, origin, startPos, moveConn, endConn, touchObject
+
+	local function stopDrag()
+		if moveConn then moveConn:Disconnect() moveConn = nil end
+		if endConn then endConn:Disconnect() endConn = nil end
+		touchObject = nil
+	end
+
 	Track(button.InputBegan:Connect(function(input)
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1
 			and input.UserInputType ~= Enum.UserInputType.Touch then return end
+		stopDrag()
 		moved = false
 		origin = input.Position
 		startPos = button.Position
+		-- Remember the exact finger that pressed: other touches must not drag it.
+		touchObject = input.UserInputType == Enum.UserInputType.Touch and input or nil
 		Tween(button, { BackgroundColor3 = Theme.FieldHover }, EASE_FAST)
 		moveConn = UserInputService.InputChanged:Connect(function(move)
-			if move.UserInputType ~= Enum.UserInputType.MouseMovement
-				and move.UserInputType ~= Enum.UserInputType.Touch then return end
+			if touchObject then
+				if move ~= touchObject then return end
+			elseif move.UserInputType ~= Enum.UserInputType.MouseMovement then
+				return
+			end
 			local delta = move.Position - origin
-			if math.abs(delta.X) > 6 or math.abs(delta.Y) > 6 then moved = true end
+			if not moved then
+				-- Deadzone: touch jitter on a tap must never move the button.
+				if math.abs(delta.X) <= 6 and math.abs(delta.Y) <= 6 then return end
+				moved = true
+			end
 			button.Position = UDim2.new(
 				startPos.X.Scale, startPos.X.Offset + delta.X,
 				startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 		end)
 		endConn = UserInputService.InputEnded:Connect(function(ended)
-			if ended.UserInputType ~= input.UserInputType then return end
-			if moveConn then moveConn:Disconnect() moveConn = nil end
-			if endConn then endConn:Disconnect() endConn = nil end
+			if touchObject then
+				if ended ~= touchObject then return end
+			elseif ended.UserInputType ~= input.UserInputType then
+				return
+			end
+			stopDrag()
 			Tween(button, { BackgroundColor3 = Theme.Section }, EASE_FAST)
 			if not moved then Library:ToggleUI() end
 		end)
@@ -4384,6 +4445,175 @@ do
 	end
 end
 
+-- Sub tabs: a nested tab strip inside a tab.
+do
+	local SUBBAR_HEIGHT = 32
+
+	local function MigrateContent(page, target)
+		for _, child in ipairs(page:GetChildren()) do
+			if child:IsA("GuiObject") then
+				child.Parent = target
+			end
+		end
+	end
+
+	local function CreatePill(tab, sub, title)
+		local button = New("TextButton", {
+			Size = UDim2.new(0, 0, 0, 24),
+			AutomaticSize = Enum.AutomaticSize.X,
+			BackgroundColor3 = Theme.Field,
+			BackgroundTransparency = 1,
+			AutoButtonColor = false,
+			Text = "  " .. title .. "  ",
+			TextColor3 = Theme.TextDim,
+			TextSize = Theme.TextSize,
+			Font = Theme.FontMedium,
+			LayoutOrder = #tab.SubTabs + 1,
+			Parent = tab.SubBar,
+		})
+		Corner(button, 6)
+		sub.Pill = button
+		function sub:SetActive(active, animate)
+			local info = animate == false and TweenInfo.new(0) or EASE_FAST
+			Tween(button, { BackgroundTransparency = active and 0.6 or 1 }, info)
+			Tween(button, { TextColor3 = active and Theme.Accent or Theme.TextDim }, info)
+		end
+		Track(button.Activated:Connect(function() tab:SetSubTab(sub) end))
+		return button
+	end
+
+	function Tab:SubTab(name, icon)
+		if self.IsSubTab then return nil end
+		local opts = type(name) == "table" and name or { Title = name, Icon = icon }
+		local title = tostring(opts.Title or opts.Text or "tab")
+		local window = self.Window
+
+		if not (self.SubBar and self.SubBar.Parent) then
+			local bar = New("Frame", {
+				Size = UDim2.new(1, 0, 0, 24),
+				BackgroundTransparency = 1,
+				Visible = window.ActiveTab == self,
+				Parent = window.Body,
+			})
+			local barList = List(bar, 6, Enum.FillDirection.Horizontal)
+			barList.VerticalAlignment = Enum.VerticalAlignment.Center
+			self.SubBar = bar
+			self.SubTabs = {}
+			self.Page.Position = UDim2.fromOffset(0, SUBBAR_HEIGHT)
+			self.Page.Size = UDim2.new(1, 0, 1, -SUBBAR_HEIGHT)
+		end
+
+		local page = New("ScrollingFrame", {
+			Size = UDim2.new(1, 0, 1, -SUBBAR_HEIGHT),
+			Position = UDim2.fromOffset(0, SUBBAR_HEIGHT),
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			CanvasSize = UDim2.new(),
+			AutomaticCanvasSize = Enum.AutomaticSize.Y,
+			ScrollBarThickness = 3,
+			ScrollBarImageColor3 = Theme.AccentDim,
+			VerticalScrollBarInset = Enum.ScrollBarInset.None,
+			Visible = false,
+			Parent = window.Body,
+		})
+		local list = List(page, 14)
+		list.SortOrder = Enum.SortOrder.LayoutOrder
+		Pad(page, 2, 8, 2, 8)
+
+		local sub = setmetatable({
+			Window = window,
+			Page = page,
+			Columns = {},
+			Name = title,
+			Order = 0,
+			ParentTab = self,
+			IsSubTab = true,
+		}, Tab)
+
+		if #self.SubTabs == 0 then
+			-- The first sub tab absorbs whatever already lived in the tab page.
+			MigrateContent(self.Page, page)
+			self.Page.Visible = false
+		end
+
+		CreatePill(self, sub, title)
+		table.insert(self.SubTabs, sub)
+		sub:SetActive(false, false)
+
+		Track(page:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+			window:CloseFloating()
+		end))
+
+		if window.ActiveTab == self then
+			self:SetSubTab(self.ActiveSub or sub, false)
+		end
+		return sub
+	end
+
+	function Tab:SetSubTab(sub, animate)
+		if not self.SubTabs then return nil end
+		sub = sub or self.ActiveSub or self.SubTabs[1]
+		if not sub then return nil end
+		for _, entry in ipairs(self.SubTabs) do
+			entry.Page.Visible = (entry == sub)
+			if entry.SetActive then entry:SetActive(entry == sub, animate) end
+		end
+		self.ActiveSub = sub
+		return sub
+	end
+
+	Tab.Subtab = Tab.SubTab
+	Tab.SubPage = Tab.SubTab
+
+	do
+		local OrigSetTab = Window.SetTab
+		function Window:SetTab(tab)
+			local wanted = nil
+			if type(tab) == "table" and tab.IsSubTab and tab.ParentTab then
+				wanted = tab
+				tab = tab.ParentTab
+			end
+			local previous = self.ActiveTab
+			OrigSetTab(self, tab)
+			if previous and previous ~= tab and previous.SubTabs then
+				if previous.SubBar then previous.SubBar.Visible = false end
+				for _, entry in ipairs(previous.SubTabs) do entry.Page.Visible = false end
+			end
+			local active = self.ActiveTab
+			if active and active.SubTabs then
+				active.Page.Visible = false
+				if active.SubBar then active.SubBar.Visible = true end
+				active:SetSubTab(wanted or active.ActiveSub or active.SubTabs[1], false)
+			end
+		end
+	end
+
+	do
+		local OrigSection = Tab.Section
+		local OrigFull = Tab.Full
+		local OrigGroupbox = Tab.Groupbox
+
+		local function Tag(section, tab)
+			if section then section._TabRef = tab end
+			return section
+		end
+
+		function Tab:Section(title, columnIndex)
+			if self.ActiveSub then return self.ActiveSub:Section(title, columnIndex) end
+			return Tag(OrigSection(self, title, columnIndex), self)
+		end
+
+		function Tab:Full(title)
+			if self.ActiveSub then return self.ActiveSub:Full(title) end
+			return Tag(OrigFull(self, title), self)
+		end
+
+		function Tab:Groupbox(title, side)
+			if self.ActiveSub then return self.ActiveSub:Groupbox(title, side) end
+			return Tag(OrigGroupbox(self, title, side), self)
+		end
+	end
+end
 -- Table element.
 do
 	function Elements:Table(opts)
@@ -4740,41 +4970,53 @@ do
 end
 
 -- Menu particles: snow / blizzard / stars / flowers / custom.
+-- They render on a dedicated full-screen overlay above the window, so they
+-- cover the whole screen (menu included) and hide together with the UI.
 do
-	local function ParticleLayer(window)
-		if window.ParticleLayer and window.ParticleLayer.Parent then return window.ParticleLayer end
-		local layer = New("Frame", {
+	local function ParticleGui(window)
+		if window.ParticleGui and window.ParticleGui.Parent then return window.ParticleGui end
+		local gui = New("ScreenGui", {
 			Name = "OrasenseParticles",
+			ResetOnSpawn = false,
+			IgnoreGuiInset = true,
+			ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+			AutoLocalize = false,
+			DisplayOrder = ((window.Gui and window.Gui.DisplayOrder) or 999) + 1,
+			Enabled = false,
+		})
+		ParentGui(gui)
+		window.ParticleGui = gui
+		window.ParticleLayer = New("Frame", {
+			Name = "Layer",
 			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
-			ClipsDescendants = true,
 			Active = false,
-			ZIndex = 90,
-			Parent = window.Main,
+			Parent = gui,
 		})
-		Corner(layer, 10)
-		window.ParticleLayer = layer
-		return layer
+		return gui
 	end
 
 	local function SpawnDot(layer, mode, custom)
 		if mode == "custom" and custom then
-			local img = New("ImageLabel", {
-				Size = UDim2.fromOffset(14, 14),
+			return New("ImageLabel", {
+				Size = UDim2.fromOffset(18, 18),
 				BackgroundTransparency = 1,
 				Image = custom,
 				ImageTransparency = 0.1,
-				ZIndex = 90,
 				Parent = layer,
 			})
-			return img
 		end
 		local size = 3
 		local color = Color3.fromRGB(255, 255, 255)
 		local transparency = 0.15
-		if mode == "snow" then size = math.random(2, 5)
-		elseif mode == "blizzard" then size = math.random(2, 4); transparency = 0.05
-		elseif mode == "stars" then size = math.random(1, 3); transparency = math.random() * 0.5
+		if mode == "snow" then
+			size = math.random(2, 5)
+		elseif mode == "blizzard" then
+			size = math.random(2, 4)
+			transparency = 0.05
+		elseif mode == "stars" then
+			size = math.random(1, 3)
+			transparency = math.random() * 0.5
 		elseif mode == "flowers" then
 			size = math.random(5, 8)
 			color = (math.random(1, 2) == 1) and Color3.fromRGB(255, 182, 213) or Color3.fromRGB(255, 255, 255)
@@ -4785,12 +5027,25 @@ do
 			BackgroundColor3 = color,
 			BackgroundTransparency = transparency,
 			BorderSizePixel = 0,
-			ZIndex = 90,
 			Parent = layer,
 		})
 		Corner(dot, mode == "flowers" and 2 or 5)
 		if mode == "flowers" then dot.Rotation = math.random(0, 90) end
 		return dot
+	end
+
+	local function ParticleCount(mode)
+		if mode == "blizzard" then return 170 end
+		if mode == "stars" then return 110 end
+		if mode == "flowers" then return 55 end
+		if mode == "custom" then return 70 end
+		return 90
+	end
+
+	function Window:RefreshParticles()
+		if not self.ParticleGui then return end
+		local mode = string.lower(tostring(self.ParticleMode or "none"))
+		self.ParticleGui.Enabled = self.Visible ~= false and mode ~= "none" and mode ~= ""
 	end
 
 	function Window:SetParticles(mode, customAsset)
@@ -4799,58 +5054,75 @@ do
 		self.ParticleMode = mode
 		self.ParticleToken = (self.ParticleToken or 0) + 1
 		local token = self.ParticleToken
-		local layer = ParticleLayer(self)
-		for _, c in ipairs(layer:GetChildren()) do c:Destroy() end
-		if mode == "none" or mode == "" then return mode end
+		local gui = ParticleGui(self)
+		local layer = self.ParticleLayer
+		for _, child in ipairs(layer:GetChildren()) do child:Destroy() end
+		if mode == "none" or mode == "" then
+			gui.Enabled = false
+			return mode
+		end
 		local custom = OrasenseResolveAsset(customAsset or Library.ParticleCustom)
-		local count = 55
-		if mode == "blizzard" then count = 130
-		elseif mode == "stars" then count = 80
-		elseif mode == "flowers" then count = 38
-		elseif mode == "custom" then count = 50 end
 		if mode == "custom" and not custom then
 			Library:Warn("particles", "custom particle needs an asset id.", 4)
+			self.ParticleMode = "none"
+			gui.Enabled = false
 			return "none"
 		end
+		self:RefreshParticles()
+		local count = ParticleCount(mode)
 		task.spawn(function()
 			local dots = {}
+			local area = layer.AbsoluteSize
+			local w = math.max(area.X, 1)
+			local h = math.max(area.Y, 1)
 			for _ = 1, count do
-				if token ~= self.ParticleToken then return end
-				local d = SpawnDot(layer, mode, custom)
-				local w = math.max(layer.AbsoluteSize.X, 50)
-				local h = math.max(layer.AbsoluteSize.Y, 50)
-				d.Position = UDim2.fromOffset(math.random(0, w), math.random(0, h))
-				table.insert(dots, d)
-				task.wait(0.015)
+				if token ~= self.ParticleToken or not layer.Parent then return end
+				local dot = SpawnDot(layer, mode, custom)
+				dot.Position = UDim2.fromOffset(math.random(0, w), math.random(0, h))
+				table.insert(dots, dot)
+				task.wait(0.01)
 			end
 			while token == self.ParticleToken and self.ParticleMode == mode do
-				local w = math.max(layer.AbsoluteSize.X, 50)
-				local h = math.max(layer.AbsoluteSize.Y, 50)
 				local dt = task.wait(0.033)
-				for _, d in ipairs(dots) do
-					if not d.Parent then continue end
-					local speed = 28
-					local sway = 0
-					if mode == "snow" then speed = math.random(18, 42); sway = 12
-					elseif mode == "blizzard" then speed = math.random(140, 240); sway = 60
-					elseif mode == "stars" then speed = math.random(2, 7)
-					elseif mode == "flowers" then speed = math.random(16, 34); sway = 22
-					elseif mode == "custom" then speed = math.random(24, 60); sway = 16 end
-					local x = d.Position.X.Offset + (sway * dt) + (mode == "blizzard" and speed * 0.45 * dt or 0)
-					local y = d.Position.Y.Offset + speed * dt
-					if mode == "stars" then
-						pcall(function()
-							d.BackgroundTransparency = 0.15 + 0.5 * math.abs(math.sin(os.clock() * 2 + x * 0.05))
-						end)
+				area = layer.AbsoluteSize
+				w = math.max(area.X, 1)
+				h = math.max(area.Y, 1)
+				if gui.Enabled then
+					for _, dot in ipairs(dots) do
+						if not dot.Parent then continue end
+						local speed = 46
+						local sway = 0
+						if mode == "snow" then
+							speed = math.random(26, 60)
+							sway = 14
+						elseif mode == "blizzard" then
+							speed = math.random(210, 340)
+							sway = 90
+						elseif mode == "stars" then
+							speed = math.random(3, 9)
+						elseif mode == "flowers" then
+							speed = math.random(24, 48)
+							sway = 30
+						elseif mode == "custom" then
+							speed = math.random(34, 78)
+							sway = 22
+						end
+						local x = dot.Position.X.Offset + (sway * dt) + (mode == "blizzard" and speed * 0.5 * dt or 0)
+						local y = dot.Position.Y.Offset + speed * dt
+						if mode == "stars" then
+							pcall(function()
+								dot.BackgroundTransparency = 0.15 + 0.5 * math.abs(math.sin(os.clock() * 2 + x * 0.05))
+							end)
+						end
+						if mode == "flowers" then
+							pcall(function() dot.Rotation = (dot.Rotation + 60 * dt) % 360 end)
+						end
+						if y > h + 14 or x > w + 14 then
+							x = math.random(0, w)
+							y = -14
+						end
+						dot.Position = UDim2.fromOffset(x, y)
 					end
-					if mode == "flowers" then
-						pcall(function() d.Rotation = (d.Rotation + 60 * dt) % 360 end)
-					end
-					if y > h + 12 or x > w + 12 then
-						x = math.random(0, w)
-						y = -12
-					end
-					d.Position = UDim2.fromOffset(x, y)
 				end
 			end
 		end)
@@ -4870,8 +5142,15 @@ do
 	function Library:StopParticles()
 		return self:SetParticles("none")
 	end
-end
 
+	do
+		local OrigSetVisible = Window.SetVisible
+		function Window:SetVisible(state)
+			OrigSetVisible(self, state)
+			if self.RefreshParticles then self:RefreshParticles() end
+		end
+	end
+end
 -- Global menu search (search features across tabs).
 do
 	function Window:EnableMenuSearch(opts)
@@ -5211,6 +5490,9 @@ do
 
 	local OrigDestroy = Library.Destroy
 	function Library:Destroy()
+		for _, w in ipairs(self.Windows or {}) do
+			if w.ParticleGui then pcall(function() w.ParticleGui:Destroy() end) end
+		end
 		pcall(function()
 			local blur = Lighting:FindFirstChild("OrasenseLiquidBlur")
 			if blur then blur:Destroy() end

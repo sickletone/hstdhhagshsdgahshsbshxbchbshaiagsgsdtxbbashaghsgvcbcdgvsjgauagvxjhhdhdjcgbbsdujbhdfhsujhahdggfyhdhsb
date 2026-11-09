@@ -40,9 +40,14 @@ configs, theme, server browser, player panel).
   specular wash, travelling sheen), not plain glassmorphism:
   `Library:SetLiquidGlass(true)`, plus `SetGlass`,
   `SetGlassBlur`, `SetGlassStrength`. Preset `liquid` in the theme manager.
+- **Sub tabs** — `tab:SubTab("name")` adds a nested tab strip inside a tab.
+  Each sub tab is a full tab (`:Section`, `:Groupbox`, `:Full`, …), and
+  anything added to the parent tab afterwards lands in the active sub tab.
 - **Menu particles** — `Library:SetParticles("snow" | "blizzard" |
-  "stars" | "flowers" | "custom", assetId)`; custom mode takes an
-  `rbxassetid://` image or asset id. Built into the settings/effects section.
+  "stars" | "flowers" | "custom", assetId)` draws on a full-screen overlay
+  above the menu, so the effect covers the whole screen and hides whenever
+  the UI closes. Custom mode takes an `rbxassetid://` image or asset id.
+  Built into the settings/effects section.
 - **Custom background** — `Library:SetBackground(asset)` /
   `Window:SetBackground(asset, transparency)` with fade control.
 - **Sub / mini windows** — `Window:SubWindow(opts)` (a window inside the
