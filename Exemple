@@ -1,0 +1,480 @@
+local BASE = "https://raw.githubusercontent.com/FacilityHUB/UI-Facility/refs/heads/main/"
+
+local source = game:HttpGet(BASE .. "main.luau")
+assert(#source > 1000 and not string.find(source, "404", 1, true),
+	"main.luau introuvable a cette URL, verifie le depot et la branche")
+
+local chunk, err = loadstring(source)
+assert(chunk, "main.luau ne compile pas : " .. tostring(err))
+
+local Library = chunk()
+assert(type(Library) == "table", "main.luau n'a rien retourne, le fichier est incomplet ou tronque")
+
+Library.BaseUrl = BASE
+
+local Players = game:GetService("Players")
+
+local SaveManager = Library.SaveManager
+local InterfaceManager = Library.InterfaceManager
+local ThemeManager = Library.ThemeManager
+
+assert(SaveManager and InterfaceManager and ThemeManager,
+	"addons introuvables, verifie Library.BaseUrl et le dossier addons/")
+
+local Window = Library:Window({
+	Title = "facility",
+	Suffix = ".app",
+	Width = 700,
+	Height = 620,
+	MinWidth = 520,
+	MinHeight = 340,
+	MobileButton = true,
+
+	TabStyle = "side",   -- "top" (defaut) ou "side" ; CategoryMod = 1 / 2 marche aussi
+	TabWidth = 140,      -- largeur de la colonne
+
+	-- Discord : rejoint le serveur silencieusement via l'API RPC locale
+	-- Discord = {
+	--     Invite        = "xxxxxxx",   -- code sans discord.gg/
+	--     RememberJoins = true,
+	-- },
+
+	-- Key system : bloque jusqu'a validation d'une cle
+	-- KeySystem = true,
+	-- KeySettings = {
+	--     Title           = "Facility",
+	--     Subtitle        = "Enter your key to continue",
+	--     Note            = "Get your key on our Discord",
+	--     FileName        = "FacilityKey",
+	--     SaveKey         = true,
+	--     GrabKeyFromSite = false,
+	--     Key             = { "FACILITY-2024", "FACILITY-BETA" },
+	-- },
+})
+
+local General  = Window:Tab("general", "sliders")
+local Display  = Window:Tab("display", "monitor")
+local Objects  = Window:Tab("objects", "box")
+Window:TabDivider()
+
+local Network  = Window:Tab("network", "wifi")
+local Audio    = Window:Tab("audio", "volume-2")
+local Script   = Window:Tab("script", "code")
+local Console  = Window:Tab("console", "terminal")
+
+Window:TabDivider()
+
+local Settings = Window:Tab({ Title = "settings", Icon = "settings" })
+
+local global = General:Section("global", 1)
+
+global:Toggle({
+	Text = "enable",
+	Flag = "global_enable",
+	Callback = function(state) print("enable", state) end,
+})
+	:Keybind({ Default = "F", Flag = "global_enable_key" })
+	:Gear(function(panel)
+		panel:Slider({ Text = "delay", Flag = "global_delay", Min = 0, Max = 500, Suffix = " ms", Default = 60 })
+		panel:Dropdown({ Text = "profile", Flag = "global_profile", Options = { "default", "custom" }, Default = "default" })
+	end)
+
+global:Toggle({ Text = "auto refresh", Flag = "auto_refresh", Default = true })
+	:Gear(function(panel)
+		panel:Slider({ Text = "interval", Flag = "auto_refresh_interval", Min = 1, Max = 60, Suffix = " s", Default = 5 })
+	end)
+
+global:Toggle({ Text = "simulation", Flag = "simulation", Hint = "runs the local prediction pass" })
+global:Toggle({ Text = "cache check", Flag = "cache_check" })
+
+global:Toggle({ Text = "motion smoothing", Flag = "motion_smoothing", Default = true, Hint = "interpolates between frames" })
+	:Gear(function(panel)
+		panel:Slider({ Text = "strength", Flag = "motion_strength", Min = 0, Max = 1, Decimals = 2, Default = 0.35 })
+	end)
+
+global:Toggle({ Text = "no jitter", Flag = "no_jitter", Default = true })
+	:Gear(function(panel)
+		panel:Slider({ Text = "threshold", Flag = "jitter_threshold", Min = 0, Max = 20, Default = 4 })
+	end)
+
+global:Toggle({ Text = "no drift", Flag = "no_drift", Default = true })
+	:Gear(function(panel)
+		panel:Slider({ Text = "tolerance", Flag = "drift_tolerance", Min = 0, Max = 10, Decimals = 1, Default = 1.5 })
+	end)
+
+global:Toggle({ Text = "clamp to bounds", Flag = "clamp_bounds", Hint = "keeps values inside the viewport" })
+
+global:Toggle({ Text = "radius circle", Flag = "radius_circle" })
+	:ColorPicker({ Flag = "radius_outline", Default = Color3.fromRGB(232, 161, 168) })
+	:ColorPicker({ Flag = "radius_fill", Default = Color3.fromRGB(60, 60, 65), DefaultAlpha = 0.35 })
+	:Gear(function(panel)
+		panel:Slider({ Text = "thickness", Flag = "radius_thickness", Min = 1, Max = 6, Default = 2 })
+	end)
+
+global:Toggle({ Text = "object lock", Flag = "object_lock", Hint = "keeps the current selection" })
+global:Toggle({ Text = "fast scan", Flag = "fast_scan" })
+
+global:Toggle({
+	Text = "experimental hitbox",
+	Flag = "exp_hitbox",
+	Style = "warning",
+	Hint = "unstable, may break in some places",
+})
+
+global:Toggle({
+	Text = "force respawn",
+	Flag = "force_respawn",
+	Style = "danger",
+	Hint = "kills the character immediately",
+})
+
+global:Slider({
+	Text = "aggressive rate",
+	Flag = "aggressive_rate",
+	Style = "warning",
+	Min = 1,
+	Max = 60,
+	Suffix = " /s",
+	Default = 8,
+})
+
+local transform = General:Section("transform", 1)
+
+transform:Toggle({ Text = "enable", Flag = "transform_enable" })
+	:Keybind({ Default = "G", Flag = "transform_enable_key" })
+
+transform:Dropdown({ Text = "direction", Flag = "transform_direction", Options = { "forward", "backward", "mirrored" }, Default = "forward" })
+transform:Dropdown({ Text = "yaw", Flag = "transform_yaw", Options = { "none", "relative", "absolute" }, Default = "none" })
+transform:Dropdown({ Text = "pitch", Flag = "transform_pitch", Options = { "off", "clamped", "free" }, Default = "off" })
+
+transform:Divider()
+
+transform:Toggle({ Text = "offset angle", Flag = "transform_offset" })
+	:Gear(function(panel)
+		panel:Slider({ Text = "angle", Flag = "transform_angle", Min = -180, Max = 180, Suffix = "°", Default = 0 })
+	end)
+
+local settings = General:Section("settings", 2)
+
+settings:Dropdown({ Text = "visualization", Flag = "visualization", Options = { "visible", "always", "hidden" }, Default = "visible" })
+settings:Dropdown({ Text = "anchor", Flag = "anchor", Options = { "head", "torso", "origin", "bounds" }, Default = "head" })
+settings:Dropdown({ Text = "target selection", Flag = "target_selection", Options = { "crosshair", "distance", "priority" }, Default = "crosshair" })
+
+settings:Dropdown({
+	Text = "ignore conditions",
+	Flag = "ignore_conditions",
+	Options = { "friends", "hidden", "inactive" },
+	Multi = true,
+	Default = { "friends" },
+	Empty = "none",
+})
+
+settings:Slider({ Text = "radius", Flag = "radius", Min = 0, Max = 200, Default = 1 })
+settings:Slider({ Text = "max distance", Flag = "max_distance", Min = 0, Max = 5000, Default = 0, ZeroText = "0 - unlimited" })
+
+settings:ColorPicker({
+	Text = "highlight",
+	Flag = "highlight_color",
+	Default = Color3.fromRGB(232, 161, 168),
+	DefaultAlpha = 1,
+	Callback = function(color, alpha) print("highlight", color, alpha) end,
+})
+
+local groups = General:Section("group filter", 2)
+
+groups:Search({
+	Placeholder = "",
+	Label = "search",
+	Live = true,
+	Callback = function(text) print("query:", text) end,
+})
+groups:Label("no groups found.")
+
+
+local leftNotes = General:Section("notes", 1)
+leftNotes:Paragraph({
+	Title = "left column",
+	Content = "A paragraph inside a normal card. Text wraps on the column width.",
+	Icon = "info",
+})
+leftNotes:Label("plain label, no icon, no style.")
+
+local rightNotes = General:Section("warnings", 2)
+rightNotes:Paragraph({
+	Title = "right column",
+	Content = "Same thing on the other side.",
+	Style = "warning",
+	Icon = "alert-triangle",
+})
+rightNotes:Label("all systems nominal.", { Style = "success", Icon = "check" })
+
+local visual = General:Section("preview", 2)
+
+local avatar = visual:Image({ Height = 96, Corner = 8 })
+avatar:SetUser(Players.LocalPlayer.UserId)
+
+local board = General:Section("nearby", 2)
+
+local roster = board:Table({
+	Columns = { "player", "distance", "team" },
+	MaxRows = 6,
+	EmptyText = "nobody nearby",
+})
+
+local function rootOf(player)
+	local character = player.Character
+	return character and character:FindFirstChild("HumanoidRootPart")
+end
+
+task.spawn(function()
+	while task.wait(1) do
+		local rows = {}
+		local myRoot = rootOf(Players.LocalPlayer)
+
+		for _, other in ipairs(Players:GetPlayers()) do
+			if other ~= Players.LocalPlayer and #rows < 6 then
+				local otherRoot = rootOf(other)
+				local distance = "-"
+				if myRoot and otherRoot then
+					distance = string.format("%dm",
+						math.floor((myRoot.Position - otherRoot.Position).Magnitude))
+				end
+
+				table.insert(rows, {
+					other.DisplayName,
+					distance,
+					other.Team and other.Team.Name or "none",
+				})
+			end
+		end
+
+		roster:SetRows(rows)
+	end
+end)
+
+local notes = General:Section("reference", "full")
+
+notes:Paragraph({
+	Title = "full width",
+	Content = "This box spans both columns. Any element fits inside, stacked or side by side.",
+	Icon = "info",
+})
+
+notes:Split({
+	function(left)
+		left:Paragraph({
+			Title = "gears",
+			Content = "Options marked with a gear expose extra settings.",
+			Style = "warning",
+			Icon = "alert-triangle",
+		})
+	end,
+	function(right)
+		right:Paragraph({
+			Title = "configs",
+			Content = "Only flagged elements are written to a config file.",
+			Style = "success",
+			Icon = "check",
+		})
+	end,
+})
+
+notes:Label("a full width box can hold as many paragraphs as you need.")
+
+local render = Display:Section("render", 1)
+render:Slider({ Text = "quality", Flag = "render_quality", Min = 1, Max = 10, Default = 8 })
+render:Slider({ Text = "field of view", Flag = "render_fov", Min = 40, Max = 120, Suffix = "°", Default = 70 })
+render:Toggle({ Text = "fullbright", Flag = "render_fullbright" })
+	:ColorPicker({ Flag = "render_ambient", Default = Color3.fromRGB(180, 180, 190) })
+
+local effects = Display:Section("effects", 2)
+effects:Toggle({ Text = "bloom", Flag = "fx_bloom", Default = true })
+effects:Toggle({ Text = "blur", Flag = "fx_blur" })
+	:Gear(function(panel)
+		panel:Slider({ Text = "size", Flag = "fx_blur_size", Min = 0, Max = 24, Default = 8 })
+	end)
+effects:Slider({ Text = "saturation", Flag = "fx_saturation", Min = -1, Max = 1, Decimals = 2, Default = 0 })
+
+local objects = Objects:Section("filters", 1)
+
+objects:Toggle({ Text = "static objects", Flag = "static_objects" })
+
+objects:Dropdown({
+	Text = "material",
+	Flag = "objects_material",
+	Options = { "plastic", "wood", "metal", "glass", "neon", "concrete", "brick", "sand", "grass", "ice", "marble", "fabric" },
+	Default = "plastic",
+})
+
+objects:Keybind({
+	Text = "hold to inspect",
+	Flag = "objects_inspect",
+	Default = "E",
+	Mode = "hold",
+	Callback = function(down) print("inspect", down) end,
+})
+
+objects:Keybind({
+	Text = "auto collect",
+	Flag = "objects_collect",
+	Default = "H",
+	Mode = "toggle",
+	Callback = function(active) print("collect", active) end,
+})
+
+local naming = Objects:Section("naming", 2)
+naming:Input({
+	Text = "prefix",
+	Flag = "objects_prefix",
+	Default = "",
+	Placeholder = "obj_",
+	Callback = function(text) print("prefix", text) end,
+})
+naming:Button({ Text = "apply to selection", Callback = function() Library:Success("done", "prefix applied.", 3) end })
+
+local status = Network:Section("status", 1)
+status:Label("idle.", { Style = "dim" })
+status:Slider({ Text = "timeout", Flag = "net_timeout", Min = 1, Max = 30, Suffix = " s", Default = 10 })
+
+Audio:Section("mixer", 1):Slider({ Text = "volume", Flag = "audio_volume", Min = 0, Max = 100, Suffix = "%", Default = 70 })
+
+local editor = Script:Section("editor", 1)
+editor:Button({ Text = "reload scripts", Callback = function() Library:Notify("facility", "scripts reloaded.", 3) end })
+editor:ButtonRow({
+	{ Text = "run", Callback = function() print("run") end },
+	{ Text = "stop", Callback = function() print("stop") end },
+})
+
+local console = Console:Section("output", 1)
+console:Label("empty.")
+
+local reference = Console:Section("reference", "full")
+reference:Split({
+	function(left)
+		left:Paragraph({ Title = "flags", Content = "Every stateful element takes a Flag, used for saving.", Icon = "info" })
+	end,
+	function(middle)
+		middle:Paragraph({ Title = "styles", Content = "warning, danger, success, accent.", Style = "warning", Icon = "alert-triangle" })
+	end,
+	function(right)
+		right:Paragraph({ Title = "no filesystem", Content = "Configs stay in memory for the session.", Style = "danger", Icon = "x-circle" })
+	end,
+})
+
+
+Window:Action("Connect", function()
+	Library:Notify({ Title = "connected", Text = "session started.", Duration = 3 })
+end)
+
+local notifications = Settings:Section("notifications", 1)
+
+notifications:ButtonRow({
+	{ Text = "normal", Callback = function() Library:Notify("Facility", "test notification.", 4) end },
+	{ Text = "warning", Callback = function() Library:Warn("attention", "this option is experimental.", 4) end },
+})
+notifications:ButtonRow({
+	{ Text = "danger", Callback = function() Library:Error("risky", "this action cannot be undone.", 4) end },
+	{ Text = "success", Callback = function() Library:Success("done", "config applied.", 4) end },
+})
+
+
+SaveManager:SetLibrary(Library)
+InterfaceManager:SetLibrary(Library)
+InterfaceManager:SetWindow(Window)
+ThemeManager:SetLibrary(Library)
+
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({})
+
+InterfaceManager:SetFolder("Facility")
+ThemeManager:SetFolder("Facility")
+SaveManager:SetFolder("Facility/game")
+
+InterfaceManager:BuildInterfaceSection(Settings, 1)
+SaveManager:BuildConfigSection(Settings, 2)
+ThemeManager:Mount(Window)
+
+Window:SetTab(General)
+
+Library:Notify({
+	Title = "Facility",
+	Text = "script loaded.",
+	Duration = 5,
+})
+
+SaveManager:LoadAutoloadConfig()
+ThemeManager:Load()
+
+local RunService = game:GetService("RunService")
+
+local hudVisible = false
+
+local hud = Library:Panel({
+	Title = "player",
+	Icon = "user",
+	Width = 190,
+	Position = UDim2.fromOffset(18, 320),
+	Visible = false,
+})
+
+hud.Content:Label("name", { Style = "dim" })
+local nameLabel = hud.Content:Label(Players.LocalPlayer.Name, { Style = "bright" })
+
+hud.Content:Divider()
+
+hud.Content:Label("health", { Style = "dim" })
+local healthLabel = hud.Content:Label("-", { Style = "success" })
+
+task.spawn(function()
+	while task.wait(0.5) do
+		if hudVisible then
+			local character = Players.LocalPlayer.Character
+			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+			healthLabel:Set(humanoid and string.format("%d / %d", humanoid.Health, humanoid.MaxHealth) or "-")
+		end
+	end
+end)
+
+-- Server browser
+-- Sans options : liste les serveurs du place courant et rejoint avec
+-- TeleportService, ce qui convient a la majorite des jeux.
+--
+-- PlaceId : cible un autre place, utile quand le jeu a un lobby separe.
+--
+-- OnJoin  : certains jeux routent leurs teleports par leur propre serveur
+--           et rejettent un appel client direct (erreur 773). Dans ce cas,
+--           fournis une fonction qui passe par leur module :
+--
+-- local servers = Library:ServerBrowser({
+--     PlaceId = 123456789,
+--     OnJoin = function(jobId, placeId, server)
+--         local Teleporter = require(game.ReplicatedStorage.Chemin.Vers.Teleporter)
+--         Teleporter.Request({ placeId = placeId, jobId = jobId })
+--     end,
+-- })
+
+local servers = Library:ServerBrowser()
+
+local overlay = Settings:Section("overlay", 1)
+
+overlay:Toggle({
+	Text = "server browser",
+	Flag = "overlay_servers",
+	Hint = "lists the public servers of this game",
+	Default = false,
+	Callback = function(state)
+		servers:SetVisible(state)
+	end,
+})
+
+overlay:Toggle({
+	Text = "player panel",
+	Flag = "overlay_player",
+	Hint = "shows the floating player panel",
+	Default = false,
+	Callback = function(state)
+		hudVisible = state
+		hud:SetVisible(state)
+	end,
+})
+
