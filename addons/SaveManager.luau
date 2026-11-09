@@ -1,4 +1,4 @@
--- Facility addon | SaveManager
+-- Orasense addon | SaveManager
 -- Sauvegarde et chargement des configurations, au format JSON.
 
 return function(Library)
@@ -8,7 +8,7 @@ return function(Library)
 
 	local SaveManager = {}
 	SaveManager.Library = Library
-	SaveManager.Folder = "Facility"
+	SaveManager.Folder = "Orasense"
 	SaveManager.Ignore = {}
 	SaveManager.Format = "json"
 
@@ -105,10 +105,52 @@ return function(Library)
 		return ok
 	end
 
+	function SaveManager:Overwrite(file, fallbackName)
+		if (type(file) ~= "string" or file == "") and type(fallbackName) == "string" then
+			file = fallbackName
+		end
+		if type(file) ~= "string" or file == "" then return false, "no config" end
+		if not string.match(file, "%.%w+$") then file = file .. "." .. self.Format end
+		local ok, encoded = pcall(function()
+			return HttpService:JSONEncode(self.Library:GetConfig(self.Ignore))
+		end)
+		if not ok then return false, "encode failed" end
+		FileSystem:Write(self:Path(file), encoded)
+		self.Library:ClearDirty()
+		return true, file
+	end
+
+	function SaveManager:Create(name)
+		return self:Save(name)
+	end
+
+	function SaveManager:RemoveAutoload()
+		return self:ClearAutoload()
+	end
+
+	function SaveManager:ImportFromClipboard()
+		local reader = typeof(getclipboard) == "function" and getclipboard or nil
+		if not reader then return false, "clipboard unavailable" end
+		local ok, data = pcall(function() return HttpService:JSONDecode(reader()) end)
+		if not ok or type(data) ~= "table" then return false, "invalid clipboard" end
+		self.Library:LoadConfig(data, self.Ignore)
+		return true, "imported"
+	end
+
+	function SaveManager:CopyToClipboard()
+		local ok, encoded = pcall(function()
+			return HttpService:JSONEncode(self.Library:GetConfig(self.Ignore))
+		end)
+		if not ok then return false, "encode failed" end
+		if typeof(setclipboard) ~= "function" then return false, "clipboard unavailable" end
+		setclipboard(encoded)
+		return true, "copied"
+	end
+
 	function SaveManager:BuildConfigSection(tab, column)
 		local section = tab:Section("configs", column or 2)
 		local nameBox = section:Input({ Text = "name", Flag = false, Default = "default", Placeholder = "config name" })
-		local savedBox = section:Dropdown({ Text = "saved", Flag = false, Options = self:List(), Empty = "none" })
+		local savedBox = section:Dropdown({ Text = "saved", Flag = false, Options = self:List(), Empty = "none", Search = true })
 
 		local autoloadLabel, dirtyLabel
 
@@ -131,20 +173,51 @@ return function(Library)
 			})
 		end
 
+		local function exists(file)
+			for _, name in ipairs(self:List()) do
+				if name == file or name == file .. ".json" then return true end
+			end
+			return false
+		end
+
 		section:ButtonRow({
 			{
-				Text = "save",
+				Text = "create",
 				Callback = function()
-					local ok, result = self:Save(nameBox:Get())
+					local name = nameBox:Get()
+					if name == "" then return notify(false, "enter a name", "") end
+					local file = name .. (string.match(name, "%.%w+$") and "" or ".json")
+					if exists(file) then return notify(false, file .. " already exists, use overwrite", "") end
+					local ok, result = self:Save(name)
 					if ok then refreshList(result) end
-					notify(ok, result, "saved")
+					notify(ok, result, "created")
 				end,
 			},
+			{
+				Text = "overwrite",
+				Callback = function()
+					local file = selected() or nameBox:Get()
+					if not file or file == "" then return notify(false, "no config", "") end
+					local ok, result = self:Overwrite(file, nameBox:Get())
+					if ok then refreshList(result) end
+					notify(ok, result, "overwritten")
+				end,
+			},
+		})
+
+		section:ButtonRow({
 			{
 				Text = "load",
 				Callback = function()
 					local ok, result = self:Load(selected())
 					notify(ok, result, "loaded")
+				end,
+			},
+			{
+				Text = "refresh list",
+				Callback = function()
+					refreshList()
+					notify(true, "config list refreshed", "refreshed")
 				end,
 			},
 		})
@@ -177,10 +250,6 @@ return function(Library)
 					})
 				end,
 			},
-			{ Text = "refresh", Callback = function() refreshList() end },
-		})
-
-		section:ButtonRow({
 			{
 				Text = "set autoload",
 				Callback = function()
@@ -188,20 +257,22 @@ return function(Library)
 					if not file then return notify(false, "no config", "") end
 					self:SetAutoload(file)
 					autoloadLabel:Set("autoload: " .. file)
-				end,
-			},
-			{
-				Text = "clear autoload",
-				Callback = function()
-					self:ClearAutoload()
-					autoloadLabel:Set("autoload: none")
+					notify(true, file, "autoload set")
 				end,
 			},
 		})
 
 		section:ButtonRow({
 			{
-				Text = "copy",
+				Text = "remove autoload",
+				Callback = function()
+					self:ClearAutoload()
+					autoloadLabel:Set("autoload: none")
+					notify(true, "autoload cleared", "autoload removed")
+				end,
+			},
+			{
+				Text = "copy to clipboard",
 				Callback = function()
 					local ok, encoded = pcall(function()
 						return HttpService:JSONEncode(self.Library:GetConfig(self.Ignore))
@@ -214,20 +285,20 @@ return function(Library)
 					end
 				end,
 			},
+		})
+
+		section:ButtonRow({
 			{
-				Text = "paste",
+				Text = "import from clipboard",
 				Callback = function()
 					local reader = typeof(getclipboard) == "function" and getclipboard or nil
 					if not reader then return notify(false, "clipboard unavailable", "") end
 					local ok, data = pcall(function() return HttpService:JSONDecode(reader()) end)
 					if not ok or type(data) ~= "table" then return notify(false, "invalid clipboard", "") end
 					self.Library:LoadConfig(data, self.Ignore)
-					notify(true, "config applied", "pasted")
+					notify(true, "config applied", "imported")
 				end,
 			},
-		})
-
-		section:ButtonRow({
 			{
 				Text = "reset defaults",
 				Callback = function()

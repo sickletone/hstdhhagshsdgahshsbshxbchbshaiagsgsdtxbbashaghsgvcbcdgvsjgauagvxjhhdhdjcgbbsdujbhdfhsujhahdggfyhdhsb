@@ -1,11 +1,11 @@
--- Facility addon | InterfaceManager
+-- Orasense addon | InterfaceManager
 -- Reglages de l'interface elle-meme : touche du menu, echelle, dechargement.
 
 return function(Library)
 	local InterfaceManager = {}
 	InterfaceManager.Library = Library
-	InterfaceManager.Folder = "Facility"
-	InterfaceManager.Flags = { "interface_menu_key", "interface_scale", "interface_hotkeys" }
+	InterfaceManager.Folder = "Orasense"
+	InterfaceManager.Flags = { "interface_menu_key", "interface_scale", "interface_hotkeys", "orasense_particles", "orasense_particle_custom", "orasense_background", "orasense_background_fade", "orasense_liquid", "orasense_glass_blur", "orasense_glass_strength" }
 
 	function InterfaceManager:SetLibrary(lib)
 		self.Library = lib or Library
@@ -84,6 +84,13 @@ local hotkeys = section:Toggle({
 
 		self.Section = section
 		return section
+	end
+
+	function InterfaceManager:BuildEffectsSection(tab, column)
+		if self.Library.BuildEffectsSection then
+			return self.Library:BuildEffectsSection(tab, column)
+		end
+		return nil
 	end
 
 	function Library:Warn(title, text, duration)

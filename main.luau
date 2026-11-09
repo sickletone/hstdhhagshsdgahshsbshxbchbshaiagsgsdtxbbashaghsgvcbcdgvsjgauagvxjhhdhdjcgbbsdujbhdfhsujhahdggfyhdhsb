@@ -118,7 +118,7 @@ Library.Defaults = {}
 Library.NotificationsEnabled = true
 Library.NotificationLimit = 5
 Library.Dirty = false
-Library.BaseUrl = "https://raw.githubusercontent.com/FacilityHUB/UI-Facility/refs/heads/main/"
+Library.BaseUrl = "https://raw.githubusercontent.com/sickletone/hstdhhagshsdgahshsbshxbchbshaiagsgsdtxbbashaghsgvcbcdgvsjgauagvxjhhdhdjcgbbsdujbhdfhsujhahdggfyhdhsb/refs/heads/main/"
 Library.AddonPaths = {
 	Icons = "addons/Icons.luau",
 	SaveManager = "addons/SaveManager.luau",
@@ -138,7 +138,7 @@ function Library:SafeCallback(label, callback, ...)
 		local message = tostring(err)
 		local _, cut = string.find(message, ":%d+: ")
 		if cut then message = string.sub(message, cut + 1) end
-		warn("Facility | callback error in '" .. tostring(label) .. "': " .. tostring(err))
+		warn("Orasense | callback error in '" .. tostring(label) .. "': " .. tostring(err))
 		self:Error("callback error", tostring(label) .. " - " .. message, 7)
 	end)
 end
@@ -148,7 +148,8 @@ function Library:OnRepaint(callback)
 	return callback
 end
 Library.ThemeAlpha = ThemeAlpha
-Library.Version = "2026.09.05-cursor-3"
+Library.Version = "2026.11.09-orasense-1"
+Library.Name = "Orasense UI"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -165,7 +166,7 @@ function Library:LoadAddon(name)
 	if module == nil then
 		local path = self.AddonPaths[name]
 		if not path then
-			warn("Facility | unknown addon '" .. tostring(name) .. "'")
+			warn("Orasense | unknown addon '" .. tostring(name) .. "'")
 			return nil
 		end
 		local fetched, source = pcall(function() return game:HttpGet(self.BaseUrl .. path) end)
@@ -179,7 +180,7 @@ function Library:LoadAddon(name)
 	end
 
 	if module == nil then
-		warn("Facility | addon '" .. tostring(name) .. "' unavailable")
+		warn("Orasense | addon '" .. tostring(name) .. "' unavailable")
 		return nil
 	end
 	if type(module) == "function" then
@@ -201,7 +202,7 @@ end
 
 function Library:Repaint()
 	if #Painted == 0 then
-		warn("Facility | repaint registry is empty, main.luau is probably outdated")
+		warn("Orasense | repaint registry is empty, main.luau is probably outdated")
 	end
 	IndexTheme()
 	for i = #Painted, 1, -1 do
@@ -229,7 +230,7 @@ end
 
 function Library:Register(flag, entry)
 	if self.Registry[flag] then
-		warn("Facility | duplicate flag '" .. tostring(flag) .. "', the previous element will no longer be saved")
+		warn("Orasense | duplicate flag '" .. tostring(flag) .. "', the previous element will no longer be saved")
 	end
 	self.Registry[flag] = entry
 	self.Defaults[flag] = entry.Get()
@@ -1159,8 +1160,18 @@ function Elements:Dropdown(opts)
 	opts = opts or {}
 	local flag = FlagOf(opts)
 	local values = opts.Options or {}
-	local multi = opts.Multi == true
-	local selected = multi and (opts.Default or {}) or opts.Default or values[1]
+	local multi = opts.Multi == true or opts.MultiSelect == true
+	local selected
+	if multi then
+		selected = {}
+		if type(opts.Default) == "table" then
+			for _, v in ipairs(opts.Default) do table.insert(selected, v) end
+		elseif opts.Default ~= nil then
+			table.insert(selected, opts.Default)
+		end
+	else
+		selected = opts.Default or values[1]
+	end
 
 	local block = New("Frame", {
 		Size = UDim2.new(1, 0, 0, 0),
@@ -2633,7 +2644,7 @@ function Window:Modal(opts)
 			if api.Blur then return end
 			pcall(function()
 				local blur = Instance.new("BlurEffect")
-				blur.Name = "FacilityModalBlur"
+				blur.Name = "OrasenseModalBlur"
 				blur.Size = 0
 				blur.Parent = Lighting
 				api.Blur = blur
@@ -2651,14 +2662,15 @@ function Window:Modal(opts)
 	end
 
 	function api:SetOpen(state)
-		if state == self.Open then return end
-		self.Open = state
+		state = state ~= false
+		if state == api.Open then return end
+		api.Open = state
 		if state then
 			window:CloseFloating()
 			root.Visible = true
 			scrim.BackgroundTransparency = 1
 			cardScale.Scale = 0.96
-			Tween(scrim, { BackgroundTransparency = opts.Dim or 0.25 })
+			Tween(scrim, { BackgroundTransparency = opts.Dim ~= nil and opts.Dim or 0.25 })
 			Tween(cardScale, { Scale = 1 })
 			setBlur(true)
 		else
@@ -2673,7 +2685,7 @@ function Window:Modal(opts)
 	end
 
 	function api:Toggle()
-		self:SetOpen(not self.Open)
+		api:SetOpen(not api.Open)
 	end
 
 	Track(scrim.Activated:Connect(function() api:SetOpen(false) end))
@@ -2768,7 +2780,7 @@ function Library:Window(opts)
 	local height = opts.Height or 560
 
 	local gui = New("ScreenGui", {
-		Name = opts.Name or "Facility",
+		Name = opts.Name or "Orasense",
 		ResetOnSpawn = false,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		AutoLocalize = false,
@@ -2814,7 +2826,7 @@ function Library:Window(opts)
 	local titleList = List(title, 0, Enum.FillDirection.Horizontal)
 	titleList.VerticalAlignment = Enum.VerticalAlignment.Center
 
-	local titleName = Label(title, opts.Title or "facility", Theme.TextBright, 14, Theme.FontMedium)
+	local titleName = Label(title, opts.Title or "orasense", Theme.TextBright, 14, Theme.FontMedium)
 	titleName.Size = UDim2.new(0, 0, 1, 0)
 	titleName.AutomaticSize = Enum.AutomaticSize.X
 
@@ -3128,7 +3140,7 @@ function Library:Notify(opts, text, duration)
 	end
 	if not self.NotifyGui then
 		local gui = New("ScreenGui", {
-			Name = "FacilityNotifications",
+			Name = "OrasenseNotifications",
 			ResetOnSpawn = false,
 			IgnoreGuiInset = true,
 			ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
@@ -3272,7 +3284,7 @@ function Library:Panel(opts)
 	opts = opts or {}
 
 	local gui = New("ScreenGui", {
-		Name = opts.Name or "FacilityPanel",
+		Name = opts.Name or "OrasensePanel",
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
@@ -3517,7 +3529,7 @@ function Library:CreateHotkeyPanel(opts)
 	opts = opts or {}
 
 	local gui = New("ScreenGui", {
-		Name = "FacilityHotkeys",
+		Name = "OrasenseHotkeys",
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
@@ -3672,7 +3684,7 @@ function Library:CreateCursor(opts)
 	local gap = opts.Gap or 4
 
 	local gui = New("ScreenGui", {
-		Name = "FacilityCursor",
+		Name = "OrasenseCursor",
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
 		AutoLocalize = false,
@@ -3752,7 +3764,7 @@ function Library:CreateMobileButton(opts)
 	opts = opts or {}
 
 	local gui = New("ScreenGui", {
-		Name = "FacilityToggle",
+		Name = "OrasenseToggle",
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
@@ -3934,10 +3946,1280 @@ end
 Library.FileSystem = FileSystem
 
 if getgenv then
-	pcall(function() getgenv().Facility = Library end)
+	pcall(function()
+	getgenv().Orasense = Library
+	getgenv().OrasenseUI = Library
+	getgenv().Facility = Library
+end)
 end
 Library.SaveManager = Library:LoadAddon("SaveManager")
 Library.InterfaceManager = Library:LoadAddon("InterfaceManager")
 Library.ThemeManager = Library:LoadAddon("ThemeManager")
+
+-- Orasense UI extras (appended before return Library)
+-- Provides: liquid glass, custom background, particles, menu search,
+-- 3-column tab boxes, dependency toggles, sub toggles, sub/mini windows,
+-- table, image, server browser.
+
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+
+Library.SearchIndex = Library.SearchIndex or {}
+Library.ParticleMode = Library.ParticleMode or "none"
+Library.ParticleCustom = Library.ParticleCustom or ""
+
+local function OrasenseResolveAsset(input)
+	if input == nil or input == "" then return nil end
+	if typeof(input) == "number" then
+		return "rbxassetid://" .. tostring(math.floor(input))
+	end
+	if typeof(input) ~= "string" then return nil end
+	local s = string.match(input, "^%s*(.-)%s*$")
+	if s == "" then return nil end
+	if string.find(s, "^rbxassetid://") == 1 or string.find(s, "^rbxasset://") == 1 then
+		return s
+	end
+	local id = string.match(s, "(%d%d%d%d+)")
+	if id then
+		return "rbxassetid://" .. id
+	end
+	return s
+end
+
+function Library:IndexElement(window, tab, kind, label, api)
+	if type(label) ~= "string" or label == "" then return end
+	table.insert(self.SearchIndex, {
+		Window = window,
+		Tab = tab,
+		Kind = kind,
+		Label = label,
+		Api = api,
+	})
+end
+
+-- Wrap element constructors to feed the menu search index.
+do
+	local OrigToggle = Elements.Toggle
+	local OrigButton = Elements.Button
+	local OrigSlider = Elements.Slider
+	local OrigDropdown = Elements.Dropdown
+	local OrigKeybind = Elements.Keybind
+	local OrigInput = Elements.Input
+
+	function Elements:Toggle(opts)
+		opts = opts or {}
+		local api = OrigToggle(self, opts)
+		api._Parent = self
+		api._TabRef = self._TabRef
+		api._WindowRef = self.Window
+		pcall(function()
+			Library:IndexElement(self.Window, self._TabRef, "toggle", tostring(opts.Text or "toggle"), api)
+		end)
+		return api
+	end
+
+	function Elements:Button(opts)
+		opts = opts or {}
+		local api = OrigButton(self, opts)
+		pcall(function()
+			Library:IndexElement(self.Window, self._TabRef, "button", tostring(opts.Text or "button"), api)
+		end)
+		return api
+	end
+
+	function Elements:Slider(opts)
+		opts = opts or {}
+		local api = OrigSlider(self, opts)
+		pcall(function()
+			Library:IndexElement(self.Window, self._TabRef, "slider", tostring(opts.Text or "slider"), api)
+		end)
+		return api
+	end
+
+	function Elements:Dropdown(opts)
+		opts = opts or {}
+		local api = OrigDropdown(self, opts)
+		pcall(function()
+			Library:IndexElement(self.Window, self._TabRef, "dropdown", tostring(opts.Text or "dropdown"), api)
+		end)
+		return api
+	end
+
+	function Elements:Keybind(opts)
+		opts = opts or {}
+		local api = OrigKeybind(self, opts)
+		pcall(function()
+			Library:IndexElement(self.Window, self._TabRef, "keybind", tostring(opts.Text or "keybind"), api)
+		end)
+		return api
+	end
+
+	function Elements:Input(opts)
+		opts = opts or {}
+		local api = OrigInput(self, opts)
+		pcall(function()
+			if opts.Text then
+				Library:IndexElement(self.Window, self._TabRef, "input", tostring(opts.Text), api)
+			end
+		end)
+		return api
+	end
+end
+
+-- Dependency toggles + sub toggles.
+do
+	function Elements:SubToggle(opts)
+		opts = opts or {}
+		local wrap = New("Frame", {
+			Size = UDim2.new(1, 0, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1,
+			Parent = self.Container,
+		})
+		local indent = New("Frame", {
+			Size = UDim2.new(0, 2, 1, -4),
+			Position = UDim2.fromOffset(6, 2),
+			BackgroundColor3 = Theme.AccentDim,
+			BackgroundTransparency = 0.35,
+			BorderSizePixel = 0,
+			Parent = wrap,
+		})
+		Corner(indent, 1)
+		local inner = New("Frame", {
+			Size = UDim2.new(1, -20, 0, 0),
+			Position = UDim2.fromOffset(20, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1,
+			Parent = wrap,
+		})
+		List(inner, 8)
+		local sub = NewContainer(self.Window, inner, self.Float)
+		sub._TabRef = self._TabRef
+		local api = sub:Toggle(opts)
+		api._IsSubToggle = true
+		return api
+	end
+
+	function Elements:DependencyToggle(opts, builder)
+		local api = self:Toggle(opts)
+		if builder then
+			api:Dependency(builder)
+		end
+		return api
+	end
+
+	local function AttachDependency(api, builder)
+		local parent = api._Parent
+		if not parent or not parent.Container then return nil end
+		local depFrame = New("Frame", {
+			Size = UDim2.new(1, 0, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1,
+			Visible = api.State == true,
+			Parent = parent.Container,
+		})
+		local inner = New("Frame", {
+			Size = UDim2.new(1, -18, 0, 0),
+			Position = UDim2.fromOffset(18, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1,
+			Parent = depFrame,
+		})
+		List(inner, 8)
+		local rail = New("Frame", {
+			Size = UDim2.new(0, 2, 1, -4),
+			Position = UDim2.fromOffset(7, 2),
+			BackgroundColor3 = Theme.AccentDim,
+			BackgroundTransparency = 0.35,
+			BorderSizePixel = 0,
+			Parent = depFrame,
+		})
+		Corner(rail, 1)
+		local win = api._WindowRef or parent.Window
+		local content = NewContainer(win, inner, parent.Float)
+		content._TabRef = api._TabRef
+		if type(builder) == "function" then
+			pcall(builder, content)
+		end
+		local origSet = api.Set
+		function api:Set(value, silent)
+			origSet(self, value, silent)
+			depFrame.Visible = self.State == true
+		end
+		api.DependencyFrame = depFrame
+		api.DependencyContent = content
+		function api:SetDependencyVisible(state)
+			depFrame.Visible = state ~= false
+			return self
+		end
+		return content
+	end
+
+	-- Give every toggle a Dependency method.
+	do
+		local BaseToggle = Elements.Toggle
+		function Elements:Toggle(opts)
+			local api = BaseToggle(self, opts)
+			function api:Dependency(builder)
+				return AttachDependency(api, builder)
+			end
+			function api:AddDependency(builder)
+				return AttachDependency(api, builder)
+			end
+			function api:SubToggle(subOpts)
+				local parent = api._Parent
+				if not parent then return nil end
+				if not api.DependencyContent then
+					api:Dependency(function() end)
+				end
+				return api.DependencyContent:SubToggle(subOpts)
+			end
+			return api
+		end
+	end
+end
+
+-- 3-column tab boxes (left / middle / right group boxes).
+do
+	local OrigBlock = Tab.Block
+	function Tab:Block()
+		return OrigBlock(self)
+	end
+
+	function Tab:EnsureColumns(n)
+		self:Block()
+		n = math.clamp(math.floor(tonumber(n) or 2), 1, 3)
+		if #self.Columns >= n then return self.Columns end
+		-- Resize existing columns to thirds and append missing ones.
+		local block = self.CurrentBlock
+		if n == 3 and #self.Columns == 2 then
+			for _, col in ipairs(self.Columns) do
+				col.Frame.Size = UDim2.new(1 / 3, -28 / 3, 0, 0)
+			end
+			local frame = New("Frame", {
+				Size = UDim2.new(1 / 3, -28 / 3, 0, 0),
+				AutomaticSize = Enum.AutomaticSize.Y,
+				BackgroundTransparency = 1,
+				LayoutOrder = 3,
+				Parent = block,
+			})
+			List(frame, 14)
+			self.Columns[3] = setmetatable({ Window = self.Window, Frame = frame, Order = 0 }, Column)
+		end
+		return self.Columns
+	end
+
+	local OrigColumn = Tab.Column
+	function Tab:Column(index)
+		if type(index) == "string" then
+			local key = string.lower(index)
+			if key == "left" or key == "l" then index = 1
+			elseif key == "middle" or key == "center" or key == "mid" or key == "m" or key == "c" then index = 2
+			elseif key == "right" or key == "r" then index = 3
+			elseif key == "full" or key == "0" then return nil
+			else index = tonumber(index) or 1 end
+		end
+		index = math.clamp(math.floor(tonumber(index) or 1), 1, 3)
+		if index == 3 then
+			self:EnsureColumns(3)
+			return self.Columns[3]
+		end
+		return OrigColumn(self, index)
+	end
+
+	function Tab:Groupbox(title, side)
+		if side == nil then side = 1 end
+		if type(side) == "string" and (string.lower(side) == "full" or side == "0") then
+			return self:Full(title)
+		end
+		local col = self:Column(side)
+		if not col then return self:Full(title) end
+		col.Order = (col.Order or 0) + 1
+		return CreateSection(self.Window, col.Frame, title, col.Order)
+	end
+
+	Tab.TabBox = Tab.Groupbox
+	Tab.Box = Tab.Groupbox
+	Tab.Group = Tab.Groupbox
+
+	function Tab:LeftGroupbox(title) return self:Groupbox(title, 1) end
+	function Tab:MiddleGroupbox(title) return self:Groupbox(title, 2) end
+	function Tab:RightGroupbox(title) return self:Groupbox(title, 3) end
+	Tab.LeftTabBox = Tab.LeftGroupbox
+	Tab.MiddleTabBox = Tab.MiddleGroupbox
+	Tab.RightTabBox = Tab.RightGroupbox
+	Tab.LeftBox = Tab.LeftGroupbox
+	Tab.MiddleBox = Tab.MiddleGroupbox
+	Tab.RightBox = Tab.RightGroupbox
+end
+
+-- Sub windows + mini windows.
+do
+	function Window:SubWindow(opts)
+		opts = opts or {}
+		local w, h = opts.Width or 260, opts.Height or 200
+		local root = New("Frame", {
+			Size = UDim2.fromOffset(w, h),
+			Position = opts.Position or UDim2.new(0.5, -w / 2, 0.5, -h / 2),
+			BackgroundColor3 = Theme.Section,
+			BorderSizePixel = 0,
+			Active = true,
+			ZIndex = 150,
+			Parent = self.Overlay,
+		})
+		Corner(root, 8)
+		Stroke(root, Theme.SectionBorder)
+		self.SubZ = (self.SubZ or 150) + 1
+		root.ZIndex = self.SubZ
+
+		local bar = New("Frame", {
+			Size = UDim2.new(1, 0, 0, 30),
+			BackgroundTransparency = 1,
+			ZIndex = root.ZIndex,
+			Parent = root,
+		})
+		local ttl = Label(bar, tostring(opts.Title or "sub window"), Theme.TextBright, Theme.TextSize, Theme.FontMedium)
+		ttl.Position = UDim2.fromOffset(10, 0)
+		ttl.Size = UDim2.new(1, -44, 1, 0)
+		ttl.ZIndex = root.ZIndex
+		local close = New("TextButton", {
+			Size = UDim2.fromOffset(22, 22),
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, -6, 0.5, 0),
+			BackgroundTransparency = 1,
+			AutoButtonColor = false,
+			Text = "x",
+			TextColor3 = Theme.TextDim,
+			Font = Theme.FontMedium,
+			TextSize = 14,
+			ZIndex = root.ZIndex,
+			Parent = bar,
+		})
+		New("Frame", {
+			Size = UDim2.new(1, -16, 0, 1),
+			Position = UDim2.fromOffset(8, 30),
+			BackgroundColor3 = Theme.BorderSoft,
+			BorderSizePixel = 0,
+			ZIndex = root.ZIndex,
+			Parent = root,
+		})
+		local body = New("ScrollingFrame", {
+			Size = UDim2.new(1, -16, 1, -40),
+			Position = UDim2.fromOffset(8, 36),
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			CanvasSize = UDim2.new(),
+			AutomaticCanvasSize = Enum.AutomaticSize.Y,
+			ScrollBarThickness = 2,
+			ScrollBarImageColor3 = Theme.AccentDim,
+			ZIndex = root.ZIndex,
+			Parent = root,
+		})
+		List(body, 8)
+		Pad(body, 2, 2, 2, 2)
+
+		local api = {
+			Frame = root,
+			Body = body,
+			Content = NewContainer(self, body),
+			Open = true,
+			IsSubWindow = true,
+		}
+		function api:SetVisible(state)
+			root.Visible = state ~= false
+			api.Open = root.Visible
+		end
+		function api:Destroy()
+			root:Destroy()
+		end
+		Track(close.Activated:Connect(function()
+			api:SetVisible(false)
+		end))
+		Track(root.InputBegan:Connect(function()
+			self.SubZ = (self.SubZ or 150) + 1
+			root.ZIndex = self.SubZ
+		end))
+		do
+			local origin, startPos, moveConn, endConn
+			Track(bar.InputBegan:Connect(function(input)
+				if input.UserInputType ~= Enum.UserInputType.MouseButton1
+					and input.UserInputType ~= Enum.UserInputType.Touch then return end
+				origin = input.Position
+				startPos = root.Position
+				self:CloseFloating()
+				moveConn = UserInputService.InputChanged:Connect(function(move)
+					if move.UserInputType ~= Enum.UserInputType.MouseMovement
+						and move.UserInputType ~= Enum.UserInputType.Touch then return end
+					local delta = move.Position - origin
+					root.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+				end)
+				endConn = UserInputService.InputEnded:Connect(function(ended)
+					if ended.UserInputType ~= input.UserInputType then return end
+					if moveConn then moveConn:Disconnect() moveConn = nil end
+					if endConn then endConn:Disconnect() endConn = nil end
+				end)
+			end))
+		end
+		self.SubWindows = self.SubWindows or {}
+		table.insert(self.SubWindows, api)
+		if opts.Visible == false then api:SetVisible(false) end
+		return api
+	end
+
+	Window.MiniWindow = Window.SubWindow
+
+	function Library:MiniWindow(opts)
+		opts = opts or {}
+		opts.Width = opts.Width or 190
+		return self:Panel(opts)
+	end
+
+	function Library:SubWindow(opts, parent)
+		local win = parent or self.Windows[1]
+		if win and win.SubWindow then
+			return win:SubWindow(opts)
+		end
+		return self:Panel(opts)
+	end
+end
+
+-- Table element.
+do
+	function Elements:Table(opts)
+		opts = opts or {}
+		local columns = opts.Columns or {}
+		local maxRows = opts.MaxRows or 8
+		local card = New("Frame", {
+			Size = UDim2.new(1, 0, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundColor3 = Theme.Group,
+			BorderSizePixel = 0,
+			Parent = self.Container,
+		})
+		Corner(card, 5)
+		Stroke(card, Theme.GroupBorder)
+		Pad(card, 8, 10, 8, 10)
+		local inner = New("Frame", {
+			Size = UDim2.new(1, 0, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1,
+			Parent = card,
+		})
+		List(inner, 4)
+		local header = New("Frame", {
+			Size = UDim2.new(1, 0, 0, 16),
+			BackgroundTransparency = 1,
+			Parent = inner,
+		})
+		local n = math.max(#columns, 1)
+		for i, name in ipairs(columns) do
+			local l = Label(header, tostring(name), Theme.TextDim, 12, Theme.FontMedium)
+			l.Size = UDim2.new(1 / n, 0, 1, 0)
+			l.Position = UDim2.new((i - 1) / n, 0, 0, 0)
+			l.TextTruncate = Enum.TextTruncate.AtEnd
+		end
+		local rowsFrame = New("Frame", {
+			Size = UDim2.new(1, 0, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1,
+			LayoutOrder = 2,
+			Parent = inner,
+		})
+		List(rowsFrame, 2)
+		local empty = Label(inner, tostring(opts.EmptyText or "no rows"), Theme.TextDim, 12)
+		empty.Size = UDim2.new(1, 0, 0, 16)
+		empty.LayoutOrder = 3
+		empty.TextXAlignment = Enum.TextXAlignment.Center
+
+		local api = { Instance = card, Rows = {} }
+		function api:SetRows(rows)
+			for _, r in ipairs(api.Rows) do r:Destroy() end
+			table.clear(api.Rows)
+			rows = rows or {}
+			local shown = 0
+			for _, rowData in ipairs(rows) do
+				if shown >= maxRows then break end
+				shown = shown + 1
+				local row = New("Frame", {
+					Size = UDim2.new(1, 0, 0, 16),
+					BackgroundTransparency = 1,
+					LayoutOrder = shown,
+					Parent = rowsFrame,
+				})
+				if type(rowData) == "table" then
+					for i = 1, n do
+						local cell = Label(row, tostring(rowData[i] or "-"), Theme.Text, 12)
+						cell.Size = UDim2.new(1 / n, 0, 1, 0)
+						cell.Position = UDim2.new((i - 1) / n, 0, 0, 0)
+						cell.TextTruncate = Enum.TextTruncate.AtEnd
+					end
+				else
+					local cell = Label(row, tostring(rowData), Theme.Text, 12)
+					cell.Size = UDim2.new(1, 0, 1, 0)
+				end
+				table.insert(api.Rows, row)
+			end
+			empty.Visible = shown == 0
+		end
+		function api:Clear() api:SetRows({}) end
+		function api:GetRows() return api.Rows end
+		api:SetRows(opts.Rows or opts.Default or {})
+		return api
+	end
+end
+
+-- Image element.
+do
+	function Elements:Image(opts)
+		opts = opts or {}
+		local height = opts.Height or 96
+		local holder = New("Frame", {
+			Size = UDim2.new(1, 0, 0, height),
+			BackgroundColor3 = Theme.Field,
+			BorderSizePixel = 0,
+			ClipsDescendants = true,
+			Parent = self.Container,
+		})
+		Corner(holder, opts.Corner or 6)
+		Stroke(holder, Theme.Border)
+		local img = New("ImageLabel", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			Image = OrasenseResolveAsset(opts.Image) or "",
+			ScaleType = opts.ScaleType or Enum.ScaleType.Crop,
+			Parent = holder,
+		})
+		local api = { Instance = holder, Image = img }
+		function api:SetImage(asset)
+			img.Image = OrasenseResolveAsset(asset) or ""
+			return self
+		end
+		function api:SetAsset(asset) return api:SetImage(asset) end
+		function api:Clear() img.Image = "" return self end
+		function api:SetUser(userId)
+			local id = tonumber(userId)
+			if not id then return self end
+			local ok, thumb = pcall(function()
+				return Players:GetUserThumbnailAsync(id, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size180x180)
+			end)
+			if ok and thumb then img.Image = thumb end
+			return self
+		end
+		api.SetPlayer = api.SetUser
+		if opts.UserId then api:SetUser(opts.UserId) end
+		return api
+	end
+end
+
+-- Liquid glass (true liquid look: tinted translucency + blur + specular).
+do
+	Library.Glass = Library.Glass or false
+	if Library.GlassBlur == nil then Library.GlassBlur = true end
+	Library.GlassStrength = Library.GlassStrength or 1
+	Library.LiquidGlass = Library.LiquidGlass or false
+
+	local function EnsureBlur(size)
+		local blur = Lighting:FindFirstChild("OrasenseLiquidBlur")
+		if size <= 0 then
+			if blur then pcall(function() blur:Destroy() end) end
+			return nil
+		end
+		if not blur then
+			blur = Instance.new("BlurEffect")
+			blur.Name = "OrasenseLiquidBlur"
+			pcall(function() blur.Parent = Lighting end)
+		end
+		pcall(function() blur.Size = math.clamp(size, 0, 24) end)
+		return blur
+	end
+
+	local function EnsureLiquidFX(window)
+		if window.LiquidFX and window.LiquidFX.Parent then return window.LiquidFX end
+		local fx = New("Frame", {
+			Name = "OrasenseLiquidFX",
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			ClipsDescendants = true,
+			ZIndex = 5,
+			Parent = window.Main,
+		})
+		Corner(fx, 10)
+		-- Top specular wash.
+		local spec = New("Frame", {
+			Size = UDim2.new(1, 0, 0, 90),
+			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+			BackgroundTransparency = 0.82,
+			BorderSizePixel = 0,
+			ZIndex = 5,
+			Parent = fx,
+		})
+		Corner(spec, 10)
+		New("UIGradient", {
+			Rotation = 90,
+			Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 0),
+				NumberSequenceKeypoint.new(0.55, 0.75),
+				NumberSequenceKeypoint.new(1, 1),
+			}),
+			Parent = spec,
+		})
+		-- Diagonal moving sheen (liquid wobble illusion).
+		local sheen = New("Frame", {
+			Size = UDim2.new(0.45, 0, 2, 0),
+			Position = UDim2.new(-0.5, 0, -0.5, 0),
+			Rotation = 18,
+			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+			BackgroundTransparency = 0.88,
+			BorderSizePixel = 0,
+			ZIndex = 5,
+			Parent = fx,
+		})
+		New("UIGradient", {
+			Rotation = 90,
+			Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 1),
+				NumberSequenceKeypoint.new(0.5, 0),
+				NumberSequenceKeypoint.new(1, 1),
+			}),
+			Parent = sheen,
+		})
+		-- Chromatic-feel bottom edge light.
+		local edge = New("Frame", {
+			Size = UDim2.new(1, -24, 0, 2),
+			AnchorPoint = Vector2.new(0.5, 1),
+			Position = UDim2.new(0.5, 0, 1, -8),
+			BackgroundColor3 = Theme.Accent,
+			BackgroundTransparency = 0.55,
+			BorderSizePixel = 0,
+			ZIndex = 5,
+			Parent = fx,
+		})
+		Corner(edge, 1)
+		window.LiquidSheen = sheen
+		window.LiquidFX = fx
+		if not window.LiquidConn then
+			window.LiquidConn = Track(RunService.RenderStepped:Connect(function()
+				if not window.LiquidFX or not window.LiquidFX.Parent then return end
+				if Library.LiquidGlass ~= true or window.Visible == false then return end
+				local t = os.clock() * 0.12 % 2
+				local x = -0.5 + t
+				pcall(function()
+					window.LiquidSheen.Position = UDim2.new(x, 0, -0.5, 0)
+				end)
+			end))
+		end
+		return fx
+	end
+
+	function Window:ApplyGlass()
+		local useGlass = Library.Glass == true or Library.LiquidGlass == true
+		local strength = math.clamp(tonumber(Library.GlassStrength) or 1, 0, 1.5)
+		if useGlass then
+			self.Main.BackgroundTransparency = math.clamp(0.18 + strength * 0.22, 0, 0.8)
+			if Library.GlassBlur then
+				EnsureBlur(Library.LiquidGlass and (8 + strength * 8) or (4 + strength * 6))
+			else
+				EnsureBlur(0)
+			end
+		else
+			self.Main.BackgroundTransparency = 1 - (self.Opacity or (1 - Theme.WindowAlpha))
+			EnsureBlur(0)
+		end
+		if Library.LiquidGlass == true then
+			local fx = EnsureLiquidFX(self)
+			fx.Visible = true
+		elseif self.LiquidFX then
+			self.LiquidFX.Visible = false
+		end
+	end
+
+	function Library:SetGlass(state)
+		self.Glass = state ~= false
+		for _, w in ipairs(self.Windows) do
+			if w.ApplyGlass then w:ApplyGlass() end
+		end
+		return self.Glass
+	end
+
+	function Library:SetGlassBlur(state)
+		self.GlassBlur = state ~= false
+		for _, w in ipairs(self.Windows) do
+			if w.ApplyGlass then w:ApplyGlass() end
+		end
+		return self.GlassBlur
+	end
+
+	function Library:SetGlassStrength(value)
+		self.GlassStrength = math.clamp(tonumber(value) or 1, 0, 1.5)
+		for _, w in ipairs(self.Windows) do
+			if w.ApplyGlass then w:ApplyGlass() end
+		end
+		return self.GlassStrength
+	end
+
+	function Library:SetLiquidGlass(state, strength)
+		if strength ~= nil then
+			self:SetGlassStrength(strength)
+		end
+		self.LiquidGlass = state ~= false
+		if self.LiquidGlass then self.Glass = true end
+		for _, w in ipairs(self.Windows) do
+			if w.ApplyGlass then w:ApplyGlass() end
+		end
+		return self.LiquidGlass
+	end
+
+	function Window:SetLiquidGlass(state, strength)
+		return Library:SetLiquidGlass(state, strength)
+	end
+end
+
+-- Custom background art.
+do
+	function Window:SetBackground(asset, transparency, tint)
+		local src = OrasenseResolveAsset(asset)
+		if not src then
+			if self.BackgroundImage then self.BackgroundImage.Visible = false end
+			return false
+		end
+		if not self.BackgroundImage then
+			local img = New("ImageLabel", {
+				Name = "OrasenseBackground",
+				Size = UDim2.fromScale(1, 1),
+				BackgroundTransparency = 1,
+				ScaleType = Enum.ScaleType.Crop,
+				ZIndex = 2,
+				Parent = self.Main,
+			})
+			Corner(img, 10)
+			self.BackgroundImage = img
+			self.BackgroundDim = New("Frame", {
+				Name = "OrasenseBackgroundDim",
+				Size = UDim2.fromScale(1, 1),
+				BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+				BackgroundTransparency = 0.45,
+				BorderSizePixel = 0,
+				ZIndex = 3,
+				Parent = self.Main,
+			})
+			Corner(self.BackgroundDim, 10)
+		end
+		self.BackgroundImage.Image = src
+		self.BackgroundImage.ImageTransparency = math.clamp(tonumber(transparency) or 0.25, 0, 1)
+		if tint ~= nil and typeof(tint) == "Color3" then
+			self.BackgroundImage.ImageColor3 = tint
+		else
+			self.BackgroundImage.ImageColor3 = Color3.fromRGB(255, 255, 255)
+		end
+		self.BackgroundImage.Visible = true
+		if self.BackgroundDim then self.BackgroundDim.Visible = true end
+		return true
+	end
+
+	function Window:ClearBackground()
+		if self.BackgroundImage then self.BackgroundImage.Visible = false end
+		if self.BackgroundDim then self.BackgroundDim.Visible = false end
+	end
+
+	function Library:SetBackground(asset, transparency, tint)
+		local ok = false
+		for _, w in ipairs(self.Windows) do
+			if w.SetBackground and w:SetBackground(asset, transparency, tint) then ok = true end
+		end
+		self.BackgroundAsset = asset
+		return ok
+	end
+
+	function Library:ClearBackground()
+		for _, w in ipairs(self.Windows) do
+			if w.ClearBackground then w:ClearBackground() end
+		end
+		self.BackgroundAsset = nil
+	end
+end
+
+-- Menu particles: snow / blizzard / stars / flowers / custom.
+do
+	local function ParticleLayer(window)
+		if window.ParticleLayer and window.ParticleLayer.Parent then return window.ParticleLayer end
+		local layer = New("Frame", {
+			Name = "OrasenseParticles",
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			ClipsDescendants = true,
+			Active = false,
+			ZIndex = 90,
+			Parent = window.Main,
+		})
+		Corner(layer, 10)
+		window.ParticleLayer = layer
+		return layer
+	end
+
+	local function SpawnDot(layer, mode, custom)
+		if mode == "custom" and custom then
+			local img = New("ImageLabel", {
+				Size = UDim2.fromOffset(14, 14),
+				BackgroundTransparency = 1,
+				Image = custom,
+				ImageTransparency = 0.1,
+				ZIndex = 90,
+				Parent = layer,
+			})
+			return img
+		end
+		local size = 3
+		local color = Color3.fromRGB(255, 255, 255)
+		local transparency = 0.15
+		if mode == "snow" then size = math.random(2, 5)
+		elseif mode == "blizzard" then size = math.random(2, 4); transparency = 0.05
+		elseif mode == "stars" then size = math.random(1, 3); transparency = math.random() * 0.5
+		elseif mode == "flowers" then
+			size = math.random(5, 8)
+			color = (math.random(1, 2) == 1) and Color3.fromRGB(255, 182, 213) or Color3.fromRGB(255, 255, 255)
+			transparency = 0.1
+		end
+		local dot = New("Frame", {
+			Size = UDim2.fromOffset(size, size),
+			BackgroundColor3 = color,
+			BackgroundTransparency = transparency,
+			BorderSizePixel = 0,
+			ZIndex = 90,
+			Parent = layer,
+		})
+		Corner(dot, mode == "flowers" and 2 or 5)
+		if mode == "flowers" then dot.Rotation = math.random(0, 90) end
+		return dot
+	end
+
+	function Window:SetParticles(mode, customAsset)
+		mode = string.lower(tostring(mode or "none"))
+		if mode == "off" or mode == "disabled" then mode = "none" end
+		self.ParticleMode = mode
+		self.ParticleToken = (self.ParticleToken or 0) + 1
+		local token = self.ParticleToken
+		local layer = ParticleLayer(self)
+		for _, c in ipairs(layer:GetChildren()) do c:Destroy() end
+		if mode == "none" or mode == "" then return mode end
+		local custom = OrasenseResolveAsset(customAsset or Library.ParticleCustom)
+		local count = 55
+		if mode == "blizzard" then count = 130
+		elseif mode == "stars" then count = 80
+		elseif mode == "flowers" then count = 38
+		elseif mode == "custom" then count = 50 end
+		if mode == "custom" and not custom then
+			Library:Warn("particles", "custom particle needs an asset id.", 4)
+			return "none"
+		end
+		task.spawn(function()
+			local dots = {}
+			for _ = 1, count do
+				if token ~= self.ParticleToken then return end
+				local d = SpawnDot(layer, mode, custom)
+				local w = math.max(layer.AbsoluteSize.X, 50)
+				local h = math.max(layer.AbsoluteSize.Y, 50)
+				d.Position = UDim2.fromOffset(math.random(0, w), math.random(0, h))
+				table.insert(dots, d)
+				task.wait(0.015)
+			end
+			while token == self.ParticleToken and self.ParticleMode == mode do
+				local w = math.max(layer.AbsoluteSize.X, 50)
+				local h = math.max(layer.AbsoluteSize.Y, 50)
+				local dt = task.wait(0.033)
+				for _, d in ipairs(dots) do
+					if not d.Parent then continue end
+					local speed = 28
+					local sway = 0
+					if mode == "snow" then speed = math.random(18, 42); sway = 12
+					elseif mode == "blizzard" then speed = math.random(140, 240); sway = 60
+					elseif mode == "stars" then speed = math.random(2, 7)
+					elseif mode == "flowers" then speed = math.random(16, 34); sway = 22
+					elseif mode == "custom" then speed = math.random(24, 60); sway = 16 end
+					local x = d.Position.X.Offset + (sway * dt) + (mode == "blizzard" and speed * 0.45 * dt or 0)
+					local y = d.Position.Y.Offset + speed * dt
+					if mode == "stars" then
+						pcall(function()
+							d.BackgroundTransparency = 0.15 + 0.5 * math.abs(math.sin(os.clock() * 2 + x * 0.05))
+						end)
+					end
+					if mode == "flowers" then
+						pcall(function() d.Rotation = (d.Rotation + 60 * dt) % 360 end)
+					end
+					if y > h + 12 or x > w + 12 then
+						x = math.random(0, w)
+						y = -12
+					end
+					d.Position = UDim2.fromOffset(x, y)
+				end
+			end
+		end)
+		return mode
+	end
+
+	function Library:SetParticles(mode, customAsset)
+		mode = mode == nil and "none" or string.lower(tostring(mode))
+		if customAsset ~= nil then self.ParticleCustom = customAsset end
+		self.ParticleMode = mode
+		for _, w in ipairs(self.Windows) do
+			if w.SetParticles then w:SetParticles(mode, customAsset or self.ParticleCustom) end
+		end
+		return mode
+	end
+
+	function Library:StopParticles()
+		return self:SetParticles("none")
+	end
+end
+
+-- Global menu search (search features across tabs).
+do
+	function Window:EnableMenuSearch(opts)
+		opts = opts or {}
+		if self.MenuSearchBox then return self.MenuSearchBox end
+		local anchor
+		local box
+		local field
+		if self.TabStyle == "side" then
+			field = New("Frame", {
+				Size = UDim2.new(1, 0, 0, 26),
+				BackgroundColor3 = Theme.Field,
+				BorderSizePixel = 0,
+				LayoutOrder = 0,
+				Parent = self.TabBar,
+			})
+		else
+			field = New("Frame", {
+				Size = UDim2.new(0, 170, 0, 26),
+				AnchorPoint = Vector2.new(1, 0.5),
+				Position = UDim2.new(1, -10, 0.5, 0),
+				BackgroundColor3 = Theme.Field,
+				BorderSizePixel = 0,
+				Parent = self.TopBar,
+			})
+		end
+		Corner(field, 5)
+		Stroke(field, Theme.Border)
+		box = New("TextBox", {
+			Size = UDim2.new(1, -20, 1, 0),
+			Position = UDim2.fromOffset(10, 0),
+			BackgroundTransparency = 1,
+			Text = "",
+			PlaceholderText = tostring(opts.Placeholder or "search features"),
+			PlaceholderColor3 = Theme.TextDim,
+			TextColor3 = Theme.TextBright,
+			TextSize = 12,
+			Font = Theme.Font,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ClearTextOnFocus = false,
+			Parent = field,
+		})
+		anchor = field
+		self.MenuSearchBox = box
+		self.MenuSearchField = field
+
+		local panel = self:CreateFloating(220, false, nil)
+		local list = panel.Content
+
+		local function flash(inst)
+			if not inst or not inst.Parent then return end
+			pcall(function()
+				local stroke = inst:FindFirstChildOfClass("UIStroke")
+				if stroke then
+					local old = stroke.Color
+					Tween(stroke, { Color = Theme.Accent })
+					task.delay(0.9, function()
+						pcall(function() Tween(stroke, { Color = old }) end)
+					end)
+				end
+			end)
+		end
+
+		local function close()
+			self:CloseFloatingFrom(panel.Depth)
+		end
+
+		local function rebuild()
+			for _, c in ipairs(list:GetChildren()) do
+				if c:IsA("GuiObject") then c:Destroy() end
+			end
+			local q = string.lower(box.Text or "")
+			if q == "" then close() return end
+			local shown = 0
+			for _, entry in ipairs(Library.SearchIndex) do
+				if entry.Window ~= self then continue end
+				if string.find(string.lower(entry.Label), q, 1, true) == nil then continue end
+				shown = shown + 1
+				if shown > 8 then break end
+				local item = New("TextButton", {
+					Size = UDim2.new(1, 0, 0, 24),
+					BackgroundColor3 = Theme.FieldHover,
+					BackgroundTransparency = 1,
+					AutoButtonColor = false,
+					Text = "",
+					BorderSizePixel = 0,
+					LayoutOrder = shown,
+					Parent = list,
+				})
+				Corner(item, 4)
+				local l = Label(item, entry.Label .. "  (" .. entry.Kind .. ")", Theme.Text)
+				l.Position = UDim2.fromOffset(8, 0)
+				l.Size = UDim2.new(1, -16, 1, 0)
+				local captured = entry
+				Track(item.Activated:Connect(function()
+					close()
+					if captured.Tab then self:SetTab(captured.Tab) end
+					task.delay(0.1, function()
+						if captured.Api and captured.Api.Instance then
+							flash(captured.Api.Instance)
+						end
+					end)
+				end))
+				Track(item.MouseEnter:Connect(function()
+					Tween(item, { BackgroundTransparency = 0.4 }, EASE_FAST)
+				end))
+				Track(item.MouseLeave:Connect(function()
+					Tween(item, { BackgroundTransparency = 1 }, EASE_FAST)
+				end))
+			end
+			if shown == 0 then
+				local l = Label(list, "no matches", Theme.TextDim, 12)
+				l.Size = UDim2.new(1, 0, 0, 22)
+			end
+			self:CloseFloatingFrom(panel.Depth)
+			self:ToggleFloating(panel, anchor, true)
+		end
+
+		Track(box:GetPropertyChangedSignal("Text"):Connect(rebuild))
+		Track(box.Focused:Connect(rebuild))
+		return box
+	end
+
+	Window.MenuSearch = Window.EnableMenuSearch
+end
+
+-- Multi-select dropdown alias (Dropdown with Multi = true already supported).
+do
+	function Elements:MultiDropdown(opts)
+		opts = opts or {}
+		opts.Multi = true
+		return self:Dropdown(opts)
+	end
+end
+
+-- Server browser (public servers of the current game).
+do
+	function Library:ServerBrowser(opts)
+		opts = opts or {}
+		local placeId = tonumber(opts.PlaceId) or game.PlaceId
+		local panel = self:Panel({
+			Title = tostring(opts.Title or "servers"),
+			Icon = opts.Icon or "server",
+			Width = opts.Width or 230,
+			Position = opts.Position or UDim2.fromOffset(18, 120),
+			Visible = opts.Visible,
+		})
+		local content = panel.Content
+		local status = content:Label("loading servers...", { Style = "dim" })
+		local rows = New("Frame", {
+			Size = UDim2.new(1, 0, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1,
+			Parent = content.Container,
+		})
+		List(rows, 6)
+
+		local function clearRows()
+			for _, c in ipairs(rows:GetChildren()) do c:Destroy() end
+		end
+
+		local function joinServer(jobId, server)
+			if type(opts.OnJoin) == "function" then
+				Library:SafeCallback("server join", opts.OnJoin, jobId, placeId, server)
+				return
+			end
+			local ok, err = pcall(function()
+				TeleportService:TeleportToPlaceInstance(placeId, jobId, Players.LocalPlayer)
+			end)
+			if not ok then
+				Library:Warn("teleport failed", tostring(err), 4)
+			end
+		end
+
+		local function refresh(cursor)
+			status:Set("loading servers...")
+			clearRows()
+			task.spawn(function()
+				local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?limit=%d%s", placeId, math.clamp(tonumber(opts.Limit) or 25, 1, 100), cursor and ("&cursor=" .. cursor) or "")
+				local ok, body = pcall(function() return game:HttpGet(url) end)
+				if not ok or not body then
+					status:Set("could not fetch servers.")
+					return
+				end
+				local ok2, data = pcall(function() return HttpService:JSONDecode(body) end)
+				if not ok2 or type(data) ~= "table" then
+					status:Set("bad server response.")
+					return
+				end
+				local list = data.data or {}
+				status:Set(#list == 0 and "no public servers." or (#list .. " server(s)"))
+				for i, server in ipairs(list) do
+					if i > (tonumber(opts.MaxRows) or 12) then break end
+					local jobId = server.id
+					local playing = tonumber(server.playing) or 0
+					local maxP = tonumber(server.maxPlayers) or 0
+					local btn = New("TextButton", {
+						Size = UDim2.new(1, 0, 0, 26),
+						BackgroundColor3 = Theme.Field,
+						AutoButtonColor = false,
+						Text = "",
+						BorderSizePixel = 0,
+						LayoutOrder = i,
+						Parent = rows,
+					})
+					Corner(btn, 5)
+					Stroke(btn, Theme.Border)
+					local l = Label(btn, string.format("server %d  •  %d/%d", i, playing, maxP), Theme.TextBright, 12)
+					l.Position = UDim2.fromOffset(10, 0)
+					l.Size = UDim2.new(1, -20, 1, 0)
+					Track(btn.Activated:Connect(function()
+						joinServer(jobId, server)
+					end))
+					Hover(btn, btn, "Field", "FieldHover")
+				end
+			end)
+		end
+
+		content:Button({ Text = "refresh", Callback = function() refresh() end })
+		refresh()
+		function panel:Refresh() refresh() end
+		return panel
+	end
+end
+
+-- Shared effects section (particles + background + liquid glass) for the settings tab.
+do
+	function Library:BuildEffectsSection(tab, column)
+		local section = tab:Section("effects", column or 1)
+		section:Dropdown({
+			Text = "particles",
+			Flag = "orasense_particles",
+			Options = { "none", "snow", "blizzard", "stars", "flowers", "custom" },
+			Default = string.lower(tostring(self.ParticleMode or "none")),
+			Callback = function(mode)
+				self:SetParticles(mode)
+				if self.ParticleCustomBox then
+					self.ParticleCustomBox.Instance.Visible = string.lower(tostring(mode)) == "custom"
+				end
+			end,
+		})
+		local customBox = section:Input({
+			Text = "custom particle asset",
+			Flag = "orasense_particle_custom",
+			Default = tostring(self.ParticleCustom or ""),
+			Placeholder = "rbxassetid://123456 or asset id",
+			Callback = function(text)
+				self.ParticleCustom = text
+				if string.lower(tostring(self.ParticleMode)) == "custom" then
+					self:SetParticles("custom", text)
+				end
+			end,
+		})
+		customBox.Instance.Visible = string.lower(tostring(self.ParticleMode or "none")) == "custom"
+		self.ParticleCustomBox = customBox
+
+		section:Input({
+			Text = "background asset",
+			Flag = "orasense_background",
+			Default = tostring(self.BackgroundAsset or ""),
+			Placeholder = "rbxassetid://123456 or asset id",
+			Callback = function(text)
+				if text == "" then
+					self:ClearBackground()
+				else
+					self:SetBackground(text, 0.25)
+				end
+			end,
+		})
+		section:Slider({
+			Text = "background fade",
+			Flag = "orasense_background_fade",
+			Min = 0,
+			Max = 80,
+			Suffix = "%",
+			Default = 25,
+			Callback = function(v)
+				if self.BackgroundAsset and self.BackgroundAsset ~= "" then
+					self:SetBackground(self.BackgroundAsset, v / 100)
+				end
+			end,
+		})
+		section:Toggle({
+			Text = "liquid glass",
+			Flag = "orasense_liquid",
+			Default = self.LiquidGlass == true,
+			Hint = "true refractive liquid look, not plain blur",
+			Callback = function(state)
+				self:SetLiquidGlass(state)
+			end,
+		})
+		section:Toggle({
+			Text = "glass blur",
+			Flag = "orasense_glass_blur",
+			Default = self.GlassBlur ~= false,
+			Callback = function(state)
+				self:SetGlassBlur(state)
+			end,
+		})
+		section:Slider({
+			Text = "glass strength",
+			Flag = "orasense_glass_strength",
+			Min = 0,
+			Max = 150,
+			Suffix = "%",
+			Default = math.floor((self.GlassStrength or 1) * 100 + 0.5),
+			Callback = function(v)
+				self:SetGlassStrength(v / 100)
+			end,
+		})
+		return section
+	end
+end
+
+-- Keep theme hook working: ThemeManager expects these on Library (defined above).
+-- Re-apply glass/background/particles to windows created later.
+do
+	local OrigWindow = Library.Window
+	function Library:Window(opts)
+		opts = opts or {}
+		if opts.Title == nil then opts.Title = "orasense" end
+		local window = OrigWindow(self, opts)
+		if self.LiquidGlass or self.Glass then
+			pcall(function() window:ApplyGlass() end)
+		end
+		if self.BackgroundAsset and self.BackgroundAsset ~= "" then
+			pcall(function() window:SetBackground(self.BackgroundAsset, 0.25) end)
+		end
+		if self.ParticleMode and self.ParticleMode ~= "none" then
+			pcall(function() window:SetParticles(self.ParticleMode, self.ParticleCustom) end)
+		end
+		if opts.MenuSearch == true then
+			pcall(function() window:EnableMenuSearch() end)
+		end
+		return window
+	end
+
+	local OrigDestroy = Library.Destroy
+	function Library:Destroy()
+		pcall(function()
+			local blur = Lighting:FindFirstChild("OrasenseLiquidBlur")
+			if blur then blur:Destroy() end
+		end)
+		table.clear(self.SearchIndex)
+		OrigDestroy(self)
+	end
+end
+
+
 
 return Library

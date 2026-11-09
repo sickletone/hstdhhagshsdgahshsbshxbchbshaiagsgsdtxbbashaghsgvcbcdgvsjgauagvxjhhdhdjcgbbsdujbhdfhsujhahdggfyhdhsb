@@ -1,4 +1,4 @@
-local BASE = "https://raw.githubusercontent.com/FacilityHUB/UI-Facility/refs/heads/main/"
+local BASE = "https://raw.githubusercontent.com/sickletone/hstdhhagshsdgahshsbshxbchbshaiagsgsdtxbbashaghsgvcbcdgvsjgauagvxjhhdhdjcgbbsdujbhdfhsujhahdggfyhdhsb/refs/heads/main/"
 
 local source = game:HttpGet(BASE .. "main.luau")
 assert(#source > 1000 and not string.find(source, "404", 1, true),
@@ -22,7 +22,7 @@ assert(SaveManager and InterfaceManager and ThemeManager,
 	"addons introuvables, verifie Library.BaseUrl et le dossier addons/")
 
 local Window = Library:Window({
-	Title = "facility",
+	Title = "orasense",
 	Suffix = ".app",
 	Width = 700,
 	Height = 620,
@@ -31,7 +31,8 @@ local Window = Library:Window({
 	MobileButton = true,
 
 	TabStyle = "side",   -- "top" (defaut) ou "side" ; CategoryMod = 1 / 2 marche aussi
-	TabWidth = 140,      -- largeur de la colonne
+	TabWidth = 140,
+	MenuSearch = true,   -- search bar that finds features across tabs
 
 	-- Discord : rejoint le serveur silencieusement via l'API RPC locale
 	-- Discord = {
@@ -42,10 +43,10 @@ local Window = Library:Window({
 	-- Key system : bloque jusqu'a validation d'une cle
 	-- KeySystem = true,
 	-- KeySettings = {
-	--     Title           = "Facility",
+	--     Title           = "Orasense",
 	--     Subtitle        = "Enter your key to continue",
 	--     Note            = "Get your key on our Discord",
-	--     FileName        = "FacilityKey",
+	--     FileName        = "OrasenseKey",
 	--     SaveKey         = true,
 	--     GrabKeyFromSite = false,
 	--     Key             = { "FACILITY-2024", "FACILITY-BETA" },
@@ -281,6 +282,22 @@ notes:Split({
 
 notes:Label("a full width box can hold as many paragraphs as you need.")
 
+-- Orasense extras demo: dependency toggle, sub toggles, tab boxes.
+local demoTab = General
+local leftBox = demoTab:LeftGroupbox("left box")
+leftBox:Toggle({ Text = "master switch", Flag = "demo_master", Default = true }):Dependency(function(dep)
+	dep:Toggle({ Text = "hidden option a", Flag = "demo_a", Default = true })
+	dep:Slider({ Text = "hidden strength", Flag = "demo_strength", Min = 0, Max = 100, Default = 40 })
+end)
+local midBox = demoTab:MiddleGroupbox("middle box")
+midBox:Toggle({ Text = "parent", Flag = "demo_parent" })
+midBox:SubToggle({ Text = "sub toggle", Flag = "demo_sub", Hint = "indented child toggle" })
+midBox:Dropdown({ Text = "searchable", Flag = "demo_search", Options = { "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota" }, Default = "alpha", Search = true })
+local rightBox = demoTab:RightGroupbox("right box")
+rightBox:Dropdown({ Text = "multi select", Flag = "demo_multi", Options = { "a", "b", "c", "d" }, Multi = true, Default = { "a" } })
+
+notes:Label("a full width box can hold as many paragraphs as you need.")
+
 local render = Display:Section("render", 1)
 render:Slider({ Text = "quality", Flag = "render_quality", Min = 1, Max = 10, Default = 8 })
 render:Slider({ Text = "field of view", Flag = "render_fov", Min = 40, Max = 120, Suffix = "°", Default = 70 })
@@ -339,7 +356,7 @@ status:Slider({ Text = "timeout", Flag = "net_timeout", Min = 1, Max = 30, Suffi
 Audio:Section("mixer", 1):Slider({ Text = "volume", Flag = "audio_volume", Min = 0, Max = 100, Suffix = "%", Default = 70 })
 
 local editor = Script:Section("editor", 1)
-editor:Button({ Text = "reload scripts", Callback = function() Library:Notify("facility", "scripts reloaded.", 3) end })
+editor:Button({ Text = "reload scripts", Callback = function() Library:Notify("orasense", "scripts reloaded.", 3) end })
 editor:ButtonRow({
 	{ Text = "run", Callback = function() print("run") end },
 	{ Text = "stop", Callback = function() print("stop") end },
@@ -369,7 +386,7 @@ end)
 local notifications = Settings:Section("notifications", 1)
 
 notifications:ButtonRow({
-	{ Text = "normal", Callback = function() Library:Notify("Facility", "test notification.", 4) end },
+	{ Text = "normal", Callback = function() Library:Notify("Orasense", "test notification.", 4) end },
 	{ Text = "warning", Callback = function() Library:Warn("attention", "this option is experimental.", 4) end },
 })
 notifications:ButtonRow({
@@ -386,18 +403,23 @@ ThemeManager:SetLibrary(Library)
 SaveManager:IgnoreThemeSettings()
 SaveManager:SetIgnoreIndexes({})
 
-InterfaceManager:SetFolder("Facility")
-ThemeManager:SetFolder("Facility")
-SaveManager:SetFolder("Facility/game")
+InterfaceManager:SetFolder("Orasense")
+ThemeManager:SetFolder("Orasense")
+SaveManager:SetFolder("Orasense/game")
 
 InterfaceManager:BuildInterfaceSection(Settings, 1)
 SaveManager:BuildConfigSection(Settings, 2)
+if Library.BuildEffectsSection and Settings then
+	-- effects section (particles / background / liquid glass) lives in settings tab
+	pcall(function() Library:BuildEffectsSection(Settings, 1) end)
+end
+pcall(function() Window:EnableMenuSearch() end)
 ThemeManager:Mount(Window)
 
 Window:SetTab(General)
 
 Library:Notify({
-	Title = "Facility",
+	Title = "Orasense",
 	Text = "script loaded.",
 	Duration = 5,
 })
@@ -478,3 +500,18 @@ overlay:Toggle({
 	end,
 })
 
+
+-- Orasense sub window / mini window demo
+local sub = Window:SubWindow({ Title = "sub window", Width = 250, Height = 170 })
+sub.Content:Label("a window inside the window.", { Style = "dim" })
+sub.Content:Button({ Text = "ping", Callback = function() Library:Notify({ Title = "orasense", Text = "pong", Duration = 2 }) end })
+sub:SetVisible(false)
+
+local mini = Library:MiniWindow({ Title = "mini", Width = 180 })
+mini.Content:Label("tiny floating widget.", { Style = "dim" })
+mini:SetVisible(false)
+
+local demoToggles = Settings:Section("windows", 1)
+demoToggles:Toggle({ Text = "sub window", Flag = "demo_subwindow", Callback = function(state) sub:SetVisible(state) end })
+demoToggles:Toggle({ Text = "mini window", Flag = "demo_miniwindow", Callback = function(state) mini:SetVisible(state) end })
+demoToggles:Toggle({ Text = "liquid glass", Flag = "demo_liquid", Callback = function(state) Library:SetLiquidGlass(state) end })

@@ -1,4 +1,4 @@
--- Facility addon | ThemeManager
+-- Orasense addon | ThemeManager
 
 return function(Library)
 	local HttpService = game:GetService("HttpService")
@@ -6,10 +6,10 @@ return function(Library)
 
 	local ThemeManager = {}
 	ThemeManager.Library = Library
-	ThemeManager.Folder = "Facility"
+	ThemeManager.Folder = "Orasense"
 	ThemeManager.Flags = { "theme_preset", "theme_accent" }
 	ThemeManager.AutoSave = false
-	ThemeManager.Current = "facility"
+	ThemeManager.Current = "orasense"
 
 	ThemeManager.Keys = {
 		{ "Accent", "accent" },
@@ -38,14 +38,14 @@ return function(Library)
 	}
 
 	ThemeManager.Order = {
-		"facility", "darker", "typewriter", "aqua",
+		"orasense", "darker", "typewriter", "aqua",
 		"amethyst", "rose", "contrast", "light",
 		"crimson", "dark", "onyx", "emerald",
-		"toxic", "noir", "lagoon",
+		"toxic", "noir", "lagoon", "liquid",
 	}
 
 	ThemeManager.Presets = {
-		facility   = { Bg = Color3.fromRGB(26, 26, 28),    Accent = Color3.fromRGB(232, 161, 168) },
+		orasense   = { Bg = Color3.fromRGB(26, 26, 28),    Accent = Color3.fromRGB(232, 161, 168) },
 		darker     = { Bg = Color3.fromRGB(16, 16, 16),    Accent = Color3.fromRGB(72, 138, 182) },
 		typewriter = { Bg = Color3.fromRGB(34, 34, 34),    Accent = Color3.fromRGB(109, 180, 120) },
 		aqua       = { Bg = Color3.fromRGB(14, 22, 22),    Accent = Color3.fromRGB(60, 165, 165) },
@@ -60,6 +60,7 @@ return function(Library)
 		toxic      = { Bg = Color3.fromRGB(12, 18, 10),    Accent = Color3.fromRGB(166, 255, 0) },
 		noir       = { Bg = Color3.fromRGB(10, 8, 9),      Accent = Color3.fromRGB(255, 92, 150) },
 		lagoon     = { Bg = Color3.fromRGB(8, 20, 30),     Accent = Color3.fromRGB(34, 230, 222) },
+		liquid     = { Bg = Color3.fromRGB(18, 22, 30),    Accent = Color3.fromRGB(125, 211, 252), Liquid = true },
 	}
 
 	local function shade(color, amount)
@@ -166,6 +167,9 @@ return function(Library)
 		end
 
 		self.Current = name
+		if self.Library.SetLiquidGlass then
+			self.Library:SetLiquidGlass(preset.Liquid == true)
+		end
 		self:SetAccent(preset.Accent)
 		return true
 	end
@@ -276,7 +280,7 @@ return function(Library)
 			end,
 		})
 
-		local glassToggle, blurToggle, strengthSlider
+		local glassToggle, blurToggle, strengthSlider, liquidToggle
 		if self.Library.SetGlass then
 			glassToggle = content:Toggle({
 				Text = "glass",
@@ -300,6 +304,17 @@ return function(Library)
 					if self.AutoSave then self:Save() end
 				end,
 			})
+			liquidToggle = content:Toggle({
+				Text = "liquid glass",
+				Flag = false,
+			Default = self.Library.LiquidGlass == true,
+				Hint = "true refractive liquid look, not plain blur",
+				Callback = function(state)
+					self.Library:SetLiquidGlass(state)
+					dirty = true
+					if self.AutoSave then self:Save() end
+				end,
+			})
 			strengthSlider = content:Slider({
 				Text = "glass strength",
 				Flag = false,
@@ -314,7 +329,7 @@ return function(Library)
 				end,
 			})
 		end
-		self.GlassToggle, self.BlurToggle, self.StrengthSlider = glassToggle, blurToggle, strengthSlider
+		self.GlassToggle, self.BlurToggle, self.StrengthSlider, self.LiquidToggle = glassToggle, blurToggle, strengthSlider, liquidToggle
 
 		content:Divider()
 
@@ -348,10 +363,10 @@ return function(Library)
 					Theme[key] = color
 					alphas[key] = 1
 				end
-				self.Current = "facility"
+				self.Current = "orasense"
 				self.Library:Repaint()
 				syncPickers()
-				if presetBox then presetBox:Set("facility", true) end
+				if presetBox then presetBox:Set("orasense", true) end
 				dirty = true
 			end,
 		})
