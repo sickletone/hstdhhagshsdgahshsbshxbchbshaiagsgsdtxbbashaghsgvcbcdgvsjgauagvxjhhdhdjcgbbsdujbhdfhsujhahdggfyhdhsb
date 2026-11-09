@@ -26,9 +26,12 @@ configs, theme, server browser, player panel).
   color pickers, gear popups), slider, dropdown (single, multi-select,
   searchable), input, search, keybind, color picker, divider, split,
   table, image.
-- **Tab boxes** — `tab:Groupbox(title, side)` with `"left"`, `"middle"`,
-  `"right"` (aliases: `TabBox`, `Box`, `LeftTabBox`, `MiddleTabBox`,
-  `RightTabBox`, …). Three-column layout is created automatically.
+- **Tab boxes** — `tab:Groupbox(title, side)` with `"left"`, `"center"`,
+  `"right"` (aliases: `TabBox`, `Box`, `LeftTabBox`, `MiddleTabBox` /
+  `CenterTabBox`, `RightTabBox`, …). Asking for the center or right box builds
+  the full three-column layout automatically. The title can be a table,
+  `{ Title = "arcade servers", Icon = "settings", Side = "left" }`, to get a
+  header icon like the reference hubs.
 - **Dependency toggles & sub toggles** —
   `toggle:Dependency(function(dep) ... end)` reveals extra options only
   while the toggle is on; `elements:SubToggle(opts)` creates an indented
@@ -40,9 +43,11 @@ configs, theme, server browser, player panel).
   specular wash, travelling sheen), not plain glassmorphism:
   `Library:SetLiquidGlass(true)`, plus `SetGlass`,
   `SetGlassBlur`, `SetGlassStrength`. Preset `liquid` in the theme manager.
-- **Sub tabs** — `tab:SubTab("name")` adds a nested tab strip inside a tab.
-  Each sub tab is a full tab (`:Section`, `:Groupbox`, `:Full`, …), and
-  anything added to the parent tab afterwards lands in the active sub tab.
+- **Sub tabs** — `tab:SubTab("name")` adds a nested tab strip inside a tab:
+  a row of text tabs with an accent underline on the active one (plus the
+  parent tab's icon at the left). Each sub tab is a full tab (`:Section`,
+  `:Groupbox`, `:Full`, …), and anything added to the parent tab afterwards
+  lands in the active sub tab.
 - **Menu particles** — `Library:SetParticles("snow" | "blizzard" |
   "stars" | "flowers" | "custom", assetId)` draws on a full-screen overlay
   above the menu, so the effect covers the whole screen and hides whenever

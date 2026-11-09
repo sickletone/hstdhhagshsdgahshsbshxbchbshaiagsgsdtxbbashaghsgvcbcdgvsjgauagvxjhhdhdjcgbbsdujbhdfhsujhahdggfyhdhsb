@@ -2078,6 +2078,8 @@ local Section = setmetatable({}, { __index = Elements })
 Section.__index = Section
 
 local function CreateSection(window, parent, title, order)
+	local opts = type(title) == "table" and title or nil
+	local heading = tostring(opts and (opts.Title or opts.Text or "") or title or "")
 	local frame = New("Frame", {
 		Size = UDim2.new(1, 0, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
@@ -2098,8 +2100,17 @@ local function CreateSection(window, parent, title, order)
 		Text = "",
 		Parent = frame,
 	})
-	local htitle = Label(header, title, Theme.TextBright, Theme.TextSize + 1, Theme.FontMedium)
-	htitle.Size = UDim2.new(1, -30, 1, 0)
+	local hicon
+	if opts and opts.Icon then
+		hicon = AttachIcon(header, opts.Icon, Theme.Accent, 15)
+		if hicon then
+			hicon.AnchorPoint = Vector2.new(0, 0.5)
+			hicon.Position = UDim2.new(0, 0, 0.5, 0)
+		end
+	end
+	local htitle = Label(header, heading, Theme.TextBright, Theme.TextSize + 1, Theme.FontMedium)
+	htitle.Position = UDim2.fromOffset(hicon and 22 or 0, 0)
+	htitle.Size = UDim2.new(1, hicon and -52 or -30, 1, 0)
 	htitle.TextTruncate = Enum.TextTruncate.AtEnd
 	local hchev = Chevron(header, Theme.TextDim)
 	hchev.AnchorPoint = Vector2.new(1, 0.5)
@@ -4518,10 +4529,25 @@ do
 	end
 
 	function Tab:Groupbox(title, side)
+		local opts = type(title) == "table" and title or nil
+		if side == nil and opts and opts.Side ~= nil then side = opts.Side end
 		if side == nil then side = 1 end
-		if type(side) == "string" and (string.lower(side) == "full" or side == "0") then
-			return self:Full(title)
+		if type(side) == "string" then
+			local key = string.lower(side)
+			if key == "full" or side == "0" then return self:Full(title) end
+			if key == "left" or key == "l" then
+				side = 1
+			elseif key == "middle" or key == "center" or key == "centre" or key == "mid" or key == "m" or key == "c" then
+				side = 2
+			elseif key == "right" or key == "r" then
+				side = 3
+			else
+				side = tonumber(side) or 1
+			end
 		end
+		side = math.clamp(math.floor(tonumber(side) or 1), 1, 3)
+		-- A left / center / right set is three equal boxes, never two halves.
+		if side >= 2 then self:EnsureColumns(3) end
 		local col = self:Column(side)
 		if not col then return self:Full(title) end
 		col.Order = (col.Order or 0) + 1
@@ -4541,6 +4567,9 @@ do
 	Tab.LeftBox = Tab.LeftGroupbox
 	Tab.MiddleBox = Tab.MiddleGroupbox
 	Tab.RightBox = Tab.RightGroupbox
+	Tab.CenterGroupbox = Tab.MiddleGroupbox
+	Tab.CenterTabBox = Tab.MiddleGroupbox
+	Tab.CenterBox = Tab.MiddleGroupbox
 end
 
 -- Sub windows + mini windows.
@@ -4675,7 +4704,7 @@ end
 
 -- Sub tabs: a nested tab strip inside a tab.
 do
-	local SUBBAR_HEIGHT = MSize(38, 42)
+	local SUBBAR_HEIGHT = MSize(30, 38)
 
 	local function MigrateContent(page, target)
 		for _, child in ipairs(page:GetChildren()) do
@@ -4687,27 +4716,42 @@ do
 
 	local function CreatePill(tab, sub, title)
 		local button = New("TextButton", {
-			Size = UDim2.new(0, 0, 0, MSize(26, 34)),
+			Size = UDim2.new(0, 0, 0, MSize(24, 32)),
 			AutomaticSize = Enum.AutomaticSize.X,
-			BackgroundColor3 = Theme.Field,
 			BackgroundTransparency = 1,
 			AutoButtonColor = false,
-			Text = "  " .. title .. "  ",
+			Text = title,
 			TextColor3 = Theme.TextDim,
 			TextSize = Theme.TextSize,
 			Font = Theme.FontMedium,
 			LayoutOrder = #tab.SubTabs + 1,
 			Parent = tab.SubBar,
 		})
-		Corner(button, 6)
-		local stroke = Stroke(button, Theme.Border, 1, 1)
+		Pad(button, 0, 8)
+		local underline = New("Frame", {
+			Size = UDim2.new(1, 0, 0, 2),
+			Position = UDim2.new(0, 0, 1, -2),
+			BackgroundColor3 = Theme.Accent,
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			Parent = button,
+		})
+		Corner(underline, 1)
 		sub.Pill = button
+		sub.Underline = underline
 		function sub:SetActive(active, animate)
 			local info = animate == false and TweenInfo.new(0) or EASE_FAST
-			Tween(button, { BackgroundTransparency = active and 0 or 1 }, info)
 			Tween(button, { TextColor3 = active and Theme.TextBright or Theme.TextDim }, info)
-			Tween(stroke, { Transparency = active and 0.2 or 1 }, info)
+			Tween(underline, { BackgroundTransparency = active and 0 or 1 }, info)
 		end
+		Track(button.MouseEnter:Connect(function()
+			if tab.ActiveSub == sub then return end
+			Tween(button, { TextColor3 = Theme.Text }, EASE_FAST)
+		end))
+		Track(button.MouseLeave:Connect(function()
+			if tab.ActiveSub == sub then return end
+			Tween(button, { TextColor3 = Theme.TextDim }, EASE_FAST)
+		end))
 		Track(button.Activated:Connect(function() tab:SetSubTab(sub) end))
 		return button
 	end
@@ -4720,20 +4764,25 @@ do
 
 		if not (self.SubBar and self.SubBar.Parent) then
 			local bar = New("Frame", {
-				Size = UDim2.new(1, 0, 0, MSize(34, 40)),
+				Size = UDim2.new(1, 0, 0, MSize(26, 34)),
 				BackgroundTransparency = 1,
 				Visible = window.ActiveTab == self,
 				Parent = window.Body,
 			})
-			local barList = List(bar, 6, Enum.FillDirection.Horizontal)
+			local barList = List(bar, 14, Enum.FillDirection.Horizontal)
 			barList.VerticalAlignment = Enum.VerticalAlignment.Center
-			New("Frame", {
-				Size = UDim2.new(1, 0, 0, 1),
-				Position = UDim2.new(0, 0, 1, 0),
-				BackgroundColor3 = Theme.BorderSoft,
-				BorderSizePixel = 0,
-				Parent = bar,
-			})
+			if self.Icon and self.Icon.Image ~= "" then
+				New("ImageLabel", {
+					Size = UDim2.fromOffset(16, 16),
+					BackgroundTransparency = 1,
+					Image = self.Icon.Image,
+					ImageRectOffset = self.Icon.ImageRectOffset,
+					ImageRectSize = self.Icon.ImageRectSize,
+					ImageColor3 = Theme.Accent,
+					LayoutOrder = 0,
+					Parent = bar,
+				})
+			end
 			self.SubBar = bar
 			self.SubTabs = {}
 			self.Page.Position = UDim2.fromOffset(0, SUBBAR_HEIGHT)

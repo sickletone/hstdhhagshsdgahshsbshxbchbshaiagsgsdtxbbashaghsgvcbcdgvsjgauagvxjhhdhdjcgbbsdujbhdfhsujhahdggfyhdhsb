@@ -572,15 +572,15 @@ inputsRight:Paragraph({
 	Icon = "check",
 })
 
-local groupsLeft = cGroups:LeftGroupbox("left box")
+local groupsLeft = cGroups:LeftTabBox({ Title = "left box", Icon = "sliders-horizontal" })
 groupsLeft:Toggle({ Text = "left toggle", Flag = "cmp_left_toggle", Default = true })
 groupsLeft:Slider({ Text = "left slider", Flag = "cmp_left_slider", Min = 0, Max = 10, Default = 3 })
 
-local groupsMiddle = cGroups:MiddleGroupbox("middle box")
+local groupsMiddle = cGroups:CenterTabBox({ Title = "center box", Icon = "settings" })
 groupsMiddle:Label("middle column label.", { Style = "dim" })
 groupsMiddle:Dropdown({ Text = "middle dropdown", Flag = "cmp_mid_dd", Options = { "a", "b", "c" }, Default = "a" })
 
-local groupsRight = cGroups:RightGroupbox("right box")
+local groupsRight = cGroups:RightTabBox({ Title = "right box", Icon = "wrench" })
 groupsRight:Button({ Text = "right button", Callback = function() Library:Success("right", "works.", 2) end })
 local cmpTable = groupsRight:Table({ Columns = { "name", "value" }, MaxRows = 3, EmptyText = "no rows" })
 cmpTable:SetRows({ { "one", "1" }, { "two", "2" } })
