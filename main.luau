@@ -43,7 +43,7 @@ end
 
 local Theme = {
 	Window        = Color3.fromRGB(26, 26, 28),
-	WindowAlpha   = 0.012,
+	WindowAlpha   = 0,
 	WindowBorder  = Color3.fromRGB(52, 52, 56),
 	TopBar        = Color3.fromRGB(31, 31, 34),
 	Section       = Color3.fromRGB(29, 29, 32),
@@ -953,7 +953,7 @@ function Elements:Toggle(opts)
 
 	local owner = self
 	local function syncRow()
-		local s = math.max(owner.Window.Scale.Scale, 0.05)
+		local s = owner.Window:UI()
 		local w = right.AbsoluteSize.X / s
 		left.Size = UDim2.new(1, -(21 + (w > 0 and w + 10 or 0)), 1, 0)
 	end
@@ -2092,20 +2092,18 @@ local function CreateSection(window, parent, title, order)
 	local frameList = List(frame, 0)
 
 	local header = New("TextButton", {
-		Size = UDim2.new(1, 0, 0, 22),
+		Size = UDim2.new(1, 0, 0, MSize(24, 32)),
 		BackgroundTransparency = 1,
 		AutoButtonColor = false,
 		Text = "",
 		Parent = frame,
 	})
 	local htitle = Label(header, title, Theme.TextBright, Theme.TextSize + 1, Theme.FontMedium)
-	htitle.Size = UDim2.new(1, -16, 1, 0)
+	htitle.Size = UDim2.new(1, -30, 1, 0)
+	htitle.TextTruncate = Enum.TextTruncate.AtEnd
 	local hchev = Chevron(header, Theme.TextDim)
-	hchev.AnchorPoint = Vector2.new(0, 0.5)
-	hchev.Position = UDim2.new(0, htitle.TextBounds.X + 6, 0.5, 1)
-	Track(htitle:GetPropertyChangedSignal("TextBounds"):Connect(function()
-		hchev.Position = UDim2.new(0, htitle.TextBounds.X + 6, 0.5, 1)
-	end))
+	hchev.AnchorPoint = Vector2.new(1, 0.5)
+	hchev.Position = UDim2.new(1, -4, 0.5, 0)
 
 	local body = New("Frame", {
 		Size = UDim2.new(1, 0, 0, 0),
@@ -2134,7 +2132,7 @@ local function CreateSection(window, parent, title, order)
 		if self.Open then
 			body.Visible = true
 			body.Size = UDim2.new(1, 0, 0, 0)
-			local target = content.AbsoluteSize.Y / window.Scale.Scale
+			local target = content.AbsoluteSize.Y / window:UI()
 			Tween(body, { Size = UDim2.new(1, 0, 0, target) }).Completed:Once(function()
 				if self.Open then
 					body.AutomaticSize = Enum.AutomaticSize.Y
@@ -2143,7 +2141,7 @@ local function CreateSection(window, parent, title, order)
 			end)
 			Tween(hchev, { Rotation = 0 }, EASE_FAST)
 		else
-			local current = body.AbsoluteSize.Y / window.Scale.Scale
+			local current = body.AbsoluteSize.Y / window:UI()
 			body.AutomaticSize = Enum.AutomaticSize.None
 			body.Size = UDim2.new(1, 0, 0, current)
 			Tween(body, { Size = UDim2.new(1, 0, 0, 0) }).Completed:Once(function()
@@ -2328,7 +2326,7 @@ function Window:Tab(name, icon)
 	local side = self.TabStyle == "side"
 
 	local button = New("TextButton", {
-		Size = side and UDim2.new(1, 0, 0, 30) or UDim2.new(0, 0, 1, 0),
+		Size = side and UDim2.new(1, 0, 0, MSize(30, 40)) or UDim2.new(0, 0, 1, 0),
 		AutomaticSize = (not side) and Enum.AutomaticSize.X or Enum.AutomaticSize.None,
 		BackgroundColor3 = Theme.Field,
 		BackgroundTransparency = 1,
@@ -2355,7 +2353,7 @@ function Window:Tab(name, icon)
 		icon.LayoutOrder = 1
 	end
 
-	local label = Label(row, title, Theme.TextDim, Theme.TextSize + 1)
+	local label = Label(row, title, Theme.TextDim, Theme.TextSize + MSize(1, 3))
 	label.Size = side and UDim2.new(1, icon and -22 or 0, 1, 0) or UDim2.new(0, 0, 1, 0)
 	label.AutomaticSize = (not side) and Enum.AutomaticSize.X or Enum.AutomaticSize.None
 	label.TextTruncate = Enum.TextTruncate.AtEnd
@@ -2490,6 +2488,35 @@ function Window:SetUserScale(value)
 	self.UserScale = math.clamp(tonumber(value) or 1, 0.6, 1.4)
 	if self.Refit then self.Refit() end
 	return self.UserScale
+end
+
+-- DPI scales the components inside the window, not the window itself.
+function Window:SetContentScale(value)
+	if self.ApplyContentScale then
+		self.ApplyContentScale(value)
+	end
+	return self.ContentScaleValue or 1
+end
+
+function Window:SetDpi(dpi)
+	self.Dpi = math.clamp(tonumber(dpi) or 96, 60, 200)
+	return self:SetContentScale((self.Dpi / 96) * (self.MobileBoost or 1))
+end
+
+-- Screen pixels per local unit for everything that lives inside the body.
+function Window:UI()
+	local base = self.Scale and self.Scale.Scale or 1
+	return math.max(base * (self.ContentScaleValue or 1), 0.05)
+end
+
+function Window:SetMenuTransparency(value)
+	self.Opacity = 1 - math.clamp(tonumber(value) or 0, 0, 0.9)
+	if self.ApplyGlass then
+		self:ApplyGlass()
+	else
+		self.Main.BackgroundTransparency = 1 - self.Opacity
+	end
+	return 1 - self.Opacity
 end
 
 function Window:SetOpacity(alpha)
@@ -2933,6 +2960,7 @@ function Library:Window(opts)
 		ClipsDescendants = true,
 		Parent = shell,
 	})
+	local contentScale = New("UIScale", { Parent = body })
 
 	local footer, footerLine, footerLeft
 	if footerHeight > 0 then
@@ -2992,6 +3020,10 @@ function Library:Window(opts)
 		Overlay = overlay,
 		Blocker = blocker,
 		Scale = scale,
+		ContentScale = contentScale,
+		ContentScaleValue = 1,
+		Dpi = 96,
+		MobileBoost = MOBILE and 1.12 or 1,
 		TabStyle = tabStyle,
 		TabWidth = tabWidth,
 		BaseScale = 1,
@@ -3009,6 +3041,36 @@ function Library:Window(opts)
 	Track(blocker.Activated:Connect(function()
 		window:CloseFloating()
 	end))
+
+	-- The body is scaled up and its own size divided by the same factor, so the
+	-- controls grow while the window frame (title bar, tabs, footer) keeps its
+	-- size and position.
+	local function applyContentScale(value)
+		local cs = math.clamp(tonumber(value) or 1, 0.7, 1.6)
+		window.ContentScaleValue = cs
+		contentScale.Scale = cs
+		body.Size = UDim2.new(1 / cs, -24 / cs, 1 / cs, -24 / cs)
+		body.Position = UDim2.fromOffset(12 / cs, 12 / cs)
+	end
+	window.ApplyContentScale = applyContentScale
+
+	local function clampToViewport()
+		local vp = gui.AbsoluteSize
+		if vp.X <= 0 or vp.Y <= 0 then return end
+		local pos = main.AbsolutePosition
+		local sz = main.AbsoluteSize
+		local dx, dy = 0, 0
+		if pos.X < 0 then dx = -pos.X
+		elseif pos.X + sz.X > vp.X then dx = vp.X - (pos.X + sz.X) end
+		if pos.Y < 0 then dy = -pos.Y
+		elseif pos.Y + sz.Y > vp.Y then dy = vp.Y - (pos.Y + sz.Y) end
+		if dx == 0 and dy == 0 then return end
+		local s = math.max(scale.Scale, 0.05)
+		main.Position = UDim2.new(
+			main.Position.X.Scale, main.Position.X.Offset + dx / s,
+			main.Position.Y.Scale, main.Position.Y.Offset + dy / s)
+	end
+	window.ClampToViewport = clampToViewport
 
 	local function fit()
 		local vp = gui.AbsoluteSize
@@ -3064,13 +3126,21 @@ function Library:Window(opts)
 		end)
 	end))
 
-	local grip = New("TextButton", {
+	local gripHit = New("TextButton", {
+		Size = UDim2.fromOffset(40, 40),
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -2, 1, -2),
+		BackgroundTransparency = 1,
+		AutoButtonColor = false,
+		Text = "",
+		ZIndex = 131,
+		Parent = main,
+	})
+	local grip = New("Frame", {
 		Size = UDim2.fromOffset(16, 16),
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -4, 1, -4),
 		BackgroundTransparency = 1,
-		AutoButtonColor = false,
-		Text = "",
 		ClipsDescendants = true,
 		ZIndex = 130,
 		Parent = main,
@@ -3090,33 +3160,63 @@ function Library:Window(opts)
 		Corner(bar, 1)
 		gripBars[i] = bar
 	end
-	Track(grip.MouseEnter:Connect(function()
-		for _, bar in ipairs(gripBars) do Tween(bar, { BackgroundColor3 = Theme.Accent }, EASE_FAST) end
-	end))
-	Track(grip.MouseLeave:Connect(function()
+	local function gripTint(color)
+		for _, bar in ipairs(gripBars) do Tween(bar, { BackgroundColor3 = color }, EASE_FAST) end
+	end
+	Track(gripHit.MouseEnter:Connect(function()
 		if window.Resizing then return end
-		for _, bar in ipairs(gripBars) do Tween(bar, { BackgroundColor3 = Theme.Border }, EASE_FAST) end
+		gripTint(Theme.Accent)
+	end))
+	Track(gripHit.MouseLeave:Connect(function()
+		if window.Resizing then return end
+		gripTint(Theme.Border)
 	end))
 
-	local resizeMove, resizeEnd, resizeTouch
+	local resizeMove, resizeEnd, resizeRender, resizeTouch
+	local resizeTargetW, resizeTargetH
+	local resizeStartW, resizeStartH, resizeStartPos
+
+	-- Applies the pending size once per rendered frame. The opposite corner is
+	-- pinned: main is centre-anchored, so moving it by half the size delta keeps
+	-- the top-left corner exactly where it was while the grip follows the cursor.
+	local function applyResize()
+		if resizeTargetW == nil or resizeTargetH == nil then return end
+		if math.abs(resizeTargetW - window.Width) < 0.5
+			and math.abs(resizeTargetH - window.Height) < 0.5 then
+			return
+		end
+		window:SetSize(resizeTargetW, resizeTargetH, true)
+		main.Position = UDim2.new(
+			resizeStartPos.X.Scale, resizeStartPos.X.Offset + (resizeTargetW - resizeStartW) * 0.5,
+			resizeStartPos.Y.Scale, resizeStartPos.Y.Offset + (resizeTargetH - resizeStartH) * 0.5)
+	end
 
 	local function stopResize()
 		window.Resizing = false
 		if resizeMove then resizeMove:Disconnect() resizeMove = nil end
 		if resizeEnd then resizeEnd:Disconnect() resizeEnd = nil end
+		if resizeRender then resizeRender:Disconnect() resizeRender = nil end
 		resizeTouch = nil
-		if window.Refit then window:Refit() end
+		applyResize()
+		resizeTargetW, resizeTargetH = nil, nil
+		-- No refit here: recomputing the scale on release made the whole window
+		-- jump under the cursor. Keep the scale, just keep it on screen.
+		if window.ClampToViewport then window:ClampToViewport() end
+		gripTint(Theme.Border)
 	end
 
-	Track(grip.InputBegan:Connect(function(input)
+	Track(gripHit.InputBegan:Connect(function(input)
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1
 			and input.UserInputType ~= Enum.UserInputType.Touch then return end
 		window.Resizing = true
 		window:CloseFloating()
 		local origin = input.Position
-		local startW, startH = window.Width, window.Height
-		local startPos = main.Position
+		resizeStartW, resizeStartH = window.Width, window.Height
+		resizeTargetW, resizeTargetH = resizeStartW, resizeStartH
+		resizeStartPos = main.Position
 		resizeTouch = input.UserInputType == Enum.UserInputType.Touch and input or nil
+		gripTint(Theme.Accent)
+
 		resizeMove = UserInputService.InputChanged:Connect(function(move)
 			if not window.Resizing then return end
 			if resizeTouch then
@@ -3127,13 +3227,15 @@ function Library:Window(opts)
 			local s = math.max(scale.Scale, 0.05)
 			local vp = gui.AbsoluteSize
 			local delta = move.Position - origin
-			local w = math.clamp(startW + delta.X / s, window.MinWidth, math.max(window.MinWidth, vp.X / s - 16))
-			local h = math.clamp(startH + delta.Y / s, window.MinHeight, math.max(window.MinHeight, vp.Y / s - 16))
-			window:SetSize(w, h, true)
-			main.Position = UDim2.new(
-				startPos.X.Scale, startPos.X.Offset + (w - startW) * 0.5,
-				startPos.Y.Scale, startPos.Y.Offset + (h - startH) * 0.5)
+			resizeTargetW = math.clamp(resizeStartW + delta.X / s, window.MinWidth, math.max(window.MinWidth, vp.X / s - 16))
+			resizeTargetH = math.clamp(resizeStartH + delta.Y / s, window.MinHeight, math.max(window.MinHeight, vp.Y / s - 16))
 		end)
+
+		-- Mouse / touch input can fire several times per frame. Storing the target
+		-- and applying it on the render step collapses those into a single size
+		-- write, which is what keeps the drag smooth.
+		resizeRender = RunService.RenderStepped:Connect(applyResize)
+
 		resizeEnd = UserInputService.InputEnded:Connect(function(ended)
 			if resizeTouch then
 				if ended ~= resizeTouch then return end
@@ -3141,7 +3243,6 @@ function Library:Window(opts)
 				return
 			end
 			stopResize()
-			for _, bar in ipairs(gripBars) do Tween(bar, { BackgroundColor3 = Theme.Border }, EASE_FAST) end
 		end)
 	end))
 
@@ -3154,6 +3255,10 @@ function Library:Window(opts)
 	end
 
 	table.insert(Library.Windows, window)
+	window:SetDpi(Library.Dpi or 96)
+	if (Library.MenuTransparency or 0) > 0 then
+		window:SetMenuTransparency(Library.MenuTransparency)
+	end
 	return window
 end
 
@@ -4542,7 +4647,7 @@ end
 
 -- Sub tabs: a nested tab strip inside a tab.
 do
-	local SUBBAR_HEIGHT = 32
+	local SUBBAR_HEIGHT = MSize(38, 42)
 
 	local function MigrateContent(page, target)
 		for _, child in ipairs(page:GetChildren()) do
@@ -4554,7 +4659,7 @@ do
 
 	local function CreatePill(tab, sub, title)
 		local button = New("TextButton", {
-			Size = UDim2.new(0, 0, 0, 24),
+			Size = UDim2.new(0, 0, 0, MSize(26, 34)),
 			AutomaticSize = Enum.AutomaticSize.X,
 			BackgroundColor3 = Theme.Field,
 			BackgroundTransparency = 1,
@@ -4567,11 +4672,13 @@ do
 			Parent = tab.SubBar,
 		})
 		Corner(button, 6)
+		local stroke = Stroke(button, Theme.Border, 1, 1)
 		sub.Pill = button
 		function sub:SetActive(active, animate)
 			local info = animate == false and TweenInfo.new(0) or EASE_FAST
-			Tween(button, { BackgroundTransparency = active and 0.6 or 1 }, info)
-			Tween(button, { TextColor3 = active and Theme.Accent or Theme.TextDim }, info)
+			Tween(button, { BackgroundTransparency = active and 0 or 1 }, info)
+			Tween(button, { TextColor3 = active and Theme.TextBright or Theme.TextDim }, info)
+			Tween(stroke, { Transparency = active and 0.2 or 1 }, info)
 		end
 		Track(button.Activated:Connect(function() tab:SetSubTab(sub) end))
 		return button
@@ -4585,13 +4692,20 @@ do
 
 		if not (self.SubBar and self.SubBar.Parent) then
 			local bar = New("Frame", {
-				Size = UDim2.new(1, 0, 0, 24),
+				Size = UDim2.new(1, 0, 0, MSize(34, 40)),
 				BackgroundTransparency = 1,
 				Visible = window.ActiveTab == self,
 				Parent = window.Body,
 			})
 			local barList = List(bar, 6, Enum.FillDirection.Horizontal)
 			barList.VerticalAlignment = Enum.VerticalAlignment.Center
+			New("Frame", {
+				Size = UDim2.new(1, 0, 0, 1),
+				Position = UDim2.new(0, 0, 1, 0),
+				BackgroundColor3 = Theme.BorderSoft,
+				BorderSizePixel = 0,
+				Parent = bar,
+			})
 			self.SubBar = bar
 			self.SubTabs = {}
 			self.Page.Position = UDim2.fromOffset(0, SUBBAR_HEIGHT)
@@ -5094,6 +5208,48 @@ do
 		return gui
 	end
 
+	-- Particle tuning: every value is read live by the animation loop.
+	local PARTICLE_STYLE = {
+		snow     = { count = 90,  size = 1.0, speed = 1.0,  sway = 26,  drift = 0 },
+		blizzard = { count = 170, size = 0.9, speed = 5.5,  sway = 120, drift = 1 },
+		stars    = { count = 110, size = 0.7, speed = 0.16, sway = 4,   drift = 0 },
+		flowers  = { count = 55,  size = 1.6, speed = 0.85, sway = 46,  drift = 0 },
+		custom   = { count = 70,  size = 1.0, speed = 1.0,  sway = 34,  drift = 0 },
+	}
+
+	local PARTICLE_DEFAULTS = {
+		Rate = 100,
+		Size = 100,
+		Speed = 100,
+		StartSpeed = 46,
+		EndSpeed = 46,
+		Spread = 100,
+	}
+
+	Library.ParticleOptions = Library.ParticleOptions or {}
+	for key, fallback in pairs(PARTICLE_DEFAULTS) do
+		if type(Library.ParticleOptions[key]) ~= "number" then
+			Library.ParticleOptions[key] = fallback
+		end
+	end
+
+	local function ParticleOptions()
+		local o = Library.ParticleOptions
+		local out = {}
+		for key, fallback in pairs(PARTICLE_DEFAULTS) do
+			out[key] = math.clamp(tonumber(o[key]) or fallback, 0, 600)
+		end
+		out.Rate = math.clamp(out.Rate, 5, 300)
+		out.Size = math.clamp(out.Size, 10, 400)
+		out.Speed = math.clamp(out.Speed, 0, 500)
+		out.Spread = math.clamp(out.Spread, 0, 400)
+		return out
+	end
+
+	local function ParticleSize(mode, style, opts)
+		return math.max(1, style.size * (opts.Size / 100) * (mode == "custom" and 18 or 4))
+	end
+
 	local function SpawnDot(layer, mode, custom)
 		if mode == "custom" and custom then
 			return New("ImageLabel", {
@@ -5104,24 +5260,18 @@ do
 				Parent = layer,
 			})
 		end
-		local size = 3
 		local color = Color3.fromRGB(255, 255, 255)
 		local transparency = 0.15
-		if mode == "snow" then
-			size = math.random(2, 5)
-		elseif mode == "blizzard" then
-			size = math.random(2, 4)
+		if mode == "blizzard" then
 			transparency = 0.05
 		elseif mode == "stars" then
-			size = math.random(1, 3)
 			transparency = math.random() * 0.5
 		elseif mode == "flowers" then
-			size = math.random(5, 8)
 			color = (math.random(1, 2) == 1) and Color3.fromRGB(255, 182, 213) or Color3.fromRGB(255, 255, 255)
 			transparency = 0.1
 		end
 		local dot = New("Frame", {
-			Size = UDim2.fromOffset(size, size),
+			Size = UDim2.fromOffset(4, 4),
 			BackgroundColor3 = color,
 			BackgroundTransparency = transparency,
 			BorderSizePixel = 0,
@@ -5130,14 +5280,6 @@ do
 		Corner(dot, mode == "flowers" and 2 or 5)
 		if mode == "flowers" then dot.Rotation = math.random(0, 90) end
 		return dot
-	end
-
-	local function ParticleCount(mode)
-		if mode == "blizzard" then return 170 end
-		if mode == "stars" then return 110 end
-		if mode == "flowers" then return 55 end
-		if mode == "custom" then return 70 end
-		return 90
 	end
 
 	function Window:RefreshParticles()
@@ -5167,59 +5309,99 @@ do
 			return "none"
 		end
 		self:RefreshParticles()
-		local count = ParticleCount(mode)
+		local style = PARTICLE_STYLE[mode] or PARTICLE_STYLE.snow
 		task.spawn(function()
 			local dots = {}
+			local meta = {}
 			local area = layer.AbsoluteSize
 			local w = math.max(area.X, 1)
 			local h = math.max(area.Y, 1)
-			for _ = 1, count do
+
+			local function wanted()
+				local opts = ParticleOptions()
+				return math.max(1, math.floor(style.count * (opts.Rate / 100) + 0.5))
+			end
+
+			local function place(dot, seeded)
+				local opts = ParticleOptions()
+				local size = ParticleSize(mode, style, opts)
+				dot.Size = UDim2.fromOffset(size, size)
+				local data = {
+					x = math.random(0, w),
+					y = seeded and math.random(0, h) or -size,
+					phase = math.random() * math.pi * 2,
+					size = size,
+				}
+				meta[dot] = data
+				dot.Position = UDim2.fromOffset(data.x, data.y)
+			end
+
+			for _ = 1, wanted() do
 				if token ~= self.ParticleToken or not layer.Parent then return end
 				local dot = SpawnDot(layer, mode, custom)
-				dot.Position = UDim2.fromOffset(math.random(0, w), math.random(0, h))
+				place(dot, true)
 				table.insert(dots, dot)
 				task.wait(0.01)
 			end
+
+			local clock = 0
 			while token == self.ParticleToken and self.ParticleMode == mode do
 				local dt = task.wait(0.033)
+				clock = clock + dt
 				area = layer.AbsoluteSize
 				w = math.max(area.X, 1)
 				h = math.max(area.Y, 1)
+				local opts = ParticleOptions()
+
+				local target = wanted()
+				if #dots < target then
+					for _ = 1, math.min(8, target - #dots) do
+						if not layer.Parent then break end
+						local dot = SpawnDot(layer, mode, custom)
+						place(dot, false)
+						table.insert(dots, dot)
+					end
+				elseif #dots > target then
+					for _ = 1, math.min(8, #dots - target) do
+						local dot = table.remove(dots)
+						if dot then
+							meta[dot] = nil
+							dot:Destroy()
+						end
+					end
+				end
+
 				if gui.Enabled then
+					local startSpeed = opts.StartSpeed * (opts.Speed / 100) * style.speed
+					local endSpeed = opts.EndSpeed * (opts.Speed / 100) * style.speed
+					local sway = style.sway * (opts.Spread / 100)
+					local size = ParticleSize(mode, style, opts)
 					for _, dot in ipairs(dots) do
-						if not dot.Parent then continue end
-						local speed = 46
-						local sway = 0
-						if mode == "snow" then
-							speed = math.random(26, 60)
-							sway = 14
-						elseif mode == "blizzard" then
-							speed = math.random(210, 340)
-							sway = 90
-						elseif mode == "stars" then
-							speed = math.random(3, 9)
-						elseif mode == "flowers" then
-							speed = math.random(24, 48)
-							sway = 30
-						elseif mode == "custom" then
-							speed = math.random(34, 78)
-							sway = 22
+						if dot.Parent then
+							local data = meta[dot]
+							if data then
+								if data.size ~= size then
+									data.size = size
+									dot.Size = UDim2.fromOffset(size, size)
+								end
+								local progress = math.clamp(data.y / math.max(h, 1), 0, 1)
+								local speed = startSpeed + (endSpeed - startSpeed) * progress
+								data.x = data.x + math.sin(clock * 1.6 + data.phase) * sway * dt + style.drift * speed * 0.5 * dt
+								data.y = data.y + speed * dt
+								if mode == "stars" then
+									pcall(function()
+										dot.BackgroundTransparency = 0.15 + 0.5 * math.abs(math.sin(clock * 2 + data.phase))
+									end)
+								elseif mode == "flowers" then
+									pcall(function() dot.Rotation = (dot.Rotation + 60 * dt) % 360 end)
+								end
+								if data.y > h + 20 or data.x > w + 20 or data.x < -20 then
+									data.x = math.random(0, w)
+									data.y = -20
+								end
+								dot.Position = UDim2.fromOffset(data.x, data.y)
+							end
 						end
-						local x = dot.Position.X.Offset + (sway * dt) + (mode == "blizzard" and speed * 0.5 * dt or 0)
-						local y = dot.Position.Y.Offset + speed * dt
-						if mode == "stars" then
-							pcall(function()
-								dot.BackgroundTransparency = 0.15 + 0.5 * math.abs(math.sin(os.clock() * 2 + x * 0.05))
-							end)
-						end
-						if mode == "flowers" then
-							pcall(function() dot.Rotation = (dot.Rotation + 60 * dt) % 360 end)
-						end
-						if y > h + 14 or x > w + 14 then
-							x = math.random(0, w)
-							y = -14
-						end
-						dot.Position = UDim2.fromOffset(x, y)
 					end
 				end
 			end
@@ -5239,6 +5421,16 @@ do
 
 	function Library:StopParticles()
 		return self:SetParticles("none")
+	end
+
+	function Library:SetParticleOptions(options)
+		options = options or {}
+		for key, value in pairs(options) do
+			if PARTICLE_DEFAULTS[key] ~= nil and type(value) == "number" then
+				Library.ParticleOptions[key] = value
+			end
+		end
+		return Library.ParticleOptions
 	end
 
 	do
@@ -5475,6 +5667,27 @@ do
 	end
 end
 
+Library.Dpi = Library.Dpi or 96
+Library.MenuTransparency = Library.MenuTransparency or 0
+
+function Library:SetDpi(dpi)
+	dpi = math.clamp(tonumber(dpi) or 96, 60, 200)
+	self.Dpi = dpi
+	for _, w in ipairs(self.Windows) do
+		if w.SetDpi then w:SetDpi(dpi) end
+	end
+	return dpi
+end
+
+function Library:SetMenuTransparency(value)
+	value = math.clamp(tonumber(value) or 0, 0, 0.9)
+	self.MenuTransparency = value
+	for _, w in ipairs(self.Windows) do
+		if w.SetMenuTransparency then w:SetMenuTransparency(value) end
+	end
+	return value
+end
+
 -- Shared effects section (particles + background + liquid glass) for the settings tab.
 do
 	function Library:BuildEffectsSection(tab, column)
@@ -5505,6 +5718,62 @@ do
 		})
 		customBox.Instance.Visible = string.lower(tostring(self.ParticleMode or "none")) == "custom"
 		self.ParticleCustomBox = customBox
+
+		local particleOptions = self.ParticleOptions
+		section:Slider({
+			Text = "particle rate",
+			Flag = "orasense_particle_rate",
+			Min = 10,
+			Max = 300,
+			Suffix = "%",
+			Default = particleOptions.Rate,
+			Callback = function(v) self:SetParticleOptions({ Rate = v }) end,
+		})
+		section:Slider({
+			Text = "particle size",
+			Flag = "orasense_particle_size",
+			Min = 20,
+			Max = 400,
+			Suffix = "%",
+			Default = particleOptions.Size,
+			Callback = function(v) self:SetParticleOptions({ Size = v }) end,
+		})
+		section:Slider({
+			Text = "particle speed",
+			Flag = "orasense_particle_speed",
+			Min = 0,
+			Max = 500,
+			Suffix = "%",
+			Default = particleOptions.Speed,
+			Callback = function(v) self:SetParticleOptions({ Speed = v }) end,
+		})
+		section:Slider({
+			Text = "particle start speed",
+			Flag = "orasense_particle_start_speed",
+			Min = 0,
+			Max = 600,
+			Suffix = " px/s",
+			Default = particleOptions.StartSpeed,
+			Callback = function(v) self:SetParticleOptions({ StartSpeed = v }) end,
+		})
+		section:Slider({
+			Text = "particle end speed",
+			Flag = "orasense_particle_end_speed",
+			Min = 0,
+			Max = 600,
+			Suffix = " px/s",
+			Default = particleOptions.EndSpeed,
+			Callback = function(v) self:SetParticleOptions({ EndSpeed = v }) end,
+		})
+		section:Slider({
+			Text = "particle spread",
+			Flag = "orasense_particle_spread",
+			Min = 0,
+			Max = 400,
+			Suffix = "%",
+			Default = particleOptions.Spread,
+			Callback = function(v) self:SetParticleOptions({ Spread = v }) end,
+		})
 
 		section:Input({
 			Text = "background asset",

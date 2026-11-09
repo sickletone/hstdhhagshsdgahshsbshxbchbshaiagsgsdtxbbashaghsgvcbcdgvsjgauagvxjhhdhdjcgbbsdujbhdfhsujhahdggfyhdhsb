@@ -5,7 +5,7 @@ return function(Library)
 	local InterfaceManager = {}
 	InterfaceManager.Library = Library
 	InterfaceManager.Folder = "Orasense"
-	InterfaceManager.Flags = { "interface_menu_key", "interface_scale", "interface_dpi", "interface_hotkeys", "orasense_particles", "orasense_particle_custom", "orasense_background", "orasense_background_fade", "orasense_liquid", "orasense_glass_blur", "orasense_glass_strength" }
+	InterfaceManager.Flags = { "interface_menu_key", "interface_scale", "interface_dpi", "interface_transparency", "interface_hotkeys", "orasense_particles", "orasense_particle_custom", "orasense_particle_rate", "orasense_particle_size", "orasense_particle_speed", "orasense_particle_start_speed", "orasense_particle_end_speed", "orasense_particle_spread", "orasense_background", "orasense_background_fade", "orasense_liquid", "orasense_glass_blur", "orasense_glass_strength" }
 
 	function InterfaceManager:SetLibrary(lib)
 		self.Library = lib or Library
@@ -25,7 +25,7 @@ return function(Library)
 	end
 
 	function InterfaceManager:BuildInterfaceSection(tab, column)
-		self.Settings = self.Settings or { MenuKey = "RightShift", Scale = 100, Dpi = 96, Hotkeys = false }
+		self.Settings = self.Settings or { MenuKey = "RightShift", Scale = 100, Dpi = 96, Hotkeys = false, Transparency = 0 }
 
 		local section = tab:Section("interface", column or 1)
 		local menuKey = section:Keybind({
@@ -40,7 +40,7 @@ return function(Library)
 
 		local scale, dpi
 		scale = section:Slider({
-			Text = "ui scale",
+			Text = "menu scale",
 			Flag = "interface_scale",
 			Min = 70,
 			Max = 130,
@@ -48,27 +48,37 @@ return function(Library)
 			Default = self.Settings.Scale,
 			Callback = function(v)
 				self.Settings.Scale = v
-				self.Settings.Dpi = math.floor(v * 96 / 100 + 0.5)
-				if dpi then dpi:Set(self.Settings.Dpi, true) end
 				local win = self:GetWindow()
 				if win then win:SetUserScale(v / 100) end
 			end,
 		})
 
+		-- dpi only grows the components (buttons, rows, text), never the window
+		-- frame, so changing it no longer moves or rescales the menu itself.
 		dpi = section:SliderButtons({
 			Text = "dpi",
 			Flag = "interface_dpi",
 			Min = 60,
-			Max = 140,
+			Max = 160,
 			Step = 2,
 			Suffix = " dpi",
 			Default = self.Settings.Dpi or 96,
 			Callback = function(v)
 				self.Settings.Dpi = v
-				self.Settings.Scale = math.floor(v / 96 * 100 + 0.5)
-				if scale then scale:Set(self.Settings.Scale, true) end
-				local win = self:GetWindow()
-				if win then win:SetUserScale(v / 96) end
+				self.Library:SetDpi(v)
+			end,
+		})
+
+		local transparency = section:Slider({
+			Text = "menu transparency",
+			Flag = "interface_transparency",
+			Min = 0,
+			Max = 90,
+			Suffix = "%",
+			Default = self.Settings.Transparency or 0,
+			Callback = function(v)
+				self.Settings.Transparency = v
+				self.Library:SetMenuTransparency(v / 100)
 			end,
 		})
 
@@ -101,7 +111,13 @@ local hotkeys = section:Toggle({
 		menuKey:Set(self.Settings.MenuKey)
 		scale:Set(self.Settings.Scale)
 		dpi:Set(self.Settings.Dpi or 96, true)
+		transparency:Set(self.Settings.Transparency or 0, true)
 		hotkeys:Set(self.Settings.Hotkeys == true)
+		do
+			local win = self:GetWindow()
+			if win and win.SetDpi then win:SetDpi(self.Settings.Dpi or 96) end
+			self.Library:SetMenuTransparency((self.Settings.Transparency or 0) / 100)
+		end
 
 		self.Section = section
 		return section

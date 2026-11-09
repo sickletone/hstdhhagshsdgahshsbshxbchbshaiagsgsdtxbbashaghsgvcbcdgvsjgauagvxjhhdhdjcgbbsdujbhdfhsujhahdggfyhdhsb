@@ -47,6 +47,8 @@ configs, theme, server browser, player panel).
   "stars" | "flowers" | "custom", assetId)` draws on a full-screen overlay
   above the menu, so the effect covers the whole screen and hides whenever
   the UI closes. Custom mode takes an `rbxassetid://` image or asset id.
+  Rate, size, speed, start/end speed and spread are adjustable from settings
+  (or with `Library:SetParticleOptions{ ... }`).
   Built into the settings/effects section.
 - **Custom background** — `Library:SetBackground(asset)` /
   `Window:SetBackground(asset, transparency)` with fade control.
@@ -113,8 +115,9 @@ Every component is available on tabs, sub tabs and sections.
 ## Window resizing
 
 Drag the grip in the bottom-right corner to resize. The scale stays
-frozen while you drag, so the window follows the grip 1:1, and it is
-clamped to the viewport. The fit pass runs once when you release.
+frozen while you drag, so the window follows the grip 1:1 and the opposite
+corner never moves. Releasing no longer re-runs the fit pass (which used to
+make the menu jump), it only keeps the window inside the viewport.
 
 ## Notifications
 
@@ -132,20 +135,35 @@ toast:Close()
 
 ## DPI
 
-The settings tab has a **dpi** control next to **ui scale**. It maps the
-classic 96 dpi baseline onto the window scale, so `96` is the default size and
-`120` makes the whole menu a quarter larger. Both controls stay in sync and are
-saved through the config system (`interface_scale`, `interface_dpi`).
+The settings tab has a **dpi** control and a **menu scale** control, and they
+now do different things. `dpi` resizes the **components** — buttons, rows,
+sliders, inputs, text — around the fixed 96 dpi baseline (`120` makes them a
+quarter larger); the window frame, title bar, tabs and footer stay exactly
+where they are, so the menu no longer grows or moves while you drag it.
+`menu scale` still scales the whole window. Both are saved through the config
+system (`interface_dpi`, `interface_scale`).
+
+`menu transparency` sits next to them and defaults to `0%` (fully opaque).
+
+## Particles
+
+`Library:SetParticles(mode, assetId)` picks the effect; the settings tab also
+exposes six live sliders: **rate** (particle count), **size**, **speed**
+(overall multiplier), **start speed** and **end speed** (px/s at spawn and at
+the bottom of the fall) and **spread** (sideways drift). They are saved as
+`orasense_particle_rate`, `_size`, `_speed`, `_start_speed`, `_end_speed` and
+`_spread`, and apply without restarting the effect.
 
 ## Mobile
 
 On touch devices (touch input without a keyboard) the library switches on
 mobile sizing automatically: every interactive row is taller
 (`Toggle` 22 -> 32, `Slider` 30 -> 40, inputs and buttons 26 -> 34, and the
-same treatment for the component pack), boxes and switches get bigger, and
-windows are created 560 px wide so the fit pass scales the whole menu up
-instead of down. `Library.Mobile` reports the detected mode, and any window
-can still opt out by passing its own `Width`.
+same treatment for the component pack), group headers and sub tab pills get
+bigger touch targets, tab labels get bigger text, the components start at
+112% dpi, and windows are created 560 px wide so the fit pass scales the
+whole menu up instead of down. `Library.Mobile` reports the detected mode,
+and any window can still opt out by passing its own `Width`.
 
 Small decorative hairlines (the bar under the title, the footer rule, the
 content outline and the title separator) are no longer drawn, so the menu
