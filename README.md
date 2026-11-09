@@ -115,3 +115,24 @@ Every component is available on tabs, sub tabs and sections.
 Drag the grip in the bottom-right corner to resize. The scale stays
 frozen while you drag, so the window follows the grip 1:1, and it is
 clamped to the viewport. The fit pass runs once when you release.
+
+## Notifications
+
+`Library:Notify({ Title, Text, Style, Icon, Duration })` (also the
+`Library:Success` / `Warn` / `Error` shortcuts) stacks minimal cards in the
+bottom-right corner: a tinted icon chip, a truncated title, an optional body
+and a hairline timer. They slide in, fade out, pause while hovered and can be
+closed with the small x. `Notify` returns the card, so you can dismiss it
+yourself:
+
+```lua
+local toast = Library:Notify({ Title = "saved", Text = "config written.", Style = "success" })
+toast:Close()
+```
+
+## DPI
+
+The settings tab has a **dpi** control next to **ui scale**. It maps the
+classic 96 dpi baseline onto the window scale, so `96` is the default size and
+`120` makes the whole menu a quarter larger. Both controls stay in sync and are
+saved through the config system (`interface_scale`, `interface_dpi`).

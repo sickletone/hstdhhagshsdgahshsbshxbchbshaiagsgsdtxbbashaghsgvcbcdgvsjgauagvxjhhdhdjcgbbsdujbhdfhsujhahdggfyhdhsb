@@ -5,7 +5,7 @@ return function(Library)
 	local InterfaceManager = {}
 	InterfaceManager.Library = Library
 	InterfaceManager.Folder = "Orasense"
-	InterfaceManager.Flags = { "interface_menu_key", "interface_scale", "interface_hotkeys", "orasense_particles", "orasense_particle_custom", "orasense_background", "orasense_background_fade", "orasense_liquid", "orasense_glass_blur", "orasense_glass_strength" }
+	InterfaceManager.Flags = { "interface_menu_key", "interface_scale", "interface_dpi", "interface_hotkeys", "orasense_particles", "orasense_particle_custom", "orasense_background", "orasense_background_fade", "orasense_liquid", "orasense_glass_blur", "orasense_glass_strength" }
 
 	function InterfaceManager:SetLibrary(lib)
 		self.Library = lib or Library
@@ -25,7 +25,7 @@ return function(Library)
 	end
 
 	function InterfaceManager:BuildInterfaceSection(tab, column)
-		self.Settings = self.Settings or { MenuKey = "RightShift", Scale = 100, Hotkeys = false }
+		self.Settings = self.Settings or { MenuKey = "RightShift", Scale = 100, Dpi = 96, Hotkeys = false }
 
 		local section = tab:Section("interface", column or 1)
 		local menuKey = section:Keybind({
@@ -38,7 +38,8 @@ return function(Library)
 			end,
 		})
 
-		local scale = section:Slider({
+		local scale, dpi
+		scale = section:Slider({
 			Text = "ui scale",
 			Flag = "interface_scale",
 			Min = 70,
@@ -47,8 +48,27 @@ return function(Library)
 			Default = self.Settings.Scale,
 			Callback = function(v)
 				self.Settings.Scale = v
+				self.Settings.Dpi = math.floor(v * 96 / 100 + 0.5)
+				if dpi then dpi:Set(self.Settings.Dpi, true) end
 				local win = self:GetWindow()
 				if win then win:SetUserScale(v / 100) end
+			end,
+		})
+
+		dpi = section:SliderButtons({
+			Text = "dpi",
+			Flag = "interface_dpi",
+			Min = 60,
+			Max = 140,
+			Step = 2,
+			Suffix = " dpi",
+			Default = self.Settings.Dpi or 96,
+			Callback = function(v)
+				self.Settings.Dpi = v
+				self.Settings.Scale = math.floor(v / 96 * 100 + 0.5)
+				if scale then scale:Set(self.Settings.Scale, true) end
+				local win = self:GetWindow()
+				if win then win:SetUserScale(v / 96) end
 			end,
 		})
 
@@ -80,6 +100,7 @@ local hotkeys = section:Toggle({
 
 		menuKey:Set(self.Settings.MenuKey)
 		scale:Set(self.Settings.Scale)
+		dpi:Set(self.Settings.Dpi or 96, true)
 		hotkeys:Set(self.Settings.Hotkeys == true)
 
 		self.Section = section

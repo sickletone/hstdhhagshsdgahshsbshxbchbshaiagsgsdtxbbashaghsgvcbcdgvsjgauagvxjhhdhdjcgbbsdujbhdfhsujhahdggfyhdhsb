@@ -3149,13 +3149,12 @@ function Library:Window(opts)
 end
 
 function Library:Notify(opts, text, duration)
-	if self.NotificationsEnabled == false then return end
+	if self.NotificationsEnabled == false then return nil end
 	if type(opts) == "string" then
 		opts = { Title = opts, Text = text, Duration = duration }
 	end
 	opts = opts or {}
 	opts.Text = opts.Text or opts.Content or opts.Description
-	local styled = opts.Color ~= nil or (type(opts.Style) == "string" and string.lower(opts.Style) ~= "normal")
 	local accent = opts.Color or StyleColor(opts.Style, Theme.Accent)
 	local iconName = opts.Icon
 	if iconName == nil and type(opts.Style) == "string" then
@@ -3166,22 +3165,25 @@ function Library:Notify(opts, text, duration)
 			iconName = "x-circle"
 		elseif key == "success" or key == "green" then
 			iconName = "check-circle"
+		elseif key == "accent" or key == "info" or key == "blue" then
+			iconName = "info"
 		end
 	end
-	if not self.NotifyGui then
+
+	if not self.NotifyGui or not self.NotifyGui.Parent then
 		local gui = New("ScreenGui", {
 			Name = "OrasenseNotifications",
 			ResetOnSpawn = false,
 			IgnoreGuiInset = true,
 			ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-		AutoLocalize = false,
+			AutoLocalize = false,
 			DisplayOrder = 1000,
 		})
 		ParentGui(gui)
 		local holder = New("Frame", {
-			Size = UDim2.fromOffset(260, 400),
+			Size = UDim2.fromOffset(300, 420),
 			AnchorPoint = Vector2.new(1, 1),
-			Position = UDim2.new(1, -18, 1, -18),
+			Position = UDim2.new(1, -16, 1, -16),
 			BackgroundTransparency = 1,
 			Parent = gui,
 		})
@@ -3201,85 +3203,166 @@ function Library:Notify(opts, text, duration)
 		pcall(function() live[index]:Destroy() end)
 	end
 
+	local slot = New("Frame", {
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 1,
+		Parent = self.NotifyHolder,
+	})
+
 	local card = New("Frame", {
 		Size = UDim2.new(1, 0, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
+		Position = UDim2.fromOffset(16, 0),
 		BackgroundColor3 = Theme.Section,
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
-		Parent = self.NotifyHolder,
+		ClipsDescendants = true,
+		Parent = slot,
 	})
-	Corner(card, 6)
-	local cStroke = Stroke(card, Theme.SectionBorder, 1, 1)
-	local bar = New("Frame", {
-		Size = UDim2.new(0, 12, 1, 0),
-		Position = UDim2.fromOffset(0, 0),
-		BackgroundColor3 = accent,
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		Parent = card,
-	})
-	Corner(bar, 6)
-	local barCover = New("Frame", {
-		Size = UDim2.new(0, 9, 1, 0),
-		Position = UDim2.fromOffset(3, 0),
-		BackgroundColor3 = Theme.Section,
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		Parent = card,
-	})
+	Corner(card, 8)
+	local cardStroke = Stroke(card, Theme.SectionBorder, 1, 1)
+
 	local inner = New("Frame", {
 		Size = UDim2.new(1, 0, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
 		Parent = card,
 	})
-	Pad(inner, 10, 12, 10, 14)
-	List(inner, 3)
+	Pad(inner, 12, 12, 12, 12)
+	List(inner, 6)
 
-	local headRow = New("Frame", {
-		Size = UDim2.new(1, 0, 0, 16),
+	local head = New("Frame", {
+		Size = UDim2.new(1, 0, 0, 22),
 		BackgroundTransparency = 1,
 		Parent = inner,
 	})
-	local icon = AttachIcon(headRow, iconName, accent, 14)
-	if icon then icon.ImageTransparency = 1 end
-	local inset = icon and 19 or 0
-	local head = Label(headRow, opts.Title or "notice", styled and accent or Theme.TextBright, 13, Theme.FontMedium)
-	head.Position = UDim2.fromOffset(inset, 0)
-	head.Size = UDim2.new(1, -inset, 1, 0)
-	head.TextTransparency = 1
-	local text
-	if opts.Text then
-		text = Label(inner, opts.Text, Theme.Text, 12)
-		text.Size = UDim2.new(1, 0, 0, 0)
-		text.AutomaticSize = Enum.AutomaticSize.Y
-		text.TextWrapped = true
-		text.LayoutOrder = 2
-		text.TextTransparency = 1
+	local chip = New("Frame", {
+		Size = UDim2.fromOffset(22, 22),
+		BackgroundColor3 = accent,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		Parent = head,
+	})
+	Corner(chip, 6)
+	local chipIcon = AttachIcon(chip, iconName, accent, 13)
+	if chipIcon then
+		chipIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+		chipIcon.Position = UDim2.fromScale(0.5, 0.5)
+		chipIcon.ImageTransparency = 1
 	end
 
-	card.Position = UDim2.fromOffset(20, 0)
-	Tween(card, { BackgroundTransparency = 0, Position = UDim2.fromOffset(0, 0) })
-	Tween(cStroke, { Transparency = 0 })
-	Tween(bar, { BackgroundTransparency = 0 })
-	Tween(barCover, { BackgroundTransparency = 0 })
-	Tween(head, { TextTransparency = 0 })
-	if icon then Tween(icon, { ImageTransparency = 0 }) end
-	if text then Tween(text, { TextTransparency = 0 }) end
+	local hasIcon = chipIcon ~= nil
+	local title = Label(head, tostring(opts.Title or "notice"), Theme.TextBright, 13, Theme.FontMedium)
+	title.Position = UDim2.fromOffset(hasIcon and 30 or 0, 0)
+	title.Size = UDim2.new(1, hasIcon and -52 or -22, 1, 0)
+	title.TextTruncate = Enum.TextTruncate.AtEnd
+	title.TextTransparency = 1
 
-	task.delay(opts.Duration or 3.5, function()
-		if not card.Parent then return end
-		Tween(card, { BackgroundTransparency = 1, Position = UDim2.fromOffset(20, 0) })
-		Tween(cStroke, { Transparency = 1 })
-		Tween(bar, { BackgroundTransparency = 1 })
-		Tween(barCover, { BackgroundTransparency = 1 })
-		Tween(head, { TextTransparency = 1 })
-		if icon then Tween(icon, { ImageTransparency = 1 }) end
-		if text then Tween(text, { TextTransparency = 1 }) end
-		task.wait(0.22)
-		card:Destroy()
-	end)
+	local closeButton = New("TextButton", {
+		Size = UDim2.fromOffset(20, 18),
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, 4, 0.5, 0),
+		BackgroundTransparency = 1,
+		AutoButtonColor = false,
+		Text = "x",
+		TextColor3 = Theme.TextDim,
+		TextSize = 12,
+		Font = Theme.Font,
+		Parent = head,
+	})
+	closeButton.TextTransparency = 1
+
+	local body
+	if opts.Text then
+		body = Label(inner, tostring(opts.Text), Theme.TextDim, 12)
+		body.Size = UDim2.new(1, 0, 0, 0)
+		body.AutomaticSize = Enum.AutomaticSize.Y
+		body.TextWrapped = true
+		body.TextYAlignment = Enum.TextYAlignment.Top
+		body.LayoutOrder = 2
+		body.TextTransparency = 1
+	end
+
+	local lifetime = tonumber(opts.Duration) or 3.5
+	local bar
+	local barTween
+	if lifetime > 0 then
+		bar = New("Frame", {
+			Size = UDim2.new(1, -24, 0, 2),
+			Position = UDim2.new(0, 12, 1, -4),
+			BackgroundColor3 = accent,
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			ZIndex = 2,
+			Parent = card,
+		})
+		Corner(bar, 1)
+		barTween = Tween(bar, { Size = UDim2.new(0, 0, 0, 2) }, TweenInfo.new(lifetime, Enum.EasingStyle.Linear))
+	end
+
+	local dismissed = false
+	local hovered = false
+	local api = { Instance = card, Holder = slot }
+
+	local function close()
+		if dismissed then return end
+		dismissed = true
+		if barTween then pcall(function() barTween:Cancel() end) end
+		Tween(card, { BackgroundTransparency = 1, Position = UDim2.fromOffset(16, 0) })
+		Tween(cardStroke, { Transparency = 1 })
+		Tween(chip, { BackgroundTransparency = 1 })
+		if chipIcon then Tween(chipIcon, { ImageTransparency = 1 }) end
+		Tween(title, { TextTransparency = 1 })
+		Tween(closeButton, { TextTransparency = 1 })
+		if body then Tween(body, { TextTransparency = 1 }) end
+		if bar then Tween(bar, { BackgroundTransparency = 1 }) end
+		task.delay(0.26, function()
+			if slot.Parent then slot:Destroy() end
+		end)
+		if opts.OnClose then task.spawn(opts.OnClose) end
+	end
+
+	api.Close = close
+	api.Dismiss = close
+
+	Track(card.MouseEnter:Connect(function()
+		hovered = true
+		if barTween then pcall(function() barTween:Pause() end) end
+		Tween(closeButton, { TextTransparency = 0 }, EASE_FAST)
+		Tween(card, { BackgroundTransparency = 0 }, EASE_FAST)
+	end))
+	Track(card.MouseLeave:Connect(function()
+		hovered = false
+		if barTween then pcall(function() barTween:Play() end) end
+		Tween(closeButton, { TextTransparency = 1 }, EASE_FAST)
+		Tween(card, { BackgroundTransparency = 0.02 }, EASE_FAST)
+	end))
+	Track(closeButton.Activated:Connect(close))
+
+	Tween(card, { BackgroundTransparency = 0.02, Position = UDim2.fromOffset(0, 0) })
+	Tween(cardStroke, { Transparency = 0.45 })
+	Tween(chip, { BackgroundTransparency = 0.85 })
+	if chipIcon then Tween(chipIcon, { ImageTransparency = 0 }) end
+	Tween(title, { TextTransparency = 0 })
+	if body then Tween(body, { TextTransparency = 0 }) end
+	if bar then Tween(bar, { BackgroundTransparency = 0.35 }) end
+
+	if lifetime > 0 then
+		task.spawn(function()
+			local left = lifetime
+			while slot.Parent and not dismissed do
+				task.wait(0.05)
+				if not hovered then
+					left -= 0.05
+					if left <= 0 then break end
+				end
+			end
+			if not dismissed then close() end
+		end)
+	end
+
+	return api
 end
 
 local MOUSE_KEYS = {
@@ -4755,6 +4838,8 @@ do
 	local function EnsureBlur(size)
 		local blur = Lighting:FindFirstChild("OrasenseLiquidBlur")
 		if size <= 0 then
+			local modalBlur = Lighting:FindFirstChild("OrasenseModalBlur")
+			if modalBlur then modalBlur:Destroy() end
 			if blur then pcall(function() blur:Destroy() end) end
 			return nil
 		end
@@ -4847,8 +4932,9 @@ do
 
 	function Window:ApplyGlass()
 		local useGlass = Library.Glass == true or Library.LiquidGlass == true
+		local shown = self.Visible ~= false and self.Main.Visible ~= false
 		local strength = math.clamp(tonumber(Library.GlassStrength) or 1, 0, 1.5)
-		if useGlass then
+		if useGlass and shown then
 			self.Main.BackgroundTransparency = math.clamp(0.18 + strength * 0.22, 0, 0.8)
 			if Library.GlassBlur then
 				EnsureBlur(Library.LiquidGlass and (8 + strength * 8) or (4 + strength * 6))
@@ -5151,6 +5237,7 @@ do
 		function Window:SetVisible(state)
 			OrigSetVisible(self, state)
 			if self.RefreshParticles then self:RefreshParticles() end
+			if self.ApplyGlass then self:ApplyGlass() end
 		end
 	end
 end
