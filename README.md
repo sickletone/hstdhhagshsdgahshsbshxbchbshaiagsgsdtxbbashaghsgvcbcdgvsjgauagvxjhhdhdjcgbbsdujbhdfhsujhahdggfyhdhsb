@@ -64,3 +64,54 @@ Source lives at
 `sickletone/hstdhhagshsdgahshsbshxbchbshaiagsgsdtxbbashaghsgvcbcdgvsjgauagvxjhhdhdjcgbbsdujbhdfhsujhahdggfyhdhsb`
 (`main.luau` + `addons/`). `getgenv().Orasense` is set on load
 (`OrasenseUI` alias; legacy `Facility` alias kept for compatibility).
+
+## Component catalog
+
+Every component is available on tabs, sub tabs and sections.
+
+**Inputs and controls**
+
+| Element | What it is |
+| --- | --- |
+| `Toggle` | classic check toggle, optional `:Dependency()` children |
+| `ToggleSwitch` | sliding switch (alias `Switch`) |
+| `BoxToggle` | bordered card toggle with hint (alias `CardToggle`) |
+| `Checkbox` | compact checkbox |
+| `SubToggle` / `DependencyToggle` | indented / dependent toggles |
+| `RadioGroup` | single choice radio list |
+| `Segmented` | segmented control (aliases `Tabs`, `Segment`) |
+| `Slider` | drag slider |
+| `SliderButtons` | slider with minus / plus buttons and a step |
+| `Stepper` | numeric stepper (alias `Counter`) |
+| `ProgressBar` | filled value bar |
+| `ColorPicker` / `ColorSwatches` | colour picker and preset swatches |
+| `Dropdown` / `MultiDropdown` | single and multi select |
+| `Search` / `Input` / `TextArea` / `CopyField` | text entry variants |
+| `Keybind` | hold or toggle keybind |
+| `Button` / `ButtonRow` / `Link` | actions |
+
+**Display**
+
+| Element | What it is |
+| --- | --- |
+| `Label` / `Paragraph` | text and styled cards |
+| `Badge` | pill tag (alias `Tag`) |
+| `Banner` | alert / callout with icon and dismiss |
+| `Stat` | metric card (alias `Metric`) |
+| `Spinner` | animated loading dots |
+| `Avatar` | round avatar row with optional thumbnail |
+| `BulletList` | dotted list |
+| `KeyValueGrid` | two column detail grid |
+| `Table` / `Image` | data table and image card |
+| `Divider` / `LabelDivider` | separators |
+| `Card` | bordered container that holds other elements |
+| `Split` | column split with builders |
+
+`Library.Components` lists every component name and
+`Library:ListComponents()` returns a copy of that list.
+
+## Window resizing
+
+Drag the grip in the bottom-right corner to resize. The scale stays
+frozen while you drag, so the window follows the grip 1:1, and it is
+clamped to the viewport. The fit pass runs once when you release.

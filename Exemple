@@ -626,3 +626,62 @@ windowsOverlays:Slider({
 	Default = 100,
 	Callback = function(v) Library:SetGlassStrength(v / 100) end,
 })
+
+
+-- extra components: switches, sliders, display, cards
+local cSwitches = Components:SubTab("switches")
+local cSliders = Components:SubTab("sliders")
+local cDisplay = Components:SubTab("display")
+local cLayout = Components:SubTab("layout")
+
+local switchLeft = cSwitches:Section("toggles", 1)
+switchLeft:ToggleSwitch({ Text = "toggle switch", Flag = "cmp_switch", Default = true })
+switchLeft:BoxToggle({ Text = "box toggle", Hint = "card style toggle", Flag = "cmp_boxtoggle", Default = true })
+switchLeft:Checkbox({ Text = "checkbox", Flag = "cmp_checkbox", Default = false })
+switchLeft:RadioGroup({ Text = "radio group", Flag = "cmp_radio", Options = { "low", "medium", "high" }, Default = "medium" })
+
+local switchRight = cSwitches:Section("more toggles", 2)
+switchRight:ToggleSwitch({ Text = "second switch", Flag = "cmp_switch2", Default = false })
+switchRight:Segmented({ Text = "quality", Flag = "cmp_segmented", Options = { "low", "mid", "high" }, Default = "mid" })
+switchRight:Segmented({ Flag = "cmp_segmented2", Options = { "one", "two" }, Default = "one" })
+switchRight:RadioGroup({ Text = "mode", Flag = "cmp_radio2", Options = { "safe", "fast" }, Default = "safe" })
+
+local sliderLeft = cSliders:Section("sliders", 1)
+sliderLeft:SliderButtons({ Text = "slider + buttons", Flag = "cmp_sliderbuttons", Min = 0, Max = 100, Step = 5, Default = 50, Suffix = "%" })
+sliderLeft:SliderButtons({ Text = "volume", Flag = "cmp_volume", Min = 0, Max = 10, Step = 1, Default = 7 })
+sliderLeft:Stepper({ Text = "stepper", Flag = "cmp_stepper", Min = 1, Max = 25, Step = 1, Default = 5 })
+
+local sliderRight = cSliders:Section("bars", 2)
+local progress = sliderRight:ProgressBar({ Text = "progress", Flag = "cmp_progress", Min = 0, Max = 100, Default = 42, Suffix = "%" })
+sliderRight:SliderButtons({ Text = "drives the bar", Min = 0, Max = 100, Default = 42, Callback = function(v) progress:Set(v) end })
+sliderRight:ProgressBar({ Text = "static bar", Default = 75, Style = "success" })
+
+local displayLeft = cDisplay:Section("stats", 1)
+displayLeft:Stat({ Title = "players", Value = "12", Sub = "+3 today", Style = "accent" })
+displayLeft:KeyValueGrid({ Rows = { { "region", "eu" }, { "ping", "42 ms" }, { "uptime", "3h" }, { "build", "orasense.win" } } })
+displayLeft:BulletList({ Title = "features", Items = { "sub tabs", "full screen particles", "configs" } })
+displayLeft:Badge({ Text = "stable", Style = "success" })
+displayLeft:Badge({ Text = "beta", Style = "warning" })
+displayLeft:ColorSwatches({ Text = "swatches", Default = 2, Callback = function(c) Library:Notify("swatch", tostring(c), 2) end })
+
+local displayRight = cDisplay:Section("info", 2)
+displayRight:Banner({ Title = "info banner", Content = "banners support an icon, a title and a body.", Icon = "info", Style = "accent" })
+displayRight:Banner({ Title = "warning", Content = "this one can be dismissed.", Icon = "alert-triangle", Style = "warning" })
+displayRight:Avatar({ Name = "player", Sub = "level 12" })
+displayRight:Spinner({ Text = "loading something" })
+displayRight:Link({ Text = "link component", Callback = function() Library:Notify("link", "link clicked.", 2) end })
+displayRight:CopyField({ Value = "orasense.win", ButtonText = "copy" })
+displayRight:TextArea({ Text = "text area", Placeholder = "multi line input", Default = "line one\nline two", Flag = "cmp_textarea" })
+displayRight:LabelDivider("layout below")
+
+local card = cLayout:Card({ Title = "card container" })
+card:Label("cards group elements and keep long menus organized.", { Style = "dim" })
+card:Toggle({ Text = "card toggle", Flag = "cmp_card_toggle", Default = true })
+card:SliderButtons({ Text = "card slider", Flag = "cmp_card_slider", Min = 0, Max = 100, Default = 30 })
+card:Divider()
+card:Button({ Text = "card button", Callback = function() Library:Notify("card", "button inside a card.", 2) end })
+
+local card2 = cLayout:Card("second card")
+card2:Avatar({ Name = "row one", Sub = "inside a card" })
+card2:Stat({ Title = "value", Value = "42", Sub = "stat inside a card", Style = "success" })
+card2:Badge({ Text = "inside", Style = "accent" })
