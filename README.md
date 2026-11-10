@@ -20,7 +20,7 @@ configs, theme, server browser, player panel).
 ## What's included
 
 - **Window** — draggable, resizable, top or side tabs, footer actions,
-  modals, confirms, touch-only mobile button, cursor, hotkey panel, notifications
+  modals, confirms, touch-only mobile button, cursor, hotkey panel, notifications, watermark
   (normal / warning / danger / success).
 - **Controls** — label, paragraph, button, button row, toggle (+ keybind,
   color pickers, gear popups), slider, dropdown (single, multi-select,

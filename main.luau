@@ -2944,7 +2944,7 @@ function Library:Window(opts)
 	titleName.Size = UDim2.new(0, 0, 1, 0)
 	titleName.AutomaticSize = Enum.AutomaticSize.X
 
-	local titleSuffix = Label(title, opts.Suffix or ".win", Theme.TextDim, 14, Theme.FontMedium)
+	local titleSuffix = Label(title, opts.Suffix or ".win", Theme.Accent, 14, Theme.FontMedium)
 	titleSuffix.Size = UDim2.new(0, 0, 1, 0)
 	titleSuffix.AutomaticSize = Enum.AutomaticSize.X
 	titleSuffix.LayoutOrder = 2
@@ -2964,7 +2964,6 @@ function Library:Window(opts)
 
 	local tabBar
 	local layoutTabs
-	local tabReserve = 0
 
 	if tabStyle == "side" then
 		titleDivider.Visible = false
@@ -3008,7 +3007,7 @@ function Library:Window(opts)
 			titleDivider.Position = UDim2.new(0, 16 + width + 12, 0.5, 0)
 			local x = 16 + width + 25
 			tabBar.Position = UDim2.fromOffset(x, 0)
-			tabBar.Size = UDim2.new(1, -(x + 14 + tabReserve), 1, 0)
+			tabBar.Size = UDim2.new(1, -(x + 14), 1, 0)
 		end
 	end
 	Track(title:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutTabs))
@@ -3096,10 +3095,6 @@ function Library:Window(opts)
 		Main = main,
 		TopBar = topBar,
 		TabBar = tabBar,
-		SetTabBarReserve = function(_, n)
-			tabReserve = n or 0
-			layoutTabs()
-		end,
 		Body = body,
 		Footer = footer,
 		FooterLeft = footerLeft,
@@ -3259,22 +3254,17 @@ function Library:Window(opts)
 
 	local resizeMove, resizeEnd, resizeRender, resizeTouch
 	local resizeTargetW, resizeTargetH
-	local resizeStartW, resizeStartH, resizeStartPos
+	local resizeStartW, resizeStartH
 
-	-- Applies the pending size once per rendered frame. The opposite corner is
-	-- pinned: main is centre-anchored, so moving it by half the size delta keeps
-	-- the top-left corner exactly where it was while the grip follows the cursor.
+	-- The corner drag pins the top-left corner once, then only the size changes.
+	-- The old centre-anchored compensation kept sliding the window down as it grew.
 	local function applyResize()
 		if resizeTargetW == nil or resizeTargetH == nil then return end
 		if math.abs(resizeTargetW - window.Width) < 0.5
 			and math.abs(resizeTargetH - window.Height) < 0.5 then
 			return
 		end
-		local s = math.max(scale.Scale, 0.05)
 		window:SetSize(resizeTargetW, resizeTargetH, true)
-		main.Position = UDim2.new(
-			resizeStartPos.X.Scale, resizeStartPos.X.Offset + (resizeTargetW - resizeStartW) * 0.5 * s,
-			resizeStartPos.Y.Scale, resizeStartPos.Y.Offset + (resizeTargetH - resizeStartH) * 0.5 * s)
 	end
 
 	local function stopResize()
@@ -3297,9 +3287,11 @@ function Library:Window(opts)
 		window.Resizing = true
 		window:CloseFloating()
 		local origin = input.Position
+		local pin = main.AbsolutePosition
+		main.AnchorPoint = Vector2.new(0, 0)
+		main.Position = UDim2.fromOffset(pin.X, pin.Y)
 		resizeStartW, resizeStartH = window.Width, window.Height
 		resizeTargetW, resizeTargetH = resizeStartW, resizeStartH
-		resizeStartPos = main.Position
 		resizeTouch = input.UserInputType == Enum.UserInputType.Touch and input or nil
 		gripTint(Theme.Accent)
 
@@ -5149,18 +5141,6 @@ do
 			}),
 			Parent = sheen,
 		})
-		-- Chromatic-feel bottom edge light.
-		local edge = New("Frame", {
-			Size = UDim2.new(1, -24, 0, 2),
-			AnchorPoint = Vector2.new(0.5, 1),
-			Position = UDim2.new(0.5, 0, 1, -8),
-			BackgroundColor3 = Theme.Accent,
-			BackgroundTransparency = 0.55,
-			BorderSizePixel = 0,
-			ZIndex = 5,
-			Parent = fx,
-		})
-		Corner(edge, 1)
 		window.LiquidSheen = sheen
 		window.LiquidFX = fx
 		if not window.LiquidConn then
@@ -5566,132 +5546,6 @@ do
 		end
 	end
 end
--- Global menu search (search features across tabs).
-do
-	function Window:EnableMenuSearch(opts)
-		opts = opts or {}
-		if self.MenuSearchBox then return self.MenuSearchBox end
-		local anchor
-		local box
-		local field
-		if self.TabStyle == "side" then
-			field = New("Frame", {
-				Size = UDim2.new(1, 0, 0, 26),
-				BackgroundColor3 = Theme.Field,
-				BorderSizePixel = 0,
-				LayoutOrder = 0,
-				Parent = self.TabBar,
-			})
-		else
-			field = New("Frame", {
-				Size = UDim2.new(0, 170, 0, 26),
-				AnchorPoint = Vector2.new(1, 0.5),
-				Position = UDim2.new(1, -10, 0.5, 0),
-				BackgroundColor3 = Theme.Field,
-				BorderSizePixel = 0,
-				Parent = self.TopBar,
-			})
-		end
-		Corner(field, 5)
-		Stroke(field, Theme.Border)
-		box = New("TextBox", {
-			Size = UDim2.new(1, -20, 1, 0),
-			Position = UDim2.fromOffset(10, 0),
-			BackgroundTransparency = 1,
-			Text = "",
-			PlaceholderText = tostring(opts.Placeholder or "search features"),
-			PlaceholderColor3 = Theme.TextDim,
-			TextColor3 = Theme.TextBright,
-			TextSize = 12,
-			Font = Theme.Font,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			ClearTextOnFocus = false,
-			Parent = field,
-		})
-		anchor = field
-		if self.SetTabBarReserve then self:SetTabBarReserve(180) end
-		self.MenuSearchBox = box
-		self.MenuSearchField = field
-
-		local panel = self:CreateFloating(220, false, nil)
-		local list = panel.Content
-
-		local function flash(inst)
-			if not inst or not inst.Parent then return end
-			pcall(function()
-				local stroke = inst:FindFirstChildOfClass("UIStroke")
-				if stroke then
-					local old = stroke.Color
-					Tween(stroke, { Color = Theme.Accent })
-					task.delay(0.9, function()
-						pcall(function() Tween(stroke, { Color = old }) end)
-					end)
-				end
-			end)
-		end
-
-		local function close()
-			self:CloseFloatingFrom(panel.Depth)
-		end
-
-		local function rebuild()
-			for _, c in ipairs(list:GetChildren()) do
-				if c:IsA("GuiObject") then c:Destroy() end
-			end
-			local q = string.lower(box.Text or "")
-			if q == "" then close() return end
-			local shown = 0
-			for _, entry in ipairs(Library.SearchIndex) do
-				if entry.Window ~= self then continue end
-				if string.find(string.lower(entry.Label), q, 1, true) == nil then continue end
-				shown = shown + 1
-				if shown > 8 then break end
-				local item = New("TextButton", {
-					Size = UDim2.new(1, 0, 0, 24),
-					BackgroundColor3 = Theme.FieldHover,
-					BackgroundTransparency = 1,
-					AutoButtonColor = false,
-					Text = "",
-					BorderSizePixel = 0,
-					LayoutOrder = shown,
-					Parent = list,
-				})
-				Corner(item, 4)
-				local l = Label(item, entry.Label .. "  (" .. entry.Kind .. ")", Theme.Text)
-				l.Position = UDim2.fromOffset(8, 0)
-				l.Size = UDim2.new(1, -16, 1, 0)
-				local captured = entry
-				Track(item.Activated:Connect(function()
-					close()
-					if captured.Tab then self:SetTab(captured.Tab) end
-					task.delay(0.1, function()
-						if captured.Api and captured.Api.Instance then
-							flash(captured.Api.Instance)
-						end
-					end)
-				end))
-				Track(item.MouseEnter:Connect(function()
-					Tween(item, { BackgroundTransparency = 0.4 }, EASE_FAST)
-				end))
-				Track(item.MouseLeave:Connect(function()
-					Tween(item, { BackgroundTransparency = 1 }, EASE_FAST)
-				end))
-			end
-			if shown == 0 then
-				local l = Label(list, "no matches", Theme.TextDim, 12)
-				l.Size = UDim2.new(1, 0, 0, 22)
-			end
-			self:CloseFloatingFrom(panel.Depth)
-			self:ToggleFloating(panel, anchor, true)
-		end
-
-		Track(box:GetPropertyChangedSignal("Text"):Connect(rebuild))
-		Track(box.Focused:Connect(rebuild))
-		return box
-	end
-
-	Window.MenuSearch = Window.EnableMenuSearch
-end
 
 -- Multi-select dropdown alias (Dropdown with Multi = true already supported).
 do
@@ -5712,7 +5566,7 @@ do
 			Icon = opts.Icon or "server",
 			Width = opts.Width or 230,
 			Position = opts.Position or UDim2.fromOffset(18, 120),
-			Visible = opts.Visible,
+			Visible = opts.Visible == true,
 		})
 		local content = panel.Content
 		local status = content:Label("loading servers...", { Style = "dim" })
@@ -5975,9 +5829,6 @@ do
 		if self.ParticleMode and self.ParticleMode ~= "none" then
 			pcall(function() window:SetParticles(self.ParticleMode, self.ParticleCustom) end)
 		end
-		if opts.MenuSearch == true then
-			pcall(function() window:EnableMenuSearch() end)
-		end
 		return window
 	end
 
@@ -5997,6 +5848,180 @@ end
 
 
 
+
+-- Watermark: a small read-only stats strip (fps, ping, players, region).
+do
+	local WatermarkPlayers = game:GetService("Players")
+	local WatermarkStats = game:GetService("Stats")
+
+	local function readPing()
+		local ok, value = pcall(function()
+			return WatermarkStats.Network.ServerStatsItem["Data Ping"]:GetValue()
+		end)
+		if ok and type(value) == "number" then
+			return math.floor(value + 0.5)
+		end
+		local player = WatermarkPlayers.LocalPlayer
+		if player then
+			local ok2, seconds = pcall(function()
+				return player:GetNetworkPing()
+			end)
+			if ok2 and type(seconds) == "number" then
+				return math.floor(seconds * 1000 + 0.5)
+			end
+		end
+		return 0
+	end
+
+	-- Roblox does not expose the server region to the client, so this is the
+	-- closest honest value: an override, then the player's country code.
+	local function readRegion()
+		local env = type(getgenv) == "function" and getgenv() or nil
+		local forced = env and env.OrasenseRegion
+		if type(forced) == "string" and forced ~= "" then
+			return forced
+		end
+		local player = WatermarkPlayers.LocalPlayer
+		if not player then
+			return "??"
+		end
+		local ok, code = pcall(function()
+			return game:GetService("LocalizationService"):GetCountryRegionForPlayerAsync(player)
+		end)
+		if ok and type(code) == "string" and code ~= "" then
+			return string.lower(code)
+		end
+		return "??"
+	end
+
+	function Library:Watermark(opts)
+		opts = opts or {}
+
+		local gui = New("ScreenGui", {
+			Name = opts.Name or "OrasenseWatermark",
+			ResetOnSpawn = false,
+			IgnoreGuiInset = true,
+			ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+			AutoLocalize = false,
+			DisplayOrder = opts.DisplayOrder or 1002,
+			Enabled = opts.Visible ~= false,
+		})
+		ParentGui(gui)
+
+		local frame = New("Frame", {
+			Size = UDim2.fromOffset(0, 22),
+			AutomaticSize = Enum.AutomaticSize.X,
+			Position = opts.Position or UDim2.fromOffset(18, 18),
+			BackgroundColor3 = Theme.Section,
+			BorderSizePixel = 0,
+			Active = true,
+			Parent = gui,
+		})
+		Corner(frame, 6)
+		Stroke(frame, Theme.SectionBorder)
+		Pad(frame, 0, 10, 0, 10)
+		local row = List(frame, 8, Enum.FillDirection.Horizontal)
+		row.VerticalAlignment = Enum.VerticalAlignment.Center
+
+		local brand = Label(frame, tostring(opts.Title or "orasense") .. tostring(opts.Suffix or ".win"), Theme.Accent, 12, Theme.FontMedium)
+		brand.Size = UDim2.new(0, 0, 1, 0)
+		brand.AutomaticSize = Enum.AutomaticSize.X
+		brand.LayoutOrder = 1
+
+		New("Frame", {
+			Size = UDim2.fromOffset(1, 10),
+			BackgroundColor3 = Theme.BorderSoft,
+			BorderSizePixel = 0,
+			LayoutOrder = 2,
+			Parent = frame,
+		})
+
+		local stats = Label(frame, "", Theme.TextDim, 12)
+		stats.Size = UDim2.new(0, 0, 1, 0)
+		stats.AutomaticSize = Enum.AutomaticSize.X
+		stats.LayoutOrder = 3
+
+		local api = { Gui = gui, Frame = frame, Visible = opts.Visible ~= false, Fps = 0, Region = nil }
+
+		local function refresh()
+			stats.Text = string.format("%d fps  \u{00B7}  %d ms  \u{00B7}  %d/%d players  \u{00B7}  %s",
+				math.floor(api.Fps + 0.5), readPing(), #WatermarkPlayers:GetPlayers(),
+				WatermarkPlayers.MaxPlayers, api.Region or "??")
+		end
+
+		local frames, elapsed = 0, 0
+		Track(RunService.RenderStepped:Connect(function(dt)
+			frames = frames + 1
+			elapsed = elapsed + dt
+			if elapsed >= 0.5 then
+				api.Fps = frames / elapsed
+				frames, elapsed = 0, 0
+				if api.Visible then refresh() end
+			end
+		end))
+
+		task.spawn(function()
+			api.Region = readRegion()
+			if api.Visible then refresh() end
+		end)
+
+		function api:SetVisible(state)
+			self.Visible = state ~= false
+			gui.Enabled = self.Visible
+			if self.Visible then refresh() end
+			return self
+		end
+
+		function api:SetPosition(position)
+			frame.Position = position
+			return self
+		end
+
+		function api:SetRegion(value)
+			self.Region = tostring(value or "??")
+			refresh()
+			return self
+		end
+
+		function api:Refresh()
+			refresh()
+			return self
+		end
+
+		function api:Destroy()
+			gui:Destroy()
+			return nil
+		end
+
+		local origin, startPos, moveConn, endConn
+		local function stopDrag()
+			if moveConn then moveConn:Disconnect() moveConn = nil end
+			if endConn then endConn:Disconnect() endConn = nil end
+		end
+
+		Track(frame.InputBegan:Connect(function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1
+				and input.UserInputType ~= Enum.UserInputType.Touch then return end
+			stopDrag()
+			origin = input.Position
+			startPos = frame.Position
+			moveConn = UserInputService.InputChanged:Connect(function(move)
+				if move.UserInputType ~= Enum.UserInputType.MouseMovement
+					and move.UserInputType ~= Enum.UserInputType.Touch then return end
+				local delta = move.Position - origin
+				frame.Position = UDim2.new(
+					startPos.X.Scale, startPos.X.Offset + delta.X,
+					startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+			end)
+			endConn = UserInputService.InputEnded:Connect(function(ended)
+				if ended.UserInputType == input.UserInputType then stopDrag() end
+			end)
+		end))
+
+		refresh()
+		return api
+	end
+end
 
 -- Component pack: a broad set of extra elements for organized menus.
 do
@@ -7528,6 +7553,7 @@ do
 		"LabelDivider",
 		"Split",
 		"Card",
+		"Watermark",
 	}
 
 	Library.Mobile = MOBILE

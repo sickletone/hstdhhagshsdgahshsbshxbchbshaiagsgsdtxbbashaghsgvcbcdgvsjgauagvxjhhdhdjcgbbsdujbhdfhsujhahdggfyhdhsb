@@ -31,7 +31,6 @@ local Window = Library:Window({
 
 	TabStyle = "top",    -- "top" (defaut) ou "side" ; CategoryMod = 1 / 2 marche aussi
 	TabWidth = 140,
-	MenuSearch = true,   -- search bar that finds features across tabs
 
 	-- Discord : rejoint le serveur silencieusement via l'API RPC locale
 	-- Discord = {
@@ -52,21 +51,13 @@ local Window = Library:Window({
 	-- },
 })
 
-local General  = Window:Tab("general")
-local Display  = Window:Tab("display")
-local Objects  = Window:Tab("objects")
-Window:TabDivider()
-
-local Network  = Window:Tab("network")
-local Audio    = Window:Tab("audio")
-local Script   = Window:Tab("script")
-local Console  = Window:Tab("console")
-
-Window:TabDivider()
-
+local Main     = Window:Tab("main")
+local Combat   = Window:Tab("combat")
+local Visuals  = Window:Tab("visuals")
+local Misc     = Window:Tab("misc")
 local Settings = Window:Tab("settings")
 
-local global = General:Section("global", 1)
+local global = Main:Section("global", 1)
 
 global:Toggle({
 	Text = "enable",
@@ -138,7 +129,7 @@ global:Slider({
 	Default = 8,
 })
 
-local transform = General:Section("transform", 1)
+local transform = Main:Section("transform", 1)
 
 transform:Toggle({ Text = "enable", Flag = "transform_enable" })
 	:Keybind({ Default = "G", Flag = "transform_enable_key" })
@@ -154,7 +145,7 @@ transform:Toggle({ Text = "offset angle", Flag = "transform_offset" })
 		panel:Slider({ Text = "angle", Flag = "transform_angle", Min = -180, Max = 180, Suffix = "°", Default = 0 })
 	end)
 
-local settings = General:Section("settings", 2)
+local settings = Main:Section("settings", 2)
 
 settings:Dropdown({ Text = "visualization", Flag = "visualization", Options = { "visible", "always", "hidden" }, Default = "visible" })
 settings:Dropdown({ Text = "anchor", Flag = "anchor", Options = { "head", "torso", "origin", "bounds" }, Default = "head" })
@@ -180,7 +171,7 @@ settings:ColorPicker({
 	Callback = function(color, alpha) print("highlight", color, alpha) end,
 })
 
-local groups = General:Section("group filter", 2)
+local groups = Main:Section("group filter", 2)
 
 groups:Search({
 	Placeholder = "",
@@ -191,7 +182,7 @@ groups:Search({
 groups:Label("no groups found.")
 
 
-local leftNotes = General:Section("notes", 1)
+local leftNotes = Main:Section("notes", 1)
 leftNotes:Paragraph({
 	Title = "left column",
 	Content = "A paragraph inside a normal card. Text wraps on the column width.",
@@ -199,7 +190,7 @@ leftNotes:Paragraph({
 })
 leftNotes:Label("plain label, no icon, no style.")
 
-local rightNotes = General:Section("warnings", 2)
+local rightNotes = Main:Section("warnings", 2)
 rightNotes:Paragraph({
 	Title = "right column",
 	Content = "Same thing on the other side.",
@@ -208,12 +199,12 @@ rightNotes:Paragraph({
 })
 rightNotes:Label("all systems nominal.", { Style = "success", Icon = "check" })
 
-local visual = General:Section("preview", 2)
+local visual = Main:Section("preview", 2)
 
 local avatar = visual:Image({ Height = 96, Corner = 8 })
 avatar:SetUser(Players.LocalPlayer.UserId)
 
-local board = General:Section("nearby", 2)
+local board = Main:Section("nearby", 2)
 
 local roster = board:Table({
 	Columns = { "player", "distance", "team" },
@@ -252,7 +243,7 @@ task.spawn(function()
 	end
 end)
 
-local notes = General:Section("reference", "full")
+local notes = Main:Section("reference", "full")
 
 notes:Paragraph({
 	Title = "full width",
@@ -282,7 +273,7 @@ notes:Split({
 notes:Label("a full width box can hold as many paragraphs as you need.")
 
 -- Orasense extras demo: dependency toggle, sub toggles, tab boxes.
-local demoTab = General
+local demoTab = Main
 local leftBox = demoTab:LeftGroupbox("left box")
 leftBox:Toggle({ Text = "master switch", Flag = "demo_master", Default = true }):Dependency(function(dep)
 	dep:Toggle({ Text = "hidden option a", Flag = "demo_a", Default = true })
@@ -295,13 +286,34 @@ midBox:Dropdown({ Text = "searchable", Flag = "demo_search", Options = { "alpha"
 local rightBox = demoTab:RightGroupbox("right box")
 rightBox:Dropdown({ Text = "multi select", Flag = "demo_multi", Options = { "a", "b", "c", "d" }, Multi = true, Default = { "a" } })
 
-local render = Display:Section("render", 1)
+local aim = Combat:Section("aim", 1)
+
+aim:Toggle({ Text = "enabled", Flag = "aim_enabled", Default = true })
+	:Keybind({ Default = "Q", Flag = "aim_key" })
+aim:Slider({ Text = "field of view", Flag = "aim_fov", Min = 1, Max = 180, Suffix = "°", Default = 80 })
+aim:Slider({ Text = "smoothness", Flag = "aim_smooth", Min = 0, Max = 100, Default = 20 })
+aim:Segmented({ Text = "mode", Flag = "aim_mode", Options = { "hold", "toggle" }, Default = "hold" })
+
+local targeting = Combat:Section("targeting", 2)
+
+targeting:Dropdown({ Text = "hitbox", Flag = "aim_hitbox", Options = { "head", "torso", "nearest" }, Default = "head" })
+targeting:MultiDropdown({
+	Text = "ignore",
+	Flag = "aim_ignore",
+	Options = { "friends", "team", "invisible", "dead" },
+	Default = { "friends", "dead" },
+})
+targeting:ToggleSwitch({ Text = "wall check", Flag = "aim_wall", Default = true })
+targeting:SliderButtons({ Text = "delay", Flag = "aim_delay", Min = 0, Max = 500, Step = 10, Suffix = " ms", Default = 60 })
+targeting:ProgressBar({ Text = "confidence", Default = 72, Style = "accent" })
+
+local render = Visuals:Section("render", 1)
 render:Slider({ Text = "quality", Flag = "render_quality", Min = 1, Max = 10, Default = 8 })
 render:Slider({ Text = "field of view", Flag = "render_fov", Min = 40, Max = 120, Suffix = "°", Default = 70 })
 render:Toggle({ Text = "fullbright", Flag = "render_fullbright" })
 	:ColorPicker({ Flag = "render_ambient", Default = Color3.fromRGB(180, 180, 190) })
 
-local effects = Display:Section("effects", 2)
+local effects = Visuals:Section("effects", 2)
 effects:Toggle({ Text = "bloom", Flag = "fx_bloom", Default = true })
 effects:Toggle({ Text = "blur", Flag = "fx_blur" })
 	:Gear(function(panel)
@@ -309,7 +321,7 @@ effects:Toggle({ Text = "blur", Flag = "fx_blur" })
 	end)
 effects:Slider({ Text = "saturation", Flag = "fx_saturation", Min = -1, Max = 1, Decimals = 2, Default = 0 })
 
-local objects = Objects:Section("filters", 1)
+local objects = Misc:Section("filters", 1)
 
 objects:Toggle({ Text = "static objects", Flag = "static_objects" })
 
@@ -336,7 +348,7 @@ objects:Keybind({
 	Callback = function(active) print("collect", active) end,
 })
 
-local naming = Objects:Section("naming", 2)
+local naming = Misc:Section("naming", 2)
 naming:Input({
 	Text = "prefix",
 	Flag = "objects_prefix",
@@ -346,23 +358,23 @@ naming:Input({
 })
 naming:Button({ Text = "apply to selection", Callback = function() Library:Success("done", "prefix applied.", 3) end })
 
-local status = Network:Section("status", 1)
+local status = Misc:Section("status", 1)
 status:Label("idle.", { Style = "dim" })
 status:Slider({ Text = "timeout", Flag = "net_timeout", Min = 1, Max = 30, Suffix = " s", Default = 10 })
 
-Audio:Section("mixer", 1):Slider({ Text = "volume", Flag = "audio_volume", Min = 0, Max = 100, Suffix = "%", Default = 70 })
+Misc:Section("mixer", 1):Slider({ Text = "volume", Flag = "audio_volume", Min = 0, Max = 100, Suffix = "%", Default = 70 })
 
-local editor = Script:Section("editor", 1)
+local editor = Misc:Section("editor", 1)
 editor:Button({ Text = "reload scripts", Callback = function() Library:Notify("orasense", "scripts reloaded.", 3) end })
 editor:ButtonRow({
 	{ Text = "run", Callback = function() print("run") end },
 	{ Text = "stop", Callback = function() print("stop") end },
 })
 
-local console = Console:Section("output", 1)
+local console = Misc:Section("output", 1)
 console:Label("empty.")
 
-local reference = Console:Section("reference", "full")
+local reference = Misc:Section("reference", "full")
 reference:Split({
 	function(left)
 		left:Paragraph({ Title = "flags", Content = "Every stateful element takes a Flag, used for saving.", Icon = "info" })
@@ -416,10 +428,9 @@ if Library.BuildEffectsSection and Settings then
 	-- effects section (particles / background / liquid glass) lives in settings tab
 	pcall(function() Library:BuildEffectsSection(Settings, 1) end)
 end
-pcall(function() Window:EnableMenuSearch() end)
 ThemeManager:Mount(Window)
 
-Window:SetTab(General)
+Window:SetTab(Main)
 
 Library:Notify({
 	Title = "Orasense",
@@ -432,8 +443,7 @@ ThemeManager:Load()
 
 local RunService = game:GetService("RunService")
 
-local hudVisible = false
-
+-- Floating player panel: hidden until its settings toggle turns it on.
 local hud = Library:Panel({
 	Title = "player",
 	Icon = "user",
@@ -443,20 +453,24 @@ local hud = Library:Panel({
 })
 
 hud.Content:Label("name", { Style = "dim" })
-local nameLabel = hud.Content:Label(Players.LocalPlayer.Name, { Style = "bright" })
+hud.Content:Label(Players.LocalPlayer.Name, { Style = "bright" })
 
 hud.Content:Divider()
 
 hud.Content:Label("health", { Style = "dim" })
 local healthLabel = hud.Content:Label("-", { Style = "success" })
 
+hud.Content:Label("players", { Style = "dim" })
+local playersLabel = hud.Content:Label(tostring(#Players:GetPlayers()), { Style = "bright" })
+
+hud:SetVisible(false)
+
 task.spawn(function()
 	while task.wait(0.5) do
-		if hudVisible then
-			local character = Players.LocalPlayer.Character
-			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-			healthLabel:Set(humanoid and string.format("%d / %d", humanoid.Health, humanoid.MaxHealth) or "-")
-		end
+		local character = Players.LocalPlayer.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		healthLabel:Set(humanoid and string.format("%d / %d", humanoid.Health, humanoid.MaxHealth) or "-")
+		playersLabel:Set(tostring(#Players:GetPlayers()))
 	end
 end)
 
@@ -480,7 +494,23 @@ end)
 
 local servers = Library:ServerBrowser()
 
+local watermark = Library:Watermark({
+	Title = "orasense",
+	Suffix = ".win",
+	Position = UDim2.fromOffset(18, 18),
+})
+
 local overlay = Settings:Section("overlay", 1)
+
+overlay:Toggle({
+	Text = "watermark",
+	Flag = "overlay_watermark",
+	Hint = "fps, ping, players and region",
+	Default = true,
+	Callback = function(state)
+		watermark:SetVisible(state)
+	end,
+})
 
 overlay:Toggle({
 	Text = "server browser",
@@ -498,7 +528,6 @@ overlay:Toggle({
 	Hint = "shows the floating player panel",
 	Default = false,
 	Callback = function(state)
-		hudVisible = state
 		hud:SetVisible(state)
 	end,
 })
@@ -611,7 +640,6 @@ windowsOverlays:Button({ Text = "sub window", Callback = function() sub:SetVisib
 windowsOverlays:Button({ Text = "mini window", Callback = function() mini:SetVisible(true) end })
 windowsOverlays:Button({ Text = "server browser", Callback = function() servers:SetVisible(true) end })
 windowsOverlays:Button({ Text = "player panel", Callback = function()
-	hudVisible = true
 	hud:SetVisible(true)
 end })
 windowsOverlays:Toggle({ Text = "liquid glass", Flag = "cmp_liquid", Callback = function(state)
@@ -655,7 +683,7 @@ local progress = sliderRight:ProgressBar({ Text = "progress", Flag = "cmp_progre
 sliderRight:SliderButtons({ Text = "drives the bar", Min = 0, Max = 100, Default = 42, Callback = function(v) progress:Set(v) end })
 sliderRight:ProgressBar({ Text = "static bar", Default = 75, Style = "success" })
 
-local displayLeft = cDisplay:Section("stats", 1)
+local displayLeft = cVisuals:Section("stats", 1)
 displayLeft:Stat({ Title = "players", Value = "12", Sub = "+3 today", Style = "accent" })
 displayLeft:KeyValueGrid({ Rows = { { "region", "eu" }, { "ping", "42 ms" }, { "uptime", "3h" }, { "build", "orasense.win" } } })
 displayLeft:BulletList({ Title = "features", Items = { "sub tabs", "full screen particles", "configs" } })
@@ -663,7 +691,7 @@ displayLeft:Badge({ Text = "stable", Style = "success" })
 displayLeft:Badge({ Text = "beta", Style = "warning" })
 displayLeft:ColorSwatches({ Text = "swatches", Default = 2, Callback = function(c) Library:Notify("swatch", tostring(c), 2) end })
 
-local displayRight = cDisplay:Section("info", 2)
+local displayRight = cVisuals:Section("info", 2)
 displayRight:Banner({ Title = "info banner", Content = "banners support an icon, a title and a body.", Icon = "info", Style = "accent" })
 displayRight:Banner({ Title = "warning", Content = "this one can be dismissed.", Icon = "alert-triangle", Style = "warning" })
 displayRight:Avatar({ Name = "player", Sub = "level 12" })
