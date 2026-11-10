@@ -45,7 +45,7 @@ local Theme = {
 	Window        = Color3.fromRGB(26, 26, 28),
 	WindowAlpha   = 0,
 	WindowBorder  = Color3.fromRGB(52, 52, 56),
-	TopBar        = Color3.fromRGB(31, 31, 34),
+	TopBar        = Color3.fromRGB(26, 26, 28),
 	Section       = Color3.fromRGB(29, 29, 32),
 	SectionBorder = Color3.fromRGB(46, 46, 50),
 	Group         = Color3.fromRGB(34, 34, 37),
@@ -2150,7 +2150,7 @@ local function CreateSection(window, parent, title, order)
 			hicon.Position = UDim2.new(0, 0, 0.5, 0)
 		end
 	end
-	local htitle = Label(header, heading, Theme.TextBright, Theme.TextSize + 1, Theme.FontMedium)
+	local htitle = Label(header, heading, Theme.Text, Theme.TextSize, Theme.FontMedium)
 	htitle.Position = UDim2.fromOffset(hicon and 22 or 0, 0)
 	htitle.Size = UDim2.new(1, hicon and -52 or -30, 1, 0)
 	htitle.TextTruncate = Enum.TextTruncate.AtEnd
@@ -2421,7 +2421,7 @@ function Window:Tab(name, icon)
 
 	function tab:SetActive(active, animate)
 		local info = animate and EASE_FAST or TweenInfo.new(0)
-		local color = active and Theme.Accent or Theme.TextDim
+		local color = active and Theme.TextBright or Theme.TextDim
 		Tween(label, { TextColor3 = color }, info)
 		if icon then Tween(icon, { ImageColor3 = color }, info) end
 		if side then
@@ -2944,7 +2944,7 @@ function Library:Window(opts)
 	titleName.Size = UDim2.new(0, 0, 1, 0)
 	titleName.AutomaticSize = Enum.AutomaticSize.X
 
-	local titleSuffix = Label(title, opts.Suffix or ".win", Theme.Accent, 14, Theme.FontMedium)
+	local titleSuffix = Label(title, opts.Suffix or ".win", Theme.TextDim, 14, Theme.FontMedium)
 	titleSuffix.Size = UDim2.new(0, 0, 1, 0)
 	titleSuffix.AutomaticSize = Enum.AutomaticSize.X
 	titleSuffix.LayoutOrder = 2
@@ -2964,6 +2964,7 @@ function Library:Window(opts)
 
 	local tabBar
 	local layoutTabs
+	local tabReserve = 0
 
 	if tabStyle == "side" then
 		titleDivider.Visible = false
@@ -3007,7 +3008,7 @@ function Library:Window(opts)
 			titleDivider.Position = UDim2.new(0, 16 + width + 12, 0.5, 0)
 			local x = 16 + width + 25
 			tabBar.Position = UDim2.fromOffset(x, 0)
-			tabBar.Size = UDim2.new(1, -(x + 14), 1, 0)
+			tabBar.Size = UDim2.new(1, -(x + 14 + tabReserve), 1, 0)
 		end
 	end
 	Track(title:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutTabs))
@@ -3095,6 +3096,10 @@ function Library:Window(opts)
 		Main = main,
 		TopBar = topBar,
 		TabBar = tabBar,
+		SetTabBarReserve = function(_, n)
+			tabReserve = n or 0
+			layoutTabs()
+		end,
 		Body = body,
 		Footer = footer,
 		FooterLeft = footerLeft,
@@ -3331,7 +3336,7 @@ function Library:Window(opts)
 		Library:SetCursor(true, type(opts.Cursor) == "table" and opts.Cursor or nil)
 	end
 
-	if opts.MobileButton == true or (opts.MobileButton ~= false and UserInputService.TouchEnabled) then
+	if opts.MobileButton == true or (opts.MobileButton ~= false and MOBILE) then
 		Library:CreateMobileButton(opts.MobileButtonOptions)
 	end
 
@@ -5604,6 +5609,7 @@ do
 			Parent = field,
 		})
 		anchor = field
+		if self.SetTabBarReserve then self:SetTabBarReserve(180) end
 		self.MenuSearchBox = box
 		self.MenuSearchField = field
 

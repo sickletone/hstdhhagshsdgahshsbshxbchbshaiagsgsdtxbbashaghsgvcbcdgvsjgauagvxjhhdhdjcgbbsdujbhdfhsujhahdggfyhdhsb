@@ -24,13 +24,12 @@ assert(SaveManager and InterfaceManager and ThemeManager,
 local Window = Library:Window({
 	Title = "orasense",
 	Suffix = ".win",
-	Width = 700,
+	Width = 620,
 	Height = 620,
 	MinWidth = 520,
 	MinHeight = 340,
-	MobileButton = true,
 
-	TabStyle = "side",   -- "top" (defaut) ou "side" ; CategoryMod = 1 / 2 marche aussi
+	TabStyle = "top",    -- "top" (defaut) ou "side" ; CategoryMod = 1 / 2 marche aussi
 	TabWidth = 140,
 	MenuSearch = true,   -- search bar that finds features across tabs
 
@@ -53,19 +52,19 @@ local Window = Library:Window({
 	-- },
 })
 
-local General  = Window:Tab("general", "sliders")
-local Display  = Window:Tab("display", "monitor")
-local Objects  = Window:Tab("objects", "box")
+local General  = Window:Tab("general")
+local Display  = Window:Tab("display")
+local Objects  = Window:Tab("objects")
 Window:TabDivider()
 
-local Network  = Window:Tab("network", "wifi")
-local Audio    = Window:Tab("audio", "volume-2")
-local Script   = Window:Tab("script", "code")
-local Console  = Window:Tab("console", "terminal")
+local Network  = Window:Tab("network")
+local Audio    = Window:Tab("audio")
+local Script   = Window:Tab("script")
+local Console  = Window:Tab("console")
 
 Window:TabDivider()
 
-local Settings = Window:Tab({ Title = "settings", Icon = "settings" })
+local Settings = Window:Tab("settings")
 
 local global = General:Section("global", 1)
 
@@ -522,7 +521,7 @@ demoToggles:Toggle({ Text = "liquid glass", Flag = "demo_liquid", Callback = fun
 
 
 -- Every component, grouped in sub tabs.
-local Components = Window:Tab("components", "layers")
+local Components = Window:Tab("components")
 local cInputs = Components:SubTab("inputs")
 local cGroups = Components:SubTab("groups")
 local cWindows = Components:SubTab("windows")
