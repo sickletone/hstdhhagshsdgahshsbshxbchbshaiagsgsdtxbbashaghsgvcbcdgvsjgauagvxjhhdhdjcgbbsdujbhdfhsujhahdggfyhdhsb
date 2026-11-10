@@ -12,6 +12,10 @@ assert(type(Library) == "table", "main.luau n'a rien retourne, le fichier est in
 
 Library.BaseUrl = BASE
 
+-- Glass is opt-in: the only controls for it live in settings > themes.
+Library.Glass = false
+Library.LiquidGlass = false
+
 local Players = game:GetService("Players")
 
 local SaveManager = Library.SaveManager
@@ -546,20 +550,48 @@ overlay:Toggle({
 })
 
 
--- Orasense sub window / mini window demo
+-- Floating window: a real window that lives outside the menu. It is driven
+-- by a toggle, a dropdown and a button, and all three stay in sync.
+local float = Library:MiniWindow({ Title = "floating window", Width = 200 })
+float.Content:Label("this window lives outside the menu.", { Style = "dim" })
+float.Content:Toggle({ Text = "stay open", Default = true })
+float:SetVisible(false)
+
+local demoToggles = settingsOptions:Section("windows", 1)
+
+local floatToggle
+local floatDropdown
+
+local function setFloat(open)
+	open = open ~= false
+	if float.Visible == open then return end
+	float:SetVisible(open)
+	if floatToggle then pcall(function() floatToggle:Set(open, true) end) end
+	if floatDropdown then pcall(function() floatDropdown:Set(open and "open" or "closed", true) end) end
+end
+
+floatToggle = demoToggles:Toggle({
+	Text = "floating window",
+	Default = false,
+	Hint = "the dropdown and the button below drive the same window",
+	Callback = function(state) setFloat(state) end,
+})
+
+floatDropdown = demoToggles:Dropdown({
+	Text = "floating window state",
+	Options = { "closed", "open" },
+	Default = "closed",
+	Callback = function(value) setFloat(value == "open") end,
+})
+
+demoToggles:Button({ Text = "toggle floating window", Callback = function() setFloat(not float.Visible) end })
+
+-- Embedded sub window: it stays inside the main window instead.
 local sub = Window:SubWindow({ Title = "sub window", Width = 250, Height = 170 })
 sub.Content:Label("a window inside the window.", { Style = "dim" })
 sub.Content:Button({ Text = "ping", Callback = function() Library:Notify({ Title = "orasense", Text = "pong", Duration = 2 }) end })
 sub:SetVisible(false)
-
-local mini = Library:MiniWindow({ Title = "mini", Width = 180 })
-mini.Content:Label("tiny floating widget.", { Style = "dim" })
-mini:SetVisible(false)
-
-local demoToggles = settingsOptions:Section("windows", 1)
 demoToggles:Toggle({ Text = "sub window", Flag = "demo_subwindow", Callback = function(state) sub:SetVisible(state) end })
-demoToggles:Toggle({ Text = "mini window", Flag = "demo_miniwindow", Callback = function(state) mini:SetVisible(state) end })
-demoToggles:Toggle({ Text = "liquid glass", Flag = "demo_liquid", Callback = function(state) Library:SetLiquidGlass(state) end })
 
 
 -- Every component, grouped in sub tabs.
@@ -655,17 +687,7 @@ windowsOverlays:Button({ Text = "server browser", Callback = function() servers:
 windowsOverlays:Button({ Text = "player panel", Callback = function()
 	hud:SetVisible(true)
 end })
-windowsOverlays:Toggle({ Text = "liquid glass", Flag = "cmp_liquid", Callback = function(state)
-	Library:SetLiquidGlass(state)
-end })
-windowsOverlays:Slider({
-	Text = "glass strength",
-	Flag = "cmp_glass_strength",
-	Min = 0,
-	Max = 150,
-	Default = 100,
-	Callback = function(v) Library:SetGlassStrength(v / 100) end,
-})
+-- Glass is configured only in settings > themes.
 
 
 -- extra components: switches, sliders, display, cards

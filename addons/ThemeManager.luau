@@ -181,12 +181,11 @@ return function(Library)
 			colors[entry[1]] = toHex(Theme[entry[1]], alphas[entry[1]])
 		end
 		local ok, encoded = pcall(function()
+			-- Glass is deliberately not stored: it is a session look, set in
+			-- Settings > themes, and must start off on every launch.
 			return HttpService:JSONEncode({
 				Preset = self.Current,
 				Colors = colors,
-				Glass = self.Library.Glass == true,
-				GlassBlur = self.Library.GlassBlur ~= false,
-				GlassStrength = self.Library.GlassStrength or 1,
 			})
 		end)
 		if ok then self.Library.FileSystem:Write(self:Path(), encoded) end
@@ -200,15 +199,8 @@ return function(Library)
 		if not ok or type(data) ~= "table" then return false end
 
 		if data.Preset then self:Apply(data.Preset) end
-		if tonumber(data.GlassStrength) and self.Library.SetGlassStrength then
-			self.Library:SetGlassStrength(tonumber(data.GlassStrength))
-		end
-		if type(data.GlassBlur) == "boolean" and self.Library.SetGlassBlur then
-			self.Library:SetGlassBlur(data.GlassBlur)
-		end
-		if type(data.Glass) == "boolean" and self.Library.SetGlass then
-			self.Library:SetGlass(data.Glass)
-		end
+		-- Old theme files may still carry Glass / GlassBlur / GlassStrength.
+		-- They are ignored on purpose so glass cannot come back on at launch.
 		for key, hex in pairs(data.Colors or {}) do
 			local color, alpha = fromHex(hex)
 			if color and Theme[key] ~= nil then

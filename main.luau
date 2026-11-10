@@ -3293,6 +3293,7 @@ function Library:Window(opts)
 	local resizeMove, resizeEnd, resizeRender, resizeTouch
 	local resizeTargetW, resizeTargetH
 	local resizeStartW, resizeStartH
+	local resizeAnchor, resizeStartPos
 
 	-- The corner drag pins the top-left corner once, then only the size changes.
 	-- The old centre-anchored compensation kept sliding the window down as it grew.
@@ -3302,7 +3303,19 @@ function Library:Window(opts)
 			and math.abs(resizeTargetH - window.Height) < 0.5 then
 			return
 		end
+		local anchor = resizeAnchor or Vector2.new()
+		local startPos = resizeStartPos or main.Position
+		-- Measure from the size at drag start, never from the current size:
+		-- after the first frame those are equal and the offset would collapse
+		-- back to the start position, which is the snap the user was seeing.
+		local growW = resizeTargetW - resizeStartW
+		local growH = resizeTargetH - resizeStartH
 		window:SetSize(resizeTargetW, resizeTargetH, true)
+		-- The corner opposite the grip has to stay put, so shift the frame by
+		-- the anchor fraction of the total growth (top-left = pos - anchor*size).
+		main.Position = UDim2.new(
+			startPos.X.Scale, startPos.X.Offset + growW * anchor.X,
+			startPos.Y.Scale, startPos.Y.Offset + growH * anchor.Y)
 	end
 
 	local function stopResize()
@@ -3313,9 +3326,8 @@ function Library:Window(opts)
 		resizeTouch = nil
 		applyResize()
 		resizeTargetW, resizeTargetH = nil, nil
-		-- No refit here: recomputing the scale on release made the whole window
-		-- jump under the cursor. Keep the scale, just keep it on screen.
-		if window.ClampToViewport then window:ClampToViewport() end
+		-- No refit and no viewport clamp on release: both moved the window under
+		-- the cursor after the drag ended, which read as the window snapping back.
 		gripTint(Theme.Border)
 	end
 
@@ -3325,9 +3337,8 @@ function Library:Window(opts)
 		window.Resizing = true
 		window:CloseFloating()
 		local origin = input.Position
-		local pin = main.AbsolutePosition
-		main.AnchorPoint = Vector2.new(0, 0)
-		main.Position = UDim2.fromOffset(pin.X, pin.Y)
+		resizeAnchor = main.AnchorPoint
+		resizeStartPos = main.Position
 		resizeStartW, resizeStartH = window.Width, window.Height
 		resizeTargetW, resizeTargetH = resizeStartW, resizeStartH
 		resizeTouch = input.UserInputType == Enum.UserInputType.Touch and input or nil
@@ -3742,6 +3753,7 @@ function Library:Panel(opts)
 	local api = setmetatable({
 		Gui = gui,
 		Frame = frame,
+		Visible = opts.Visible ~= false,
 		Main = root,
 		Scale = rootScale,
 		Overlay = overlay,
