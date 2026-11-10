@@ -5927,7 +5927,7 @@ do
 				Size = UDim2.fromScale(1, 1),
 				BackgroundTransparency = 1,
 				ScaleType = Enum.ScaleType.Crop,
-				ZIndex = 2,
+				ZIndex = 0,
 				Parent = self.Main,
 			})
 			Corner(img, 10)
@@ -5938,7 +5938,7 @@ do
 				BackgroundColor3 = Color3.fromRGB(0, 0, 0),
 				BackgroundTransparency = 0.45,
 				BorderSizePixel = 0,
-				ZIndex = 3,
+				ZIndex = 0,
 				Parent = self.Main,
 			})
 			Corner(self.BackgroundDim, 10)
