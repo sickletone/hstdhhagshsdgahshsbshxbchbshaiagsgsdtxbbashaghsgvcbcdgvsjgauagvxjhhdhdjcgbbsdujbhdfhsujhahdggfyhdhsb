@@ -42,7 +42,9 @@ configs, theme, server browser, player panel).
 - **Liquid glass** — a real liquid look (tinted translucency + blur,
   specular wash, travelling sheen), not plain glassmorphism:
   `Library:SetLiquidGlass(true)`, plus `SetGlass`,
-  `SetGlassBlur`, `SetGlassStrength`. Preset `liquid` in the theme manager.
+  `SetGlassBlur`, `SetGlassStrength`. Blur is off by default; the glass
+  controls (including blur) live in settings > themes. Preset `liquid` in the
+  theme manager.
 - **Sub tabs** — `tab:SubTab("name")` adds a nested tab strip inside a tab:
   a row of text tabs with an accent underline on the active one (plus the
   parent tab's icon at the left). Each sub tab is a full tab (`:Section`,
@@ -58,7 +60,12 @@ configs, theme, server browser, player panel).
 - **Custom background** — `Library:SetBackground(asset)` /
   `Window:SetBackground(asset, transparency)` with fade control.
 - **Sub / mini windows** — `Window:SubWindow(opts)` (a window inside the
-  window) and `Library:MiniWindow(opts)` (tiny floating widget).
+  window) and `Library:MiniWindow(opts)`, a second floating window that is
+  smaller than the menu but keeps the same chrome: its own title bar, drag,
+  close button, scrollable body and a bottom-right corner grip. Its
+  `Content` accepts every component in the library, and `:SetVisible`,
+  `:Toggle`, `:SetPosition` and `:SetSize` drive it from a toggle, button or
+  dropdown.
 - **Configs** — name, create, refresh list, overwrite, delete, load, set
   as autoload, remove autoload, copy to clipboard, import from clipboard,
   reset defaults (`SaveManager:BuildConfigSection`).
@@ -138,19 +145,22 @@ Every component is available on tabs, sub tabs and sections.
 
 ## Window resizing
 
-Drag the grip in the bottom-right corner to resize. The scale stays
-frozen while you drag, so the window follows the grip 1:1 and the opposite
-corner never moves. Releasing no longer re-runs the fit pass (which used to
-make the menu jump), it only keeps the window inside the viewport.
+Drag the grip in the bottom-right corner to resize. Grabbing it anchors the
+window by its top-left corner in screen pixels, then the drag only writes
+`Size`, so the opposite corner is fixed by construction and the edge tracks
+the cursor without the jitter the old per-frame position correction caused.
+The scale stays frozen while you drag, and releasing does not re-run the fit
+pass, so the menu does not snap or jump at the end. Mini windows resize the
+same way with their own grip.
 
 ## Notifications
 
 `Library:Notify({ Title, Text, Style, Icon, Duration })` (also the
-`Library:Success` / `Warn` / `Error` shortcuts) stacks minimal cards in the
-bottom-right corner: a tinted icon chip, a truncated title, an optional body
-and a hairline timer. They slide in, fade out, pause while hovered and can be
-closed with the small x. `Notify` returns the card, so you can dismiss it
-yourself:
+`Library:Success` / `Warn` / `Error` shortcuts) stacks clean cards in the
+bottom-right corner: a soft border, an accent rail down the left edge, an
+optional icon chip, a truncated title, an optional body and a hairline timer.
+They fade in, pause while hovered and can be closed with the x (or by calling
+`:Close()`). `Notify` returns the card, so you can dismiss it yourself:
 
 ```lua
 local toast = Library:Notify({ Title = "saved", Text = "config written.", Style = "success" })

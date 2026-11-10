@@ -2705,6 +2705,9 @@ function Window:RefreshTitleScale()
 	self.TitleScaleValue = size
 	name.TextSize = size
 	if self.TitleSuffix then self.TitleSuffix.TextSize = size end
+	if self.TitleSuffixGlow then
+		self.TitleSuffixGlow.Thickness = math.clamp(size / 10, 1, 2.4)
+	end
 end
 
 function Window:SetDpi(dpi)
@@ -3091,6 +3094,14 @@ function Library:Window(opts)
 	titleSuffix.AutomaticSize = Enum.AutomaticSize.X
 	titleSuffix.LayoutOrder = 2
 
+	-- The suffix is the brand mark, so it gets a soft accent outline that
+	-- breathes instead of sitting there as flat coloured text.
+	local titleSuffixGlow = Stroke(titleSuffix, Theme.Accent, 1, 0.35)
+	Track(RunService.RenderStepped:Connect(function()
+		if not titleSuffix.Parent then return end
+		titleSuffixGlow.Transparency = 0.4 + math.sin(os.clock() * 2.1) * 0.24
+	end))
+
 	local titleDivider = New("Frame", {
 		Size = UDim2.fromOffset(1, 14),
 		Visible = false,
@@ -3412,43 +3423,19 @@ function Library:Window(opts)
 	local resizeMove, resizeEnd, resizeRender, resizeTouch
 	local resizeTargetW, resizeTargetH
 	local resizeStartW, resizeStartH
-	local resizeAnchor, resizeStartPos, resizeStartAbs
 
-	-- The corner drag pins the top-left corner once, then only the size changes.
-	-- The old centre-anchored compensation kept sliding the window down as it grew.
+	-- Resizing only ever writes Size. On grab the frame is anchored to its own
+	-- top-left and placed by absolute pixels, so the corner opposite the grip
+	-- cannot move and the window never chases its own last frame. The old
+	-- position correction ran every render step, over-corrected and made the
+	-- drag stutter while the corner was held.
 	local function applyResize()
 		if resizeTargetW == nil or resizeTargetH == nil then return end
-		local anchor = resizeAnchor or Vector2.new()
-		local startPos = resizeStartPos or main.Position
-
-		if math.abs(resizeTargetW - window.Width) >= 0.5
-			or math.abs(resizeTargetH - window.Height) >= 0.5 then
-			-- Measure from the size at drag start, never from the current size:
-			-- after the first frame those are equal and the offset would collapse
-			-- back to the start position, which is the snap the user was seeing.
-			local growW = resizeTargetW - resizeStartW
-			local growH = resizeTargetH - resizeStartH
-			window:SetSize(resizeTargetW, resizeTargetH, true)
-			-- The corner opposite the grip has to stay put, so shift the frame by
-			-- the anchor fraction of the total growth (top-left = pos - anchor*size).
-			main.Position = UDim2.new(
-				startPos.X.Scale, startPos.X.Offset + growW * anchor.X,
-				startPos.Y.Scale, startPos.Y.Offset + growH * anchor.Y)
+		if math.abs(resizeTargetW - window.Width) < 0.5
+			and math.abs(resizeTargetH - window.Height) < 0.5 then
+			return
 		end
-
-		-- Pin the top-left corner in screen space every frame. The size math is
-		-- right on its own, but a title bar drag or a scale change during the
-		-- resize would still slide the window under the finger.
-		if resizeStartAbs then
-			local driftX = resizeStartAbs.X - main.AbsolutePosition.X
-			local driftY = resizeStartAbs.Y - main.AbsolutePosition.Y
-			if math.abs(driftX) > 0.5 or math.abs(driftY) > 0.5 then
-				local pin = math.max(scale.Scale, 0.05)
-				main.Position = UDim2.new(
-					main.Position.X.Scale, main.Position.X.Offset + driftX / pin,
-					main.Position.Y.Scale, main.Position.Y.Offset + driftY / pin)
-			end
-		end
+		window:SetSize(resizeTargetW, resizeTargetH, true)
 	end
 
 	local function stopResize()
@@ -3459,7 +3446,6 @@ function Library:Window(opts)
 		resizeTouch = nil
 		applyResize()
 		resizeTargetW, resizeTargetH = nil, nil
-		resizeStartAbs = nil
 		-- No refit and no viewport clamp on release: both moved the window under
 		-- the cursor after the drag ended, which read as the window snapping back.
 		gripTint(Theme.Border)
@@ -3477,9 +3463,11 @@ function Library:Window(opts)
 		if window.StopDrag then window.StopDrag() end
 		window:CloseFloating()
 		local origin = input.Position
-		resizeAnchor = main.AnchorPoint
-		resizeStartPos = main.Position
-		resizeStartAbs = main.AbsolutePosition
+		-- Pin the top-left corner once, in screen pixels. After this the drag
+		-- only changes Size, so the opposite corner is fixed by construction.
+		local abs = main.AbsolutePosition
+		main.AnchorPoint = Vector2.new(0, 0)
+		main.Position = UDim2.fromOffset(abs.X, abs.Y)
 		resizeStartW, resizeStartH = window.Width, window.Height
 		resizeTargetW, resizeTargetH = resizeStartW, resizeStartH
 		resizeTouch = input.UserInputType == Enum.UserInputType.Touch and input or nil
@@ -3492,9 +3480,9 @@ function Library:Window(opts)
 			elseif move.UserInputType ~= Enum.UserInputType.MouseMovement then
 				return
 			end
-			-- Read the scale from what is actually rendered. On mobile the fit
-			-- scale differs per device, and a stale scale made the grip drift
-			-- away from the finger.
+			-- Read the scale from what is actually rendered, frozen at grab time:
+			-- the fit pass skips while Resizing, so it cannot feed back into the
+			-- target size.
 			local absW = main.AbsoluteSize.X
 			local s = (absW > 1 and window.Width > 0) and (absW / window.Width) or math.max(scale.Scale, 0.05)
 			s = math.max(s, 0.05)
@@ -3530,6 +3518,7 @@ function Library:Window(opts)
 	-- Title scaling needs the labels and the base width before the first SetDpi.
 	window.TitleName = titleName
 	window.TitleSuffix = titleSuffix
+	window.TitleSuffixGlow = titleSuffixGlow
 	window.TitleBaseSize = titleSize
 	window.BaseWidth = opts.Width or (MOBILE and 560 or 620)
 
@@ -3563,9 +3552,9 @@ function Library:Notify(opts, text, duration)
 		})
 		ParentGui(gui)
 		local holder = New("Frame", {
-			Size = UDim2.fromOffset(312, 460),
+			Size = UDim2.fromOffset(324, 460),
 			AnchorPoint = Vector2.new(1, 1),
-			Position = UDim2.new(1, -14, 1, -14),
+			Position = UDim2.new(1, -16, 1, -16),
 			BackgroundTransparency = 1,
 			Parent = gui,
 		})
@@ -3595,54 +3584,80 @@ function Library:Notify(opts, text, duration)
 		LayoutOrder = #self.NotifyHolder:GetChildren() + 1,
 		Parent = self.NotifyHolder,
 	})
-	Corner(card, 8)
+	Corner(card, 10)
+	local cardStroke = Stroke(card, Theme.PopupBorder, 1, 1)
+
+	-- Accent rail down the left edge, faded towards the bottom. It carries the
+	-- style colour without tinting the whole card.
+	local rail = New("Frame", {
+		Size = UDim2.new(0, 2, 1, -20),
+		Position = UDim2.fromOffset(0, 10),
+		BackgroundColor3 = accent,
+		BackgroundTransparency = 0.1,
+		BorderSizePixel = 0,
+		ZIndex = 2,
+		Parent = card,
+	})
+	Corner(rail, 1)
+	New("UIGradient", {
+		Rotation = 90,
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.1),
+			NumberSequenceKeypoint.new(1, 1),
+		}),
+		Parent = rail,
+	})
 
 	local inner = New("Frame", {
 		Size = UDim2.new(1, 0, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
-		Position = UDim2.fromOffset(0, 6),
 		BackgroundTransparency = 1,
 		Parent = card,
 	})
-	Pad(inner, 12, 12, 12, 12)
-	List(inner, 6)
+	Pad(inner, 10, 12, 10, 14)
+	List(inner, 5)
 
 	local head = New("Frame", {
-		Size = UDim2.new(1, 0, 0, 22),
+		Size = UDim2.new(1, 0, 0, 20),
 		BackgroundTransparency = 1,
 		Parent = inner,
 	})
-	local chip = New("Frame", {
-		Size = UDim2.fromOffset(22, 22),
-		BackgroundColor3 = accent,
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		Parent = head,
-	})
-	Corner(chip, 6)
-	local chipIcon = AttachIcon(chip, iconName, accent, 13)
-	if chipIcon then
-		chipIcon.AnchorPoint = Vector2.new(0.5, 0.5)
-		chipIcon.Position = UDim2.fromScale(0.5, 0.5)
-		chipIcon.ImageTransparency = 1
+
+	local hasIcon = iconName ~= nil
+	local chip, chipIcon
+	if hasIcon then
+		chip = New("Frame", {
+			Size = UDim2.fromOffset(20, 20),
+			BackgroundColor3 = accent,
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			Parent = head,
+		})
+		Corner(chip, 6)
+		chipIcon = AttachIcon(chip, iconName, accent, 12)
+		if chipIcon then
+			chipIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+			chipIcon.Position = UDim2.fromScale(0.5, 0.5)
+			chipIcon.ImageTransparency = 1
+		end
 	end
 
-	local hasIcon = chipIcon ~= nil
 	local title = Label(head, tostring(opts.Title or "notice"), Theme.TextBright, 13, Theme.FontMedium)
-	title.Position = UDim2.fromOffset(hasIcon and 30 or 0, 0)
-	title.Size = UDim2.new(1, hasIcon and -52 or -22, 1, 0)
+	local titleInset = hasIcon and 27 or 0
+	title.Position = UDim2.fromOffset(titleInset, 0)
+	title.Size = UDim2.new(1, -titleInset - 20, 1, 0)
 	title.TextTruncate = Enum.TextTruncate.AtEnd
 	title.TextTransparency = 1
 
 	local closeButton = New("TextButton", {
-		Size = UDim2.fromOffset(20, 18),
+		Size = UDim2.fromOffset(18, 18),
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, 4, 0.5, 0),
 		BackgroundTransparency = 1,
 		AutoButtonColor = false,
-		Text = "x",
+		Text = "×",
 		TextColor3 = Theme.TextDim,
-		TextSize = 12,
+		TextSize = 15,
 		Font = Theme.Font,
 		Parent = head,
 	})
@@ -3650,7 +3665,7 @@ function Library:Notify(opts, text, duration)
 
 	local body
 	if opts.Text then
-		body = Label(inner, tostring(opts.Text), Theme.TextDim, 12)
+		body = Label(inner, tostring(opts.Text), Theme.Text, 12)
 		body.Size = UDim2.new(1, 0, 0, 0)
 		body.AutomaticSize = Enum.AutomaticSize.Y
 		body.TextWrapped = true
@@ -3664,12 +3679,12 @@ function Library:Notify(opts, text, duration)
 	local barTween
 	if lifetime > 0 then
 		bar = New("Frame", {
-			Size = UDim2.new(1, -24, 0, 2),
-			Position = UDim2.new(0, 12, 1, -4),
+			Size = UDim2.new(1, -18, 0, 2),
+			Position = UDim2.new(0, 9, 1, -3),
 			BackgroundColor3 = accent,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			ZIndex = 2,
+			ZIndex = 3,
 			Parent = card,
 		})
 		Corner(bar, 1)
@@ -3685,7 +3700,9 @@ function Library:Notify(opts, text, duration)
 		dismissed = true
 		if barTween then pcall(function() barTween:Cancel() end) end
 		Tween(card, { BackgroundTransparency = 1 })
-		Tween(chip, { BackgroundTransparency = 1 })
+		Tween(cardStroke, { Transparency = 1 })
+		Tween(rail, { BackgroundTransparency = 1 })
+		if chip then Tween(chip, { BackgroundTransparency = 1 }) end
 		if chipIcon then Tween(chipIcon, { ImageTransparency = 1 }) end
 		Tween(title, { TextTransparency = 1 })
 		Tween(closeButton, { TextTransparency = 1 })
@@ -3710,13 +3727,13 @@ function Library:Notify(opts, text, duration)
 		hovered = false
 		if barTween then pcall(function() barTween:Play() end) end
 		Tween(closeButton, { TextTransparency = 1 }, EASE_FAST)
-		Tween(card, { BackgroundTransparency = 0.02 }, EASE_FAST)
+		Tween(card, { BackgroundTransparency = 0.04 }, EASE_FAST)
 	end))
 	Track(closeButton.Activated:Connect(close))
 
-	Tween(card, { BackgroundTransparency = 0.02 })
-	Tween(inner, { Position = UDim2.fromOffset(0, 0) }, EASE_FAST)
-	Tween(chip, { BackgroundTransparency = 0.85 })
+	Tween(card, { BackgroundTransparency = 0.04 })
+	Tween(cardStroke, { Transparency = 0.45 })
+	if chip then Tween(chip, { BackgroundTransparency = 0.85 }) end
 	if chipIcon then Tween(chipIcon, { ImageTransparency = 0 }) end
 	Tween(title, { TextTransparency = 0 })
 	if body then Tween(body, { TextTransparency = 0 }) end
@@ -5047,8 +5064,309 @@ do
 
 	function Library:MiniWindow(opts)
 		opts = opts or {}
-		opts.Width = opts.Width or 190
-		return self:Panel(opts)
+		local width = math.max(tonumber(opts.Width) or 240, 150)
+		local height = math.max(tonumber(opts.Height) or 220, 120)
+
+		local gui = New("ScreenGui", {
+			Name = opts.Name or "OrasenseMiniWindow",
+			ResetOnSpawn = false,
+			IgnoreGuiInset = true,
+			ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+			AutoLocalize = false,
+			DisplayOrder = opts.DisplayOrder or 998,
+		})
+		ParentGui(gui)
+		if opts.Visible == false then gui.Enabled = false end
+
+		local root = New("Frame", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			Parent = gui,
+		})
+
+		local frame = New("Frame", {
+			Size = UDim2.fromOffset(width, height),
+			Position = opts.Position or UDim2.fromOffset(24, 120),
+			BackgroundColor3 = Theme.Window,
+			BackgroundTransparency = Theme.WindowAlpha,
+			BorderSizePixel = 0,
+			Active = true,
+			Parent = root,
+		})
+		Corner(frame, 10)
+		Stroke(frame, Theme.WindowBorder)
+
+		local bar = New("Frame", {
+			Size = UDim2.new(1, 0, 0, 32),
+			BackgroundColor3 = Theme.TopBar,
+			BorderSizePixel = 0,
+			Parent = frame,
+		})
+		Corner(bar, 10)
+		-- Square the bottom of the title bar off so it meets the body flush.
+		New("Frame", {
+			Size = UDim2.new(1, 0, 0, 12),
+			Position = UDim2.new(0, 0, 1, -12),
+			BackgroundColor3 = Theme.TopBar,
+			BorderSizePixel = 0,
+			Parent = bar,
+		})
+
+		local heading = Label(bar, tostring(opts.Title or "mini window"), Theme.TextBright, 13, Theme.FontMedium)
+		heading.Position = UDim2.fromOffset(12, 0)
+		heading.Size = UDim2.new(1, -44, 1, 0)
+		heading.TextTruncate = Enum.TextTruncate.AtEnd
+
+		local close = New("TextButton", {
+			Size = UDim2.fromOffset(20, 20),
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, -8, 0.5, 0),
+			BackgroundTransparency = 1,
+			AutoButtonColor = false,
+			Text = "×",
+			TextColor3 = Theme.TextDim,
+			TextSize = 15,
+			Font = Theme.FontMedium,
+			Parent = bar,
+		})
+
+		local body = New("ScrollingFrame", {
+			Size = UDim2.new(1, -20, 1, -44),
+			Position = UDim2.fromOffset(10, 38),
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			CanvasSize = UDim2.new(),
+			AutomaticCanvasSize = Enum.AutomaticSize.Y,
+			ScrollBarThickness = 2,
+			ScrollBarImageColor3 = Theme.AccentDim,
+			VerticalScrollBarInset = Enum.ScrollBarInset.None,
+			Parent = frame,
+		})
+		List(body, 8)
+		Pad(body, 2, 2, 10, 2)
+
+		-- Dropdowns, colour pickers and gear popups need the same window API the
+		-- main window exposes, so they open in this window's own overlay.
+		local overlay = New("Frame", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			ZIndex = 300,
+			Parent = root,
+		})
+		local blocker = New("TextButton", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			AutoButtonColor = false,
+			Text = "",
+			Visible = false,
+			ZIndex = 310,
+			Parent = overlay,
+		})
+
+		local api = setmetatable({
+			Gui = gui,
+			Frame = frame,
+			Main = root,
+			Scale = { Scale = 1 },
+			Overlay = overlay,
+			Blocker = blocker,
+			FloatStack = {},
+			Modals = {},
+			Visible = opts.Visible ~= false,
+			Open = true,
+			Width = width,
+			Height = height,
+			MinWidth = opts.MinWidth or 160,
+			MinHeight = opts.MinHeight or 110,
+			ContentScaleValue = 1,
+			Title = heading,
+			Bar = bar,
+			Body = body,
+		}, { __index = Window })
+
+		api.Content = NewContainer(api, body)
+
+		function api:SetVisible(state)
+			state = state ~= false
+			self.Visible = state
+			if not state then self:CloseFloating() end
+			gui.Enabled = state
+			return self
+		end
+		api.SetOpen = api.SetVisible
+
+		function api:Toggle()
+			return self:SetVisible(not self.Visible)
+		end
+
+		function api:SetPosition(position)
+			frame.Position = position
+			return self
+		end
+
+		function api:SetSize(w, h)
+			self.Width = math.max(tonumber(w) or self.Width, self.MinWidth)
+			self.Height = math.max(tonumber(h) or self.Height, self.MinHeight)
+			frame.Size = UDim2.fromOffset(self.Width, self.Height)
+			return self
+		end
+
+		function api:Destroy()
+			self:CloseFloating()
+			gui:Destroy()
+			for index, panel in ipairs(Library.Panels) do
+				if panel == api then table.remove(Library.Panels, index) break end
+			end
+		end
+
+		Track(blocker.Activated:Connect(function() api:CloseFloating() end))
+		Track(close.Activated:Connect(function() api:SetVisible(false) end))
+		Track(close.MouseEnter:Connect(function()
+			Tween(close, { TextColor3 = Theme.Danger }, EASE_FAST)
+		end))
+		Track(close.MouseLeave:Connect(function()
+			Tween(close, { TextColor3 = Theme.TextDim }, EASE_FAST)
+		end))
+
+		local origin, startPos, moveConn, endConn, dragTouch
+		local function stopDrag()
+			if moveConn then moveConn:Disconnect() moveConn = nil end
+			if endConn then endConn:Disconnect() endConn = nil end
+			dragTouch = nil
+		end
+
+		Track(bar.InputBegan:Connect(function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1
+				and input.UserInputType ~= Enum.UserInputType.Touch then return end
+			if api.Resizing then return end
+			stopDrag()
+			origin = input.Position
+			startPos = frame.Position
+			dragTouch = input.UserInputType == Enum.UserInputType.Touch and input or nil
+			api:CloseFloating()
+			moveConn = UserInputService.InputChanged:Connect(function(move)
+				if dragTouch then
+					if move ~= dragTouch then return end
+				elseif move.UserInputType ~= Enum.UserInputType.MouseMovement then
+					return
+				end
+				local delta = move.Position - origin
+				frame.Position = UDim2.new(
+					startPos.X.Scale, startPos.X.Offset + delta.X,
+					startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+			end)
+			endConn = UserInputService.InputEnded:Connect(function(ended)
+				if dragTouch then
+					if ended ~= dragTouch then return end
+				elseif ended.UserInputType ~= input.UserInputType then
+					return
+				end
+				stopDrag()
+			end)
+		end))
+
+		local gripHit = New("TextButton", {
+			Size = UDim2.fromOffset(MSize(34, 48), MSize(34, 48)),
+			AnchorPoint = Vector2.new(1, 1),
+			Position = UDim2.new(1, -2, 1, -2),
+			BackgroundTransparency = 1,
+			AutoButtonColor = false,
+			Text = "",
+			ZIndex = 21,
+			Parent = frame,
+		})
+		local grip = New("Frame", {
+			Size = UDim2.fromOffset(16, 16),
+			AnchorPoint = Vector2.new(1, 1),
+			Position = UDim2.new(1, -4, 1, -4),
+			BackgroundTransparency = 1,
+			ClipsDescendants = true,
+			ZIndex = 20,
+			Parent = frame,
+		})
+		local gripBars = {}
+		for i, d in ipairs({ 3, 7, 11 }) do
+			local bar_ = New("Frame", {
+				Size = UDim2.fromOffset(d * 2, 2),
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromOffset(16 - d, 16 - d),
+				Rotation = -45,
+				BackgroundColor3 = Theme.Border,
+				BorderSizePixel = 0,
+				ZIndex = 20,
+				Parent = grip,
+			})
+			Corner(bar_, 1)
+			gripBars[i] = bar_
+		end
+
+		local function tintGrip(color)
+			for _, gripBar in ipairs(gripBars) do Tween(gripBar, { BackgroundColor3 = color }, EASE_FAST) end
+		end
+
+		local resizing, resizeMove, resizeEnd, resizeTouch
+		local resizeOrigin, resizeStartW, resizeStartH
+
+		-- Same rule as the main window: only Size changes while the grip is
+		-- held, so the top-left corner is pinned and the drag cannot stutter.
+		Track(gripHit.InputBegan:Connect(function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1
+				and input.UserInputType ~= Enum.UserInputType.Touch then return end
+			if resizing then return end
+			resizing = true
+			api.Resizing = true
+			stopDrag()
+			api:CloseFloating()
+			resizeOrigin = input.Position
+			resizeStartW = frame.AbsoluteSize.X
+			resizeStartH = frame.AbsoluteSize.Y
+			resizeTouch = input.UserInputType == Enum.UserInputType.Touch and input or nil
+			tintGrip(Theme.Accent)
+
+			resizeMove = UserInputService.InputChanged:Connect(function(move)
+				if not resizing then return end
+				if resizeTouch then
+					if move ~= resizeTouch then return end
+				elseif move.UserInputType ~= Enum.UserInputType.MouseMovement then
+					return
+				end
+				local delta = move.Position - resizeOrigin
+				local vp = gui.AbsoluteSize
+				local left = frame.AbsolutePosition.X
+				local top = frame.AbsolutePosition.Y
+				local nw = math.clamp(resizeStartW + delta.X, api.MinWidth, math.max(api.MinWidth, vp.X - left - 6))
+				local nh = math.clamp(resizeStartH + delta.Y, api.MinHeight, math.max(api.MinHeight, vp.Y - top - 6))
+				api.Width, api.Height = nw, nh
+				frame.Size = UDim2.fromOffset(nw, nh)
+			end)
+
+			resizeEnd = UserInputService.InputEnded:Connect(function(ended)
+				if resizeTouch then
+					if ended ~= resizeTouch then return end
+				elseif ended.UserInputType ~= input.UserInputType then
+					return
+				end
+				resizing = false
+				api.Resizing = false
+				resizeTouch = nil
+				if resizeMove then resizeMove:Disconnect() resizeMove = nil end
+				if resizeEnd then resizeEnd:Disconnect() resizeEnd = nil end
+				tintGrip(Theme.Border)
+			end)
+		end))
+
+		Track(gripHit.MouseEnter:Connect(function()
+			if resizing then return end
+			tintGrip(Theme.AccentSoft)
+		end))
+		Track(gripHit.MouseLeave:Connect(function()
+			if resizing then return end
+			tintGrip(Theme.Border)
+		end))
+
+		Library.Panels = Library.Panels or {}
+		table.insert(Library.Panels, api)
+		return api
 	end
 
 	function Library:SubWindow(opts, parent)
@@ -5391,7 +5709,7 @@ end
 -- Liquid glass (true liquid look: tinted translucency + blur + specular).
 do
 	Library.Glass = Library.Glass or false
-	if Library.GlassBlur == nil then Library.GlassBlur = true end
+	if Library.GlassBlur == nil then Library.GlassBlur = false end
 	Library.GlassStrength = Library.GlassStrength or 1
 	Library.LiquidGlass = Library.LiquidGlass or false
 
@@ -6000,7 +6318,8 @@ function Library:SetMenuTransparency(value)
 	return value
 end
 
--- Shared effects section (particles + background + liquid glass) for the settings tab.
+-- Shared effects section (particles + background) for the settings tab.
+-- The glass controls live in settings > themes, so they are not duplicated here.
 do
 	function Library:BuildEffectsSection(tab, column)
 		local section = tab:Section("effects", column or 1)
@@ -6111,34 +6430,6 @@ do
 				if self.BackgroundAsset and self.BackgroundAsset ~= "" then
 					self:SetBackground(self.BackgroundAsset, v / 100)
 				end
-			end,
-		})
-		section:Toggle({
-			Text = "liquid glass",
-			Flag = "orasense_liquid",
-			Default = self.LiquidGlass == true,
-			Hint = "true refractive liquid look, not plain blur",
-			Callback = function(state)
-				self:SetLiquidGlass(state)
-			end,
-		})
-		section:Toggle({
-			Text = "glass blur",
-			Flag = "orasense_glass_blur",
-			Default = self.GlassBlur ~= false,
-			Callback = function(state)
-				self:SetGlassBlur(state)
-			end,
-		})
-		section:Slider({
-			Text = "glass strength",
-			Flag = "orasense_glass_strength",
-			Min = 0,
-			Max = 150,
-			Suffix = "%",
-			Default = math.floor((self.GlassStrength or 1) * 100 + 0.5),
-			Callback = function(v)
-				self:SetGlassStrength(v / 100)
 			end,
 		})
 		return section
