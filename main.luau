@@ -263,10 +263,22 @@ function Library:GetConfig(ignore)
 			if ok then data[flag] = value end
 		end
 	end
+	-- The touch toggle belongs to the library rather than a tab element, so its
+	-- settings ride along in every config file (settings > mobile).
+	local mobile = {}
+	for key, value in pairs(self:MobileConfig()) do
+		mobile[key] = value
+	end
+	data.__orasense_mobile = mobile
 	return data
 end
 
 function Library:LoadConfig(data, ignore)
+	-- Applied first: a saved element above wins if the two ever disagree.
+	local mobile = data and data.__orasense_mobile
+	if type(mobile) == "table" then
+		pcall(function() self:SetMobileButtonOptions(mobile) end)
+	end
 	for flag, value in pairs(data or {}) do
 		local entry = self.Registry[flag]
 		if entry and not (ignore and ignore[flag]) then
@@ -364,6 +376,62 @@ local function Tween(inst, goal, info)
 	return t
 end
 
+-- Sliders print their value as text. Clicking that text turns it into a small
+-- field so an exact number can be typed instead of dragging the knob.
+local function MakeEditableValue(label, commit)
+	if not label then return end
+	local hit = New("TextButton", {
+		Size = UDim2.new(1, 10, 1, 8),
+		Position = UDim2.fromOffset(-5, -4),
+		BackgroundTransparency = 1,
+		AutoButtonColor = false,
+		Text = "",
+		ZIndex = label.ZIndex + 1,
+		Parent = label,
+	})
+	local editing = false
+	Track(hit.Activated:Connect(function()
+		if editing then return end
+		editing = true
+		local seed = string.match(tostring(label.Text or ""), "%-?%d+%.?%d*") or ""
+		local box = New("TextBox", {
+			Size = UDim2.new(1, 18, 1, 10),
+			Position = UDim2.fromOffset(-9, -5),
+			BackgroundColor3 = Theme.Field,
+			BorderSizePixel = 0,
+			Text = seed,
+			TextColor3 = Theme.TextBright,
+			TextSize = label.TextSize,
+			Font = Theme.Font,
+			TextXAlignment = Enum.TextXAlignment.Center,
+			ClearTextOnFocus = false,
+			ZIndex = label.ZIndex + 2,
+			Parent = label,
+		})
+		Corner(box, 4)
+		local finished = false
+		local function finish()
+			if finished then return end
+			finished = true
+			editing = false
+			local raw = box.Text
+			box:Destroy()
+			local entered = tonumber(string.gsub(raw, "[^%d%.%-]", ""))
+			if entered then commit(entered) end
+		end
+		Track(box.FocusLost:Connect(finish))
+		Track(box:GetPropertyChangedSignal("Text"):Connect(function()
+			local cleaned = string.gsub(box.Text, "[^%d%.%-]", "")
+			if cleaned ~= box.Text then
+				box.Text = cleaned
+				box.CursorPosition = #cleaned + 1
+			end
+		end))
+		box:CaptureFocus()
+		box.CursorPosition = #box.Text + 1
+	end))
+	return hit
+end
 local function Chevron(parent, color)
 	local holder = New("Frame", {
 		Name = "Chevron",
@@ -1011,6 +1079,11 @@ function Elements:Toggle(opts)
 
 	local pickerCount = 0
 	local api = { Instance = row, State = state, Pickers = {} }
+	api.Label = text
+	function api:SetText(value)
+		text.Text = tostring(value)
+		return api
+	end
 
 	local function render(animate)
 		local info = animate and EASE_FAST or TweenInfo.new(0)
@@ -1607,6 +1680,7 @@ function Elements:Slider(opts)
 		})
 	end
 	render(value, false)
+	MakeEditableValue(valueLabel, function(entered) api:Set(entered) end)
 	return api
 end
 
@@ -2292,6 +2366,23 @@ end
 local Window = {}
 Window.__index = Window
 
+-- Popups live in their own layer with the same content scale as the body,
+-- otherwise a dropdown opened at a high DPI stayed at its tiny base size.
+function Window:GetFloatLayer()
+	if self.FloatLayer and self.FloatLayer.Parent then return self.FloatLayer end
+	local layer = New("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		ZIndex = 120,
+		Parent = self.Overlay,
+	})
+	self.FloatLayerScale = New("UIScale", {
+		Scale = self.ContentScaleValue or 1,
+		Parent = layer,
+	})
+	self.FloatLayer = layer
+	return layer
+end
 function Window:CreateFloating(width, matchAnchor, parent)
 	local depth = parent and (parent.Depth + 1) or 1
 	local z = 118 + depth * 4
@@ -2303,7 +2394,7 @@ function Window:CreateFloating(width, matchAnchor, parent)
 		Visible = false,
 		Active = true,
 		ZIndex = z,
-		Parent = self.Overlay,
+		Parent = self:GetFloatLayer(),
 	})
 	Corner(frame, 6)
 	-- Soft, low-contrast outline for every floating panel. The bright accent
@@ -2344,13 +2435,15 @@ function Window:ToggleFloating(panel, anchor, matchWidth)
 	end
 	self:CloseFloatingFrom(panel.Depth)
 
-	local scale = self.Scale.Scale
-	local originX = (anchor.AbsolutePosition.X - self.Main.AbsolutePosition.X) / scale
-	local originY = (anchor.AbsolutePosition.Y - self.Main.AbsolutePosition.Y) / scale
-	local height = anchor.AbsoluteSize.Y / scale
+	-- The float layer carries the content scale too, so screen pixels convert
+	-- with both the window fit scale and the DPI scale.
+	local ui = math.max((self.Scale.Scale or 1) * (self.ContentScaleValue or 1), 0.05)
+	local originX = (anchor.AbsolutePosition.X - self.Main.AbsolutePosition.X) / ui
+	local originY = (anchor.AbsolutePosition.Y - self.Main.AbsolutePosition.Y) / ui
+	local height = anchor.AbsoluteSize.Y / ui
 
 	if matchWidth then
-		panel.Frame.Size = UDim2.fromOffset(anchor.AbsoluteSize.X / scale, 0)
+		panel.Frame.Size = UDim2.fromOffset(anchor.AbsoluteSize.X / ui, 0)
 	end
 	panel.Frame.Position = UDim2.fromOffset(originX, originY + height + 4)
 	panel.Frame.Visible = true
@@ -2430,7 +2523,7 @@ function Window:Tab(name, icon)
 	tab.Button = button
 	tab.Label = label
 	tab.Icon = icon
-	tab.LabelBase = Theme.TextSize + MSize(1, 3)
+	tab.LabelBase = Theme.TextSize + MSize(1, 3) + (MOBILE and 2 or 0)
 	tab.IconBase = 15
 	tab.IsSide = side
 
@@ -2480,7 +2573,7 @@ function Window:RefreshTabScale()
 	for _, tab in ipairs(self.Tabs or {}) do
 		local base = tab.LabelBase or (Theme.TextSize + 1)
 		if tab.Label then
-			tab.Label.TextSize = math.clamp(math.floor(base * factor + 0.5), 10, 34)
+			tab.Label.TextSize = math.clamp(math.floor(base * factor + 0.5), MOBILE and 13 or 10, 34)
 		end
 		if tab.Icon then
 			local size = math.clamp(math.floor((tab.IconBase or 15) * factor + 0.5), 10, 30)
@@ -3191,6 +3284,9 @@ function Library:Window(opts)
 		contentScale.Scale = cs
 		body.Size = UDim2.new(1 / cs, -12 / cs, 1 / cs, -12 / cs)
 		body.Position = UDim2.fromOffset(6, 6)
+		if window.FloatLayerScale then
+			window.FloatLayerScale.Scale = cs
+		end
 	end
 	window.ApplyContentScale = applyContentScale
 
@@ -3233,6 +3329,7 @@ function Library:Window(opts)
 		dragTouch = nil
 	end
 
+	window.StopDrag = stopWindowDrag
 	Track(topBar.InputBegan:Connect(function(input)
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1
 			and input.UserInputType ~= Enum.UserInputType.Touch then return end
@@ -3244,7 +3341,7 @@ function Library:Window(opts)
 		dragTouch = input.UserInputType == Enum.UserInputType.Touch and input or nil
 		window:CloseFloating()
 		moveConn = UserInputService.InputChanged:Connect(function(move)
-			if not dragging then return end
+			if window.Resizing then return end
 			if dragTouch then
 				if move ~= dragTouch then return end
 			elseif move.UserInputType ~= Enum.UserInputType.MouseMovement then
@@ -3315,29 +3412,43 @@ function Library:Window(opts)
 	local resizeMove, resizeEnd, resizeRender, resizeTouch
 	local resizeTargetW, resizeTargetH
 	local resizeStartW, resizeStartH
-	local resizeAnchor, resizeStartPos
+	local resizeAnchor, resizeStartPos, resizeStartAbs
 
 	-- The corner drag pins the top-left corner once, then only the size changes.
 	-- The old centre-anchored compensation kept sliding the window down as it grew.
 	local function applyResize()
 		if resizeTargetW == nil or resizeTargetH == nil then return end
-		if math.abs(resizeTargetW - window.Width) < 0.5
-			and math.abs(resizeTargetH - window.Height) < 0.5 then
-			return
-		end
 		local anchor = resizeAnchor or Vector2.new()
 		local startPos = resizeStartPos or main.Position
-		-- Measure from the size at drag start, never from the current size:
-		-- after the first frame those are equal and the offset would collapse
-		-- back to the start position, which is the snap the user was seeing.
-		local growW = resizeTargetW - resizeStartW
-		local growH = resizeTargetH - resizeStartH
-		window:SetSize(resizeTargetW, resizeTargetH, true)
-		-- The corner opposite the grip has to stay put, so shift the frame by
-		-- the anchor fraction of the total growth (top-left = pos - anchor*size).
-		main.Position = UDim2.new(
-			startPos.X.Scale, startPos.X.Offset + growW * anchor.X,
-			startPos.Y.Scale, startPos.Y.Offset + growH * anchor.Y)
+
+		if math.abs(resizeTargetW - window.Width) >= 0.5
+			or math.abs(resizeTargetH - window.Height) >= 0.5 then
+			-- Measure from the size at drag start, never from the current size:
+			-- after the first frame those are equal and the offset would collapse
+			-- back to the start position, which is the snap the user was seeing.
+			local growW = resizeTargetW - resizeStartW
+			local growH = resizeTargetH - resizeStartH
+			window:SetSize(resizeTargetW, resizeTargetH, true)
+			-- The corner opposite the grip has to stay put, so shift the frame by
+			-- the anchor fraction of the total growth (top-left = pos - anchor*size).
+			main.Position = UDim2.new(
+				startPos.X.Scale, startPos.X.Offset + growW * anchor.X,
+				startPos.Y.Scale, startPos.Y.Offset + growH * anchor.Y)
+		end
+
+		-- Pin the top-left corner in screen space every frame. The size math is
+		-- right on its own, but a title bar drag or a scale change during the
+		-- resize would still slide the window under the finger.
+		if resizeStartAbs then
+			local driftX = resizeStartAbs.X - main.AbsolutePosition.X
+			local driftY = resizeStartAbs.Y - main.AbsolutePosition.Y
+			if math.abs(driftX) > 0.5 or math.abs(driftY) > 0.5 then
+				local pin = math.max(scale.Scale, 0.05)
+				main.Position = UDim2.new(
+					main.Position.X.Scale, main.Position.X.Offset + driftX / pin,
+					main.Position.Y.Scale, main.Position.Y.Offset + driftY / pin)
+			end
+		end
 	end
 
 	local function stopResize()
@@ -3348,6 +3459,7 @@ function Library:Window(opts)
 		resizeTouch = nil
 		applyResize()
 		resizeTargetW, resizeTargetH = nil, nil
+		resizeStartAbs = nil
 		-- No refit and no viewport clamp on release: both moved the window under
 		-- the cursor after the drag ended, which read as the window snapping back.
 		gripTint(Theme.Border)
@@ -3360,10 +3472,14 @@ function Library:Window(opts)
 		-- touch, which is only possible on touch screens and made it jump.
 		if window.Resizing then return end
 		window.Resizing = true
+		-- A drag already running from the title bar must stop, or both handlers
+		-- move and resize the window at once (the mobile two-finger case).
+		if window.StopDrag then window.StopDrag() end
 		window:CloseFloating()
 		local origin = input.Position
 		resizeAnchor = main.AnchorPoint
 		resizeStartPos = main.Position
+		resizeStartAbs = main.AbsolutePosition
 		resizeStartW, resizeStartH = window.Width, window.Height
 		resizeTargetW, resizeTargetH = resizeStartW, resizeStartH
 		resizeTouch = input.UserInputType == Enum.UserInputType.Touch and input or nil
@@ -4160,6 +4276,8 @@ local MOBILE_BUTTON_DEFAULTS = {
 	Mode = "tap",
 	HoldDuration = 0.6,
 	DoubleTapWindow = 0.35,
+	Invisible = false,
+	Locked = false,
 }
 
 function Library:MobileConfig()
@@ -4169,7 +4287,9 @@ function Library:MobileConfig()
 		self.MobileButtonConfig = config
 	end
 	for key, fallback in pairs(MOBILE_BUTTON_DEFAULTS) do
-		if key == "Mode" then
+		if type(fallback) == "boolean" then
+			if type(config[key]) ~= "boolean" then config[key] = fallback end
+		elseif key == "Mode" then
 			if type(config[key]) ~= "string" then config[key] = fallback end
 		elseif type(config[key]) ~= "number" then
 			config[key] = fallback
@@ -4190,6 +4310,8 @@ function Library:SetMobileButtonOptions(options)
 				if mode == "tap" or mode == "tap_twice" or mode == "hold" then
 					config.Mode = mode
 				end
+			elseif type(value) == "boolean" then
+				config[key] = value
 			elseif type(value) == "number" then
 				config[key] = value
 			end
@@ -4197,10 +4319,12 @@ function Library:SetMobileButtonOptions(options)
 	end
 	config.Width = math.clamp(config.Width, 28, 120)
 	config.Height = math.clamp(config.Height, 28, 120)
-	config.Transparency = math.clamp(config.Transparency, 0, 0.9)
+	config.Transparency = math.clamp(config.Transparency, 0, 1)
 	config.IconSize = math.clamp(config.IconSize, 8, 40)
 	config.HoldDuration = math.clamp(config.HoldDuration, 0.15, 5)
 	config.DoubleTapWindow = math.clamp(config.DoubleTapWindow, 0.2, 1)
+	config.Invisible = config.Invisible == true
+	config.Locked = config.Locked == true
 	if self.MobileButtonApply then self.MobileButtonApply() end
 	return config
 end
@@ -4229,14 +4353,14 @@ function Library:CreateMobileButton(opts)
 		Size = UDim2.fromOffset(config.Width, config.Height),
 		Position = opts.Position or UDim2.new(0, 18, 0.5, -22),
 		BackgroundColor3 = Theme.Section,
-		BackgroundTransparency = math.clamp(config.Transparency, 0, 0.9),
+		BackgroundTransparency = math.clamp(config.Transparency, 0, 1),
 		AutoButtonColor = false,
 		Text = "",
 		BorderSizePixel = 0,
 		Parent = gui,
 	})
 	Corner(button, 10)
-	Stroke(button, Theme.Border)
+	local buttonStroke = Stroke(button, Theme.Border)
 	local bars = {}
 	for i = 1, 3 do
 		local bar = New("Frame", {
@@ -4251,14 +4375,24 @@ function Library:CreateMobileButton(opts)
 		bars[i] = bar
 	end
 	local cornerObject = button:FindFirstChildOfClass("UICorner")
+	-- Invisible hides the visuals only: the button still catches taps.
+	local function fillTransparency()
+		if config.Invisible then return 1 end
+		return math.clamp(config.Transparency, 0, 1)
+	end
 	local function applyMobileConfig()
+		config.Width = math.clamp(config.Width, 28, 120)
+		config.Height = math.clamp(config.Height, 28, 120)
+		config.IconSize = math.clamp(config.IconSize, 8, 40)
 		button.Size = UDim2.fromOffset(config.Width, config.Height)
-		button.BackgroundTransparency = math.clamp(config.Transparency, 0, 0.9)
+		button.BackgroundTransparency = fillTransparency()
+		if buttonStroke then buttonStroke.Transparency = config.Invisible and 1 or 0 end
 		if cornerObject then
 			cornerObject.CornerRadius = UDim.new(0, math.max(8, math.floor(math.min(config.Width, config.Height) * 0.27)))
 		end
 		local thickness = math.max(1, math.floor(config.IconSize / 8 + 0.5))
 		for i, bar in ipairs(bars) do
+			bar.Visible = config.Invisible ~= true
 			bar.Size = UDim2.fromOffset(config.IconSize, thickness)
 			bar.Position = UDim2.new(0.5, 0, 0.5, math.floor((i - 2) * (config.IconSize / 3) + 0.5))
 		end
@@ -4299,6 +4433,8 @@ function Library:CreateMobileButton(opts)
 			elseif move.UserInputType ~= Enum.UserInputType.MouseMovement then
 				return
 			end
+			-- A locked toggle stays where it is; tapping it still toggles.
+			if config.Locked then return end
 			local delta = move.Position - origin
 			if not moved then
 				-- Deadzone: touch jitter on a tap must never move the button.
@@ -4320,7 +4456,7 @@ function Library:CreateMobileButton(opts)
 			holdToken = holdToken + 1
 			Tween(button, {
 				BackgroundColor3 = Theme.Section,
-				BackgroundTransparency = math.clamp(config.Transparency, 0, 0.9),
+				BackgroundTransparency = fillTransparency(),
 			}, EASE_FAST)
 			if moved then return end
 			local mode = config.Mode
@@ -4926,7 +5062,9 @@ end
 
 -- Sub tabs: a nested tab strip inside a tab.
 do
-	local SUBBAR_HEIGHT = MSize(30, 38)
+	-- Fingers need bigger targets than a mouse, so the whole sub tab strip grows.
+	local SUB_SCALE = MOBILE and 1.2 or 1
+	local SUBBAR_HEIGHT = math.floor(MSize(30, 38) * SUB_SCALE + 0.5)
 
 	local function MigrateContent(page, target)
 		for _, child in ipairs(page:GetChildren()) do
@@ -4938,18 +5076,18 @@ do
 
 	local function CreatePill(tab, sub, title)
 		local button = New("TextButton", {
-			Size = UDim2.new(0, 0, 0, MSize(24, 32)),
+			Size = UDim2.new(0, 0, 0, math.floor(MSize(24, 32) * SUB_SCALE + 0.5)),
 			AutomaticSize = Enum.AutomaticSize.X,
 			BackgroundTransparency = 1,
 			AutoButtonColor = false,
 			Text = title,
 			TextColor3 = Theme.TextDim,
-			TextSize = Theme.TextSize,
+			TextSize = math.floor(Theme.TextSize * SUB_SCALE + 0.5),
 			Font = Theme.FontMedium,
 			LayoutOrder = #tab.SubTabs + 1,
 			Parent = tab.SubBar,
 		})
-		Pad(button, 0, 8)
+		Pad(button, 0, math.floor(8 * SUB_SCALE + 0.5))
 		local underline = New("Frame", {
 			Size = UDim2.new(1, 0, 0, 2),
 			Position = UDim2.new(0, 0, 1, -2),
@@ -6356,6 +6494,7 @@ do
 		})
 
 		local api = { Instance = block, Value = value, Text = nameLabel, Buttons = { minus, plus } }
+		MakeEditableValue(valueLabel, function(entered) api:Set(entered) end)
 
 		local function render(animate)
 			local alpha = (max - min) == 0 and 0 or (value - min) / (max - min)

@@ -72,54 +72,86 @@ local settingsOptions = Settings:SubTab("options")
 local settingsThemes = Settings:SubTab("themes")
 
 -- The touch toggle only exists on mobile, so this sub tab is mobile-only.
+-- Every control carries a Flag, so the whole panel is written to a config file.
 if Library.IsMobile then
 	local mobileTab = Settings:SubTab("mobile")
 	local mobileButton = mobileTab:Section("menu button", 1)
 	local cfg = Library.MobileConfig and Library:MobileConfig() or {}
+	local function apply(options) Library:SetMobileButtonOptions(options) end
 
 	mobileButton:Slider({
 		Text = "transparency",
-		Min = 0, Max = 0.85, Decimals = 2,
-		Default = cfg.Transparency or 0.12,
-		Callback = function(v) Library:SetMobileButtonOptions({ Transparency = v }) end,
+		Flag = "mobile_button_transparency",
+		Min = 0, Max = 1, Decimals = 2,
+		Default = cfg.Transparency or 0,
+		Callback = function(v) apply({ Transparency = v }) end,
 	})
 	mobileButton:Slider({
 		Text = "width",
+		Flag = "mobile_button_width",
 		Min = 28, Max = 96,
 		Default = cfg.Width or 44,
-		Callback = function(v) Library:SetMobileButtonOptions({ Width = v }) end,
+		Callback = function(v) apply({ Width = v }) end,
 	})
 	mobileButton:Slider({
 		Text = "height",
+		Flag = "mobile_button_height",
 		Min = 28, Max = 96,
 		Default = cfg.Height or 44,
-		Callback = function(v) Library:SetMobileButtonOptions({ Height = v }) end,
+		Callback = function(v) apply({ Height = v }) end,
 	})
 	mobileButton:Slider({
 		Text = "icon size",
+		Flag = "mobile_button_icon",
 		Min = 8, Max = 36,
 		Default = cfg.IconSize or 18,
-		Callback = function(v) Library:SetMobileButtonOptions({ IconSize = v }) end,
+		Callback = function(v) apply({ IconSize = v }) end,
 	})
 
 	local holdSlider
 	mobileButton:Dropdown({
 		Text = "toggle mode",
+		Flag = "mobile_button_mode",
 		Options = { "tap", "tap twice", "hold" },
 		Default = cfg.Mode == "tap_twice" and "tap twice" or (cfg.Mode or "tap"),
 		Callback = function(choice)
 			local mode = (choice == "tap twice") and "tap_twice" or choice
-			Library:SetMobileButtonOptions({ Mode = mode })
+			apply({ Mode = mode })
 			if holdSlider then holdSlider.Instance.Visible = (mode == "hold") end
 		end,
 	})
 	holdSlider = mobileButton:Slider({
 		Text = "hold duration",
+		Flag = "mobile_button_hold",
 		Min = 0.2, Max = 2, Decimals = 2, Suffix = " s",
 		Default = cfg.HoldDuration or 0.6,
-		Callback = function(v) Library:SetMobileButtonOptions({ HoldDuration = v }) end,
+		Callback = function(v) apply({ HoldDuration = v }) end,
 	})
 	if holdSlider then holdSlider.Instance.Visible = (cfg.Mode == "hold") end
+
+	local behaviour = mobileTab:Section("behaviour", 1)
+
+	behaviour:Toggle({
+		Text = "invisible button",
+		Flag = "mobile_button_invisible",
+		Hint = "hides the button, tapping it still works",
+		Default = cfg.Invisible == true,
+		Callback = function(state) apply({ Invisible = state }) end,
+	})
+
+	local lockToggle
+	lockToggle = behaviour:Toggle({
+		Text = (cfg.Locked and "Unlock Mobile Toggle" or "Lock Mobile Toggle"),
+		Flag = "mobile_button_locked",
+		Hint = "keeps the button in place so it cannot be dragged",
+		Default = cfg.Locked == true,
+		Callback = function(state)
+			apply({ Locked = state })
+			if lockToggle then
+				lockToggle:SetText(state and "Unlock Mobile Toggle" or "Lock Mobile Toggle")
+			end
+		end,
+	})
 end
 
 local global = Main:Section("global", 1)
