@@ -1,7 +1,7 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 
--- Touch devices get roomier rows, bigger tap targets and a wider menu.
+
 local MOBILE = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 local function MSize(desktop, mobile)
 	return MOBILE and mobile or desktop
@@ -263,8 +263,8 @@ function Library:GetConfig(ignore)
 			if ok then data[flag] = value end
 		end
 	end
-	-- The touch toggle belongs to the library rather than a tab element, so its
-	-- settings ride along in every config file (settings > mobile).
+	
+	
 	local mobile = {}
 	for key, value in pairs(self:MobileConfig()) do
 		mobile[key] = value
@@ -274,7 +274,7 @@ function Library:GetConfig(ignore)
 end
 
 function Library:LoadConfig(data, ignore)
-	-- Applied first: a saved element above wins if the two ever disagree.
+	
 	local mobile = data and data.__orasense_mobile
 	if type(mobile) == "table" then
 		pcall(function() self:SetMobileButtonOptions(mobile) end)
@@ -376,8 +376,8 @@ local function Tween(inst, goal, info)
 	return t
 end
 
--- Sliders print their value as text. Clicking that text turns it into a small
--- field so an exact number can be typed instead of dragging the knob.
+
+
 local function MakeEditableValue(label, commit)
 	if not label then return end
 	local hit = New("TextButton", {
@@ -536,10 +536,10 @@ function Library:PreloadIcons()
 	return IconLib
 end
 
--- Icons come from Molto (https://molto.pages.dev). It is fetched once and its
--- provider is loaded lazily; when it cannot load (Studio, no HttpGet/loadstring,
--- unknown provider) the bundled Lucide sprite table in addons/Icons.luau is used
--- instead, so an icon never silently disappears.
+
+
+
+
 local MOLTO_URL = "https://molto.pages.dev/source.lua"
 local MoltoLib, MoltoTried
 
@@ -556,7 +556,7 @@ local function GetMolto()
 	end
 	local provider = Library.IconProvider or "lucide"
 	if not pcall(result.SetProvider, provider) then return nil end
-	-- Only trust the provider once a known icon actually resolves.
+	
 	local probe, asset = pcall(result.GetAsset, "settings")
 	if not probe or type(asset) ~= "table" then return nil end
 	MoltoLib = result
@@ -811,7 +811,7 @@ local function MakeButton(parent, opts, size, order)
 		Parent = parent,
 	})
 	Corner(btn, 6)
-	-- Flat: no outline, the fill alone separates the button from the section.
+	
 	local text = Label(btn, opts.Text or "button", (LabelColor(opts, Theme.TextBright)), 13, Theme.FontMedium)
 	text.Size = UDim2.new(1, -16, 1, 0)
 	text.Position = UDim2.fromOffset(8, 0)
@@ -1325,8 +1325,8 @@ function Elements:Dropdown(opts)
 		Parent = block,
 	})
 	Corner(button, 6)
-	-- No outline on the field: an open dropdown used to show the field border
-	-- and the popup border as two stacked lines.
+	
+	
 	local value = Label(button, "", Theme.TextBright, 13, Theme.Font)
 	value.Position = UDim2.fromOffset(11, 0)
 	value.Size = UDim2.new(1, -37, 1, 0)
@@ -1442,7 +1442,7 @@ function Elements:Dropdown(opts)
 				Parent = scroller,
 			})
 			Corner(item, 4)
-			-- Selection is a soft fill, not a marker bar: rows stay free of lines.
+			
 			local il = Label(item, tostring(v), Theme.Text, 13, Theme.Font)
 			il.Position = UDim2.fromOffset(9, 0)
 			il.Size = UDim2.new(1, -18, 1, 0)
@@ -2366,8 +2366,8 @@ end
 local Window = {}
 Window.__index = Window
 
--- Popups live in their own layer with the same content scale as the body,
--- otherwise a dropdown opened at a high DPI stayed at its tiny base size.
+
+
 function Window:GetFloatLayer()
 	if self.FloatLayer and self.FloatLayer.Parent then return self.FloatLayer end
 	local layer = New("Frame", {
@@ -2397,8 +2397,8 @@ function Window:CreateFloating(width, matchAnchor, parent)
 		Parent = self:GetFloatLayer(),
 	})
 	Corner(frame, 6)
-	-- Soft, low-contrast outline for every floating panel. The bright accent
-	-- border is what made open dropdowns look like a stack of boxes.
+	
+	
 	Stroke(frame, Theme.PopupBorder, 1, 0.45)
 	Pad(frame, 6)
 	local content = New("Frame", {
@@ -2435,8 +2435,8 @@ function Window:ToggleFloating(panel, anchor, matchWidth)
 	end
 	self:CloseFloatingFrom(panel.Depth)
 
-	-- The float layer carries the content scale too, so screen pixels convert
-	-- with both the window fit scale and the DPI scale.
+	
+	
 	local ui = math.max((self.Scale.Scale or 1) * (self.ContentScaleValue or 1), 0.05)
 	local originX = (anchor.AbsolutePosition.X - self.Main.AbsolutePosition.X) / ui
 	local originY = (anchor.AbsolutePosition.Y - self.Main.AbsolutePosition.Y) / ui
@@ -2567,7 +2567,7 @@ function Window:Tab(name, icon)
 	return tab
 end
 
--- The tab bar sits outside the scaled body, so dpi has to resize it explicitly.
+
 function Window:RefreshTabScale()
 	local factor = self.ContentScaleValue or 1
 	for _, tab in ipairs(self.Tabs or {}) do
@@ -2676,7 +2676,7 @@ function Window:SetUserScale(value)
 	return self.UserScale
 end
 
--- DPI scales the components inside the window, not the window itself.
+
 function Window:SetContentScale(value)
 	if self.ApplyContentScale then
 		self.ApplyContentScale(value)
@@ -2684,15 +2684,15 @@ function Window:SetContentScale(value)
 	if self.RefreshTabScale then
 		self:RefreshTabScale()
 	end
-	-- The title is chrome outside the scaled body, so DPI has to move it too.
+	
 	if self.RefreshTitleScale then
 		self:RefreshTitleScale()
 	end
 	return self.ContentScaleValue or 1
 end
 
--- Title size tracks DPI (content scale) and the window width, so resizing the
--- window or changing DPI keeps the header proportionate to the menu.
+
+
 function Window:RefreshTitleScale()
 	local name = self.TitleName
 	if not name or not name.Parent then return end
@@ -2705,9 +2705,6 @@ function Window:RefreshTitleScale()
 	self.TitleScaleValue = size
 	name.TextSize = size
 	if self.TitleSuffix then self.TitleSuffix.TextSize = size end
-	if self.TitleSuffixGlow then
-		self.TitleSuffixGlow.Thickness = math.clamp(size / 10, 1, 2.4)
-	end
 end
 
 function Window:SetDpi(dpi)
@@ -2715,7 +2712,7 @@ function Window:SetDpi(dpi)
 	return self:SetContentScale((self.Dpi / 96) * (self.MobileBoost or 1))
 end
 
--- Screen pixels per local unit for everything that lives inside the body.
+
 function Window:UI()
 	local base = self.Scale and self.Scale.Scale or 1
 	return math.max(base * (self.ContentScaleValue or 1), 0.05)
@@ -2741,7 +2738,7 @@ function Window:SetSize(width, height, skipFit)
 	self.Width = math.max(width, self.MinWidth)
 	self.Height = math.max(height, self.MinHeight)
 	self.Main.Size = UDim2.fromOffset(self.Width, self.Height)
-	if self.RefreshTitleScale then self:RefreshTitleScale() end
+	if not self.Resizing and self.RefreshTitleScale then self:RefreshTitleScale() end
 	if not skipFit and self.Refit then self.Refit() end
 end
 
@@ -3009,8 +3006,8 @@ function Window:SetVisible(state)
 	self.Visible = state
 	if state then
 		self.Main.Visible = true
-		-- Re-apply so a window shown before the theme or the glass settings
-		-- finished loading still picks them up.
+		
+		
 		if self.ApplyGlass then self:ApplyGlass() end
 		self.Scale.Scale = self.BaseScale * 0.97
 		Tween(self.Scale, { Scale = self.BaseScale }, EASE_FAST)
@@ -3093,15 +3090,6 @@ function Library:Window(opts)
 	titleSuffix.Size = UDim2.new(0, 0, 1, 0)
 	titleSuffix.AutomaticSize = Enum.AutomaticSize.X
 	titleSuffix.LayoutOrder = 2
-
-	-- The suffix is the brand mark, so it gets a soft accent outline that
-	-- breathes instead of sitting there as flat coloured text.
-	local titleSuffixGlow = Stroke(titleSuffix, Theme.Accent, 1, 0.35)
-	Track(RunService.RenderStepped:Connect(function()
-		if not titleSuffix.Parent then return end
-		titleSuffixGlow.Transparency = 0.4 + math.sin(os.clock() * 2.1) * 0.24
-	end))
-
 	local titleDivider = New("Frame", {
 		Size = UDim2.fromOffset(1, 14),
 		Visible = false,
@@ -3159,8 +3147,8 @@ function Library:Window(opts)
 		tabList.VerticalAlignment = Enum.VerticalAlignment.Center
 		tabList.HorizontalAlignment = horizontal
 
-		-- The strip always starts after the title, wherever the title sits, so
-		-- a centred or right aligned title never collides with the tabs.
+		
+		
 		layoutTabs = function()
 			if bottomTabs then return end
 			local s = math.max(scale.Scale, 0.05)
@@ -3286,9 +3274,9 @@ function Library:Window(opts)
 		window:CloseFloating()
 	end))
 
-	-- The body is scaled up and its own size divided by the same factor, so the
-	-- controls grow while the window frame (title bar, tabs, footer) keeps its
-	-- size and position.
+	
+	
+	
 	local function applyContentScale(value)
 		local cs = math.clamp(tonumber(value) or 1, 0.7, 1.6)
 		window.ContentScaleValue = cs
@@ -3374,7 +3362,7 @@ function Library:Window(opts)
 	end))
 
 	local gripHit = New("TextButton", {
-		-- Fingers need a bigger target than a mouse: 40 px was easy to miss.
+		
 		Size = UDim2.fromOffset(MSize(40, 56), MSize(40, 56)),
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -2, 1, -2),
@@ -3420,15 +3408,11 @@ function Library:Window(opts)
 		gripTint(Theme.Border)
 	end))
 
-	local resizeMove, resizeEnd, resizeRender, resizeTouch
+	local resizeMove, resizeEnd, resizeTouch
 	local resizeTargetW, resizeTargetH
 	local resizeStartW, resizeStartH
+	local resizeStartPos, resizeStartAbsW, resizeStartAbsH, resizeAnchor, resizeScale
 
-	-- Resizing only ever writes Size. On grab the frame is anchored to its own
-	-- top-left and placed by absolute pixels, so the corner opposite the grip
-	-- cannot move and the window never chases its own last frame. The old
-	-- position correction ran every render step, over-corrected and made the
-	-- drag stutter while the corner was held.
 	local function applyResize()
 		if resizeTargetW == nil or resizeTargetH == nil then return end
 		if math.abs(resizeTargetW - window.Width) < 0.5
@@ -3436,40 +3420,43 @@ function Library:Window(opts)
 			return
 		end
 		window:SetSize(resizeTargetW, resizeTargetH, true)
+		local s = resizeScale or 1
+		local absW = resizeTargetW * s
+		local absH = resizeTargetH * s
+		local anchor = resizeAnchor or Vector2.new(0.5, 0.5)
+		local startPos = resizeStartPos or main.Position
+		main.Position = UDim2.new(
+			startPos.X.Scale, startPos.X.Offset + (absW - resizeStartAbsW) * anchor.X,
+			startPos.Y.Scale, startPos.Y.Offset + (absH - resizeStartAbsH) * anchor.Y)
 	end
 
 	local function stopResize()
 		window.Resizing = false
 		if resizeMove then resizeMove:Disconnect() resizeMove = nil end
 		if resizeEnd then resizeEnd:Disconnect() resizeEnd = nil end
-		if resizeRender then resizeRender:Disconnect() resizeRender = nil end
 		resizeTouch = nil
 		applyResize()
+		if window.RefreshTitleScale then window:RefreshTitleScale() end
 		resizeTargetW, resizeTargetH = nil, nil
-		-- No refit and no viewport clamp on release: both moved the window under
-		-- the cursor after the drag ended, which read as the window snapping back.
 		gripTint(Theme.Border)
 	end
 
 	Track(gripHit.InputBegan:Connect(function(input)
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1
 			and input.UserInputType ~= Enum.UserInputType.Touch then return end
-		-- A second finger on the grip used to restart the drag from the new
-		-- touch, which is only possible on touch screens and made it jump.
 		if window.Resizing then return end
 		window.Resizing = true
-		-- A drag already running from the title bar must stop, or both handlers
-		-- move and resize the window at once (the mobile two-finger case).
 		if window.StopDrag then window.StopDrag() end
 		window:CloseFloating()
 		local origin = input.Position
-		-- Pin the top-left corner once, in screen pixels. After this the drag
-		-- only changes Size, so the opposite corner is fixed by construction.
-		local abs = main.AbsolutePosition
-		main.AnchorPoint = Vector2.new(0, 0)
-		main.Position = UDim2.fromOffset(abs.X, abs.Y)
+		resizeAnchor = main.AnchorPoint
+		resizeStartPos = main.Position
+		resizeStartAbsW, resizeStartAbsH = main.AbsoluteSize.X, main.AbsoluteSize.Y
 		resizeStartW, resizeStartH = window.Width, window.Height
 		resizeTargetW, resizeTargetH = resizeStartW, resizeStartH
+		resizeScale = math.max((resizeStartAbsW > 1 and resizeStartW > 0)
+			and (resizeStartAbsW / resizeStartW)
+			or (scale.Scale or 1), 0.05)
 		resizeTouch = input.UserInputType == Enum.UserInputType.Touch and input or nil
 		gripTint(Theme.Accent)
 
@@ -3480,22 +3467,13 @@ function Library:Window(opts)
 			elseif move.UserInputType ~= Enum.UserInputType.MouseMovement then
 				return
 			end
-			-- Read the scale from what is actually rendered, frozen at grab time:
-			-- the fit pass skips while Resizing, so it cannot feed back into the
-			-- target size.
-			local absW = main.AbsoluteSize.X
-			local s = (absW > 1 and window.Width > 0) and (absW / window.Width) or math.max(scale.Scale, 0.05)
-			s = math.max(s, 0.05)
-			local vp = gui.AbsoluteSize
 			local delta = move.Position - origin
+			local vp = gui.AbsoluteSize
+			local s = resizeScale or 1
 			resizeTargetW = math.clamp(resizeStartW + delta.X / s, window.MinWidth, math.max(window.MinWidth, vp.X / s - 16))
 			resizeTargetH = math.clamp(resizeStartH + delta.Y / s, window.MinHeight, math.max(window.MinHeight, vp.Y / s - 16))
+			applyResize()
 		end)
-
-		-- Mouse / touch input can fire several times per frame. Storing the target
-		-- and applying it on the render step collapses those into a single size
-		-- write, which is what keeps the drag smooth.
-		resizeRender = RunService.RenderStepped:Connect(applyResize)
 
 		resizeEnd = UserInputService.InputEnded:Connect(function(ended)
 			if resizeTouch then
@@ -3515,10 +3493,9 @@ function Library:Window(opts)
 		Library:CreateMobileButton(opts.MobileButtonOptions)
 	end
 
-	-- Title scaling needs the labels and the base width before the first SetDpi.
+	
 	window.TitleName = titleName
 	window.TitleSuffix = titleSuffix
-	window.TitleSuffixGlow = titleSuffixGlow
 	window.TitleBaseSize = titleSize
 	window.BaseWidth = opts.Width or (MOBILE and 560 or 620)
 
@@ -3538,7 +3515,7 @@ function Library:Notify(opts, text, duration)
 	opts = opts or {}
 	opts.Text = opts.Text or opts.Content or opts.Description
 	local accent = opts.Color or StyleColor(opts.Style, Theme.Accent)
-	-- No style to icon fallback: an icon only shows when the caller passes one.
+	
 	local iconName = opts.Icon
 
 	if not self.NotifyGui or not self.NotifyGui.Parent then
@@ -3587,8 +3564,8 @@ function Library:Notify(opts, text, duration)
 	Corner(card, 10)
 	local cardStroke = Stroke(card, Theme.PopupBorder, 1, 1)
 
-	-- Accent rail down the left edge, faded towards the bottom. It carries the
-	-- style colour without tinting the whole card.
+	
+	
 	local rail = New("Frame", {
 		Size = UDim2.new(0, 2, 1, -20),
 		Position = UDim2.fromOffset(0, 10),
@@ -3898,8 +3875,8 @@ function Library:Panel(opts)
 		Parent = overlay,
 	})
 
-	-- Window methods are reused so dropdowns, colour pickers and gear popups
-	-- open inside the panel instead of the main window overlay.
+	
+	
 	local api = setmetatable({
 		Gui = gui,
 		Frame = frame,
@@ -4283,8 +4260,8 @@ function Library:ToggleUI(state)
 	return self.Open
 end
 
--- The touch toggle is user configurable (settings > mobile): size, fill,
--- icon size and how it toggles (tap / tap twice / hold).
+
+
 local MOBILE_BUTTON_DEFAULTS = {
 	Width = 44,
 	Height = 44,
@@ -4392,7 +4369,7 @@ function Library:CreateMobileButton(opts)
 		bars[i] = bar
 	end
 	local cornerObject = button:FindFirstChildOfClass("UICorner")
-	-- Invisible hides the visuals only: the button still catches taps.
+	
 	local function fillTransparency()
 		if config.Invisible then return 1 end
 		return math.clamp(config.Transparency, 0, 1)
@@ -4432,7 +4409,7 @@ function Library:CreateMobileButton(opts)
 		moved = false
 		origin = input.Position
 		startPos = button.Position
-		-- Remember the exact finger that pressed: other touches must not drag it.
+		
 		touchObject = input.UserInputType == Enum.UserInputType.Touch and input or nil
 		Tween(button, { BackgroundColor3 = Theme.FieldHover }, EASE_FAST)
 		holdToken = holdToken + 1
@@ -4440,7 +4417,7 @@ function Library:CreateMobileButton(opts)
 		if config.Mode == "hold" then
 			task.delay(math.clamp(config.HoldDuration, 0.15, 5), function()
 				if myHold ~= holdToken or moved then return end
-				holdToken = holdToken + 1 -- one toggle per press
+				holdToken = holdToken + 1 
 				Library:ToggleUI()
 			end)
 		end
@@ -4450,14 +4427,14 @@ function Library:CreateMobileButton(opts)
 			elseif move.UserInputType ~= Enum.UserInputType.MouseMovement then
 				return
 			end
-			-- A locked toggle stays where it is; tapping it still toggles.
+			
 			if config.Locked then return end
 			local delta = move.Position - origin
 			if not moved then
-				-- Deadzone: touch jitter on a tap must never move the button.
+				
 				if math.abs(delta.X) <= 6 and math.abs(delta.Y) <= 6 then return end
 				moved = true
-				holdToken = holdToken + 1 -- dragging cancels a hold
+				holdToken = holdToken + 1 
 			end
 			button.Position = UDim2.new(
 				startPos.X.Scale, startPos.X.Offset + delta.X,
@@ -4627,10 +4604,10 @@ Library.SaveManager = Library:LoadAddon("SaveManager")
 Library.InterfaceManager = Library:LoadAddon("InterfaceManager")
 Library.ThemeManager = Library:LoadAddon("ThemeManager")
 
--- Orasense UI extras (appended before return Library)
--- Provides: liquid glass, custom background, particles, menu search,
--- 3-column tab boxes, dependency toggles, sub toggles, sub/mini windows,
--- table, image, server browser.
+
+
+
+
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
@@ -4639,8 +4616,8 @@ local Players = game:GetService("Players")
 Library.SearchIndex = Library.SearchIndex or {}
 Library.ParticleMode = Library.ParticleMode or "none"
 Library.ParticleCustom = Library.ParticleCustom or ""
--- Flower particles are real art. The texture id is the image that renders,
--- the asset id is the decal it was uploaded as, kept for reference/override.
+
+
 Library.FlowerTexture = Library.FlowerTexture or 105968320075682
 Library.FlowerAsset = Library.FlowerAsset or 85283896414966
 
@@ -4673,7 +4650,7 @@ function Library:IndexElement(window, tab, kind, label, api)
 	})
 end
 
--- Wrap element constructors to feed the menu search index.
+
 do
 	local OrigToggle = Elements.Toggle
 	local OrigButton = Elements.Button
@@ -4742,7 +4719,7 @@ do
 	end
 end
 
--- Dependency toggles + sub toggles.
+
 do
 	function Elements:SubToggle(opts)
 		opts = opts or {}
@@ -4831,7 +4808,7 @@ do
 		return content
 	end
 
-	-- Give every toggle a Dependency method.
+	
 	do
 		local BaseToggle = Elements.Toggle
 		function Elements:Toggle(opts)
@@ -4855,7 +4832,7 @@ do
 	end
 end
 
--- 3-column tab boxes (left / middle / right group boxes).
+
 do
 	local OrigBlock = Tab.Block
 	function Tab:Block()
@@ -4866,7 +4843,7 @@ do
 		self:Block()
 		n = math.clamp(math.floor(tonumber(n) or 2), 1, 3)
 		if #self.Columns >= n then return self.Columns end
-		-- Resize existing columns to thirds and append missing ones.
+		
 		local block = self.CurrentBlock
 		if n == 3 and #self.Columns == 2 then
 			for _, col in ipairs(self.Columns) do
@@ -4921,7 +4898,7 @@ do
 			end
 		end
 		side = math.clamp(math.floor(tonumber(side) or 1), 1, 3)
-		-- A left / center / right set is three equal boxes, never two halves.
+		
 		if side >= 2 then self:EnsureColumns(3) end
 		local col = self:Column(side)
 		if not col then return self:Full(title) end
@@ -4947,7 +4924,7 @@ do
 	Tab.CenterBox = Tab.MiddleGroupbox
 end
 
--- Sub windows + mini windows.
+
 do
 	function Window:SubWindow(opts)
 		opts = opts or {}
@@ -5103,7 +5080,7 @@ do
 			Parent = frame,
 		})
 		Corner(bar, 10)
-		-- Square the bottom of the title bar off so it meets the body flush.
+		
 		New("Frame", {
 			Size = UDim2.new(1, 0, 0, 12),
 			Position = UDim2.new(0, 0, 1, -12),
@@ -5145,8 +5122,8 @@ do
 		List(body, 8)
 		Pad(body, 2, 2, 10, 2)
 
-		-- Dropdowns, colour pickers and gear popups need the same window API the
-		-- main window exposes, so they open in this window's own overlay.
+		
+		
 		local overlay = New("Frame", {
 			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
@@ -5307,8 +5284,8 @@ do
 		local resizing, resizeMove, resizeEnd, resizeTouch
 		local resizeOrigin, resizeStartW, resizeStartH
 
-		-- Same rule as the main window: only Size changes while the grip is
-		-- held, so the top-left corner is pinned and the drag cannot stutter.
+		
+		
 		Track(gripHit.InputBegan:Connect(function(input)
 			if input.UserInputType ~= Enum.UserInputType.MouseButton1
 				and input.UserInputType ~= Enum.UserInputType.Touch then return end
@@ -5378,9 +5355,9 @@ do
 	end
 end
 
--- Sub tabs: a nested tab strip inside a tab.
+
 do
-	-- Fingers need bigger targets than a mouse, so the whole sub tab strip grows.
+	
 	local SUB_SCALE = MOBILE and 1.2 or 1
 	local SUBBAR_HEIGHT = math.floor(MSize(30, 38) * SUB_SCALE + 0.5)
 
@@ -5495,7 +5472,7 @@ do
 		}, Tab)
 
 		if #self.SubTabs == 0 then
-			-- The first sub tab absorbs whatever already lived in the tab page.
+			
 			MigrateContent(self.Page, page)
 			self.Page.Visible = false
 		end
@@ -5578,7 +5555,7 @@ do
 		end
 	end
 end
--- Table element.
+
 do
 	function Elements:Table(opts)
 		opts = opts or {}
@@ -5663,7 +5640,7 @@ do
 	end
 end
 
--- Image element.
+
 do
 	function Elements:Image(opts)
 		opts = opts or {}
@@ -5706,7 +5683,7 @@ do
 	end
 end
 
--- Liquid glass (true liquid look: tinted translucency + blur + specular).
+
 do
 	Library.Glass = Library.Glass or false
 	if Library.GlassBlur == nil then Library.GlassBlur = false end
@@ -5741,7 +5718,7 @@ do
 			Parent = window.Main,
 		})
 		Corner(fx, 10)
-		-- Top specular wash.
+		
 		local spec = New("Frame", {
 			Size = UDim2.new(1, 0, 0, 90),
 			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
@@ -5760,7 +5737,7 @@ do
 			}),
 			Parent = spec,
 		})
-		-- Diagonal moving sheen (liquid wobble illusion).
+		
 		local sheen = New("Frame", {
 			Size = UDim2.new(0.45, 0, 2, 0),
 			Position = UDim2.new(-0.5, 0, -0.5, 0),
@@ -5860,7 +5837,7 @@ do
 	end
 end
 
--- Custom background art.
+
 do
 	function Window:SetBackground(asset, transparency, tint)
 		local src = OrasenseResolveAsset(asset)
@@ -5924,9 +5901,9 @@ do
 	end
 end
 
--- Menu particles: snow / blizzard / stars / flowers / custom.
--- They render on a dedicated full-screen overlay above the window, so they
--- cover the whole screen (menu included) and hide together with the UI.
+
+
+
 do
 	local function ParticleGui(window)
 		if window.ParticleGui and window.ParticleGui.Parent then return window.ParticleGui end
@@ -5951,7 +5928,7 @@ do
 		return gui
 	end
 
-	-- Particle tuning: every value is read live by the animation loop.
+	
 	local PARTICLE_STYLE = {
 		snow     = { count = 90,  size = 1.0, speed = 1.0,  sway = 26,  drift = 0 },
 		blizzard = { count = 170, size = 0.9, speed = 5.5,  sway = 120, drift = 1 },
@@ -5990,7 +5967,7 @@ do
 	end
 
 	local function ParticleSize(mode, style, opts)
-		-- Flower art needs room to read; the old 4 px unit made it a dot.
+		
 		local unit = mode == "flowers" and 16 or (mode == "custom" and 18 or 4)
 		return math.max(1, style.size * (opts.Size / 100) * unit)
 	end
@@ -6089,8 +6066,8 @@ do
 				dot.Position = UDim2.fromOffset(data.x, data.y)
 			end
 
-			-- Seed the whole field in one frame. Waiting per dot made the menu
-			-- look like it was dripping particles in one at a time.
+			
+			
 			for _ = 1, wanted() do
 				if token ~= self.ParticleToken or not layer.Parent then return end
 				local dot = SpawnDot(layer, mode, custom)
@@ -6197,7 +6174,7 @@ do
 	end
 end
 
--- Multi-select dropdown alias (Dropdown with Multi = true already supported).
+
 do
 	function Elements:MultiDropdown(opts)
 		opts = opts or {}
@@ -6206,7 +6183,7 @@ do
 	end
 end
 
--- Server browser (public servers of the current game).
+
 do
 	function Library:ServerBrowser(opts)
 		opts = opts or {}
@@ -6318,8 +6295,8 @@ function Library:SetMenuTransparency(value)
 	return value
 end
 
--- Shared effects section (particles + background) for the settings tab.
--- The glass controls live in settings > themes, so they are not duplicated here.
+
+
 do
 	function Library:BuildEffectsSection(tab, column)
 		local section = tab:Section("effects", column or 1)
@@ -6436,16 +6413,16 @@ do
 	end
 end
 
--- Keep theme hook working: ThemeManager expects these on Library (defined above).
--- Re-apply glass/background/particles to windows created later.
+
+
 do
 	local OrigWindow = Library.Window
 	function Library:Window(opts)
 		opts = opts or {}
 		if opts.Title == nil then opts.Title = "orasense" end
 		local window = OrigWindow(self, opts)
-		-- Glass used to be applied only when it was already on at build time, so
-		-- a theme or config loaded later left the window flat until a hide/show.
+		
+		
 		task.defer(function()
 			if window.ApplyGlass then pcall(function() window:ApplyGlass() end) end
 		end)
@@ -6475,7 +6452,7 @@ end
 
 
 
--- Watermark: a small read-only stats strip (fps, ping, players, region).
+
 do
 	local WatermarkPlayers = game:GetService("Players")
 	local WatermarkStats = game:GetService("Stats")
@@ -6499,8 +6476,8 @@ do
 		return 0
 	end
 
-	-- Roblox does not expose the server region to the client, so this is the
-	-- closest honest value: an override, then the player's country code.
+	
+	
 	local function readRegion()
 		local env = type(getgenv) == "function" and getgenv() or nil
 		local forced = env and env.OrasenseRegion
@@ -6649,7 +6626,7 @@ do
 	end
 end
 
--- Component pack: a broad set of extra elements for organized menus.
+
 do
 	local function FormatNumber(value, opts)
 		local decimals = opts.Decimals or 0
@@ -6717,7 +6694,7 @@ do
 		})
 	end
 
-	-- Slider with minus / plus buttons on both ends.
+	
 	function Elements:SliderButtons(opts)
 		opts = opts or {}
 		local flag = FlagOf(opts)
@@ -6873,7 +6850,7 @@ do
 	Elements.SliderPlusMinus = Elements.SliderButtons
 	Elements.NumberSlider = Elements.SliderButtons
 
-	-- Numeric stepper: value pill with minus / plus.
+	
 	function Elements:Stepper(opts)
 		opts = opts or {}
 		local flag = FlagOf(opts)
@@ -6978,7 +6955,7 @@ do
 	Elements.Counter = Elements.Stepper
 	Elements.NumberField = Elements.Stepper
 
-	-- Box toggle: bordered card with a tick box.
+	
 	function Elements:BoxToggle(opts)
 		opts = opts or {}
 		local flag = FlagOf(opts)
@@ -7069,7 +7046,7 @@ do
 	Elements.CheckboxCard = Elements.BoxToggle
 	Elements.ToggleBox = Elements.BoxToggle
 
-	-- Compact checkbox.
+	
 	function Elements:Checkbox(opts)
 		opts = opts or {}
 		local flag = FlagOf(opts)
@@ -7143,7 +7120,7 @@ do
 	end
 	Elements.CheckBox = Elements.Checkbox
 
-	-- iOS style switch.
+	
 	function Elements:ToggleSwitch(opts)
 		opts = opts or {}
 		local flag = FlagOf(opts)
@@ -7230,7 +7207,7 @@ do
 	Elements.Switch = Elements.ToggleSwitch
 	Elements.TogglePill = Elements.ToggleSwitch
 
-	-- Radio group.
+	
 	function Elements:RadioGroup(opts)
 		opts = opts or {}
 		local flag = FlagOf(opts)
@@ -7339,7 +7316,7 @@ do
 	end
 	Elements.Radio = Elements.RadioGroup
 
-	-- Segmented control.
+	
 	function Elements:Segmented(opts)
 		opts = opts or {}
 		local flag = FlagOf(opts)
@@ -7442,7 +7419,7 @@ do
 	Elements.Tabs = Elements.Segmented
 	Elements.Segment = Elements.Segmented
 
-	-- Multi line text box.
+	
 	function Elements:TextArea(opts)
 		opts = opts or {}
 		local flag = FlagOf(opts)
@@ -7507,7 +7484,7 @@ do
 	end
 	Elements.MultilineInput = Elements.TextArea
 
-	-- Read only field with a copy button.
+	
 	function Elements:CopyField(opts)
 		opts = opts or {}
 		local row = New("Frame", {
@@ -7567,7 +7544,7 @@ do
 		}
 	end
 
-	-- Progress bar.
+	
 	function Elements:ProgressBar(opts)
 		opts = opts or {}
 		local flag = FlagOf(opts)
@@ -7628,7 +7605,7 @@ do
 	end
 	Elements.Bar = Elements.ProgressBar
 
-	-- Stat / metric card.
+	
 	function Elements:Stat(opts)
 		opts = opts or {}
 		local card = New("Frame", {
@@ -7661,7 +7638,7 @@ do
 	Elements.StatCard = Elements.Stat
 	Elements.Metric = Elements.Stat
 
-	-- Pill badge / tag.
+	
 	function Elements:Badge(opts)
 		if type(opts) == "string" then opts = { Text = opts } end
 		opts = opts or {}
@@ -7697,7 +7674,7 @@ do
 	Elements.Tag = Elements.Badge
 	Elements.Pill = Elements.Badge
 
-	-- Banner / alert.
+	
 	function Elements:Banner(opts)
 		opts = opts or {}
 		local accent = StyleColor(opts.Style, Theme.Accent)
@@ -7762,7 +7739,7 @@ do
 	Elements.Callout = Elements.Banner
 	Elements.Note = Elements.Banner
 
-	-- Spinner with orbiting dots.
+	
 	function Elements:Spinner(opts)
 		opts = opts or {}
 		local size = opts.Size or 16
@@ -7815,7 +7792,7 @@ do
 	end
 	Elements.Loading = Elements.Spinner
 
-	-- Avatar row with optional thumbnail.
+	
 	function Elements:Avatar(opts)
 		opts = opts or {}
 		local size = opts.Size or 34
@@ -7869,7 +7846,7 @@ do
 		return { Instance = row, Image = image, Name = name, Sub = sub }
 	end
 
-	-- Bulleted list.
+	
 	function Elements:BulletList(opts)
 		opts = opts or {}
 		local items = opts.Items or opts.List or opts.Options or {}
@@ -7919,7 +7896,7 @@ do
 	end
 	Elements.Bullets = Elements.BulletList
 
-	-- Link row.
+	
 	function Elements:Link(opts)
 		if type(opts) == "string" then opts = { Text = opts } end
 		opts = opts or {}
@@ -7950,7 +7927,7 @@ do
 	end
 	Elements.Hyperlink = Elements.Link
 
-	-- Divider with a centered label.
+	
 	function Elements:LabelDivider(text)
 		if type(text) == "table" then text = text.Text or text.Title end
 		local row = New("Frame", {
@@ -7981,7 +7958,7 @@ do
 	Elements.Separator = Elements.LabelDivider
 	Elements.SectionLabel = Elements.LabelDivider
 
-	-- Key / value detail grid.
+	
 	function Elements:KeyValueGrid(opts)
 		opts = opts or {}
 		local rows = opts.Rows or opts.Items or {}
@@ -8032,7 +8009,7 @@ do
 	Elements.Details = Elements.KeyValueGrid
 	Elements.InfoGrid = Elements.KeyValueGrid
 
-	-- Color swatch row.
+	
 	function Elements:ColorSwatches(opts)
 		opts = opts or {}
 		local colors = opts.Colors or {
@@ -8098,7 +8075,7 @@ do
 	end
 	Elements.Swatches = Elements.ColorSwatches
 
-	-- Card: a bordered container that holds other elements.
+	
 	function Elements:Card(opts)
 		if type(opts) == "string" then opts = { Title = opts } end
 		opts = opts or {}

@@ -14,7 +14,7 @@ local Library = loadstring(game:HttpGet(BASE .. "main.luau"))()
 Library.BaseUrl = BASE
 ```
 
-See `Exemple` for a complete working setup (window, tabs, settings,
+See `Example` for a complete working setup (window, tabs, settings,
 configs, theme, server browser, player panel).
 
 ## What's included
@@ -70,7 +70,7 @@ configs, theme, server browser, player panel).
   as autoload, remove autoload, copy to clipboard, import from clipboard,
   reset defaults (`SaveManager:BuildConfigSection`).
 - **Addons** — `SaveManager`, `InterfaceManager`, `ThemeManager`
-  (15 presets + liquid + custom colors). Settings tab is wired in `Exemple`.
+  (15 presets + liquid + custom colors). Settings tab is wired in `Example`.
 
 ## Repo
 

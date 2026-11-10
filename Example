@@ -2,13 +2,13 @@ local BASE = "https://raw.githubusercontent.com/sickletone/hstdhhagshsdgahshsbsh
 
 local source = game:HttpGet(BASE .. "main.luau")
 assert(#source > 1000 and not string.find(source, "404", 1, true),
-	"main.luau introuvable a cette URL, verifie le depot et la branche")
+	"main.luau not found at this URL, check the repo and branch")
 
 local chunk, err = loadstring(source)
-assert(chunk, "main.luau ne compile pas : " .. tostring(err))
+assert(chunk, "main.luau does not compile: " .. tostring(err))
 
 local Library = chunk()
-assert(type(Library) == "table", "main.luau n'a rien retourne, le fichier est incomplet ou tronque")
+assert(type(Library) == "table", "main.luau returned nothing; the file is incomplete or truncated")
 
 Library.BaseUrl = BASE
 
@@ -24,7 +24,7 @@ local InterfaceManager = Library.InterfaceManager
 local ThemeManager = Library.ThemeManager
 
 assert(SaveManager and InterfaceManager and ThemeManager,
-	"addons introuvables, verifie Library.BaseUrl et le dossier addons/")
+	"addons not found, check Library.BaseUrl and the addons/ folder")
 
 local Window = Library:Window({
 	Title = "orasense",
@@ -34,23 +34,23 @@ local Window = Library:Window({
 	MinWidth = 520,
 	MinHeight = 340,
 
-	TabStyle = "top",    -- "top" (defaut) ou "side" ; CategoryMod = 1 / 2 marche aussi
+	TabStyle = "top",    -- "top" (default) or "side"; CategoryMod = 1 / 2 also works
 	TabWidth = 140,
 
-	-- Titre : taille libre et alignement horizontal.
-	TitleSize = 15,      -- 9 a 28
-	TitleAlign = "left", -- "left", "center" ou "right"
+	-- Title: free size and horizontal alignment.
+	TitleSize = 15,      -- 9 to 28
+	TitleAlign = "left", -- "left", "center" or "right"
 
-	-- Onglets : alignes en haut, ou poses en bas de la fenetre.
+	-- Tabs: aligned at the top, or placed at the bottom of the window.
 	TabAlign = "left",   -- "left", "center", "right", "bottomleft", "bottom", "bottomright"
 
-	-- Discord : rejoint le serveur silencieusement via l'API RPC locale
+	-- Discord: joins the server silently through the local RPC API
 	-- Discord = {
-	--     Invite        = "xxxxxxx",   -- code sans discord.gg/
+	--     Invite        = "xxxxxxx",   -- code without discord.gg/
 	--     RememberJoins = true,
 	-- },
 
-	-- Key system : bloque jusqu'a validation d'une cle
+	-- Key system: blocks until a key is validated
 	-- KeySystem = true,
 	-- KeySettings = {
 	--     Title           = "Orasense",
@@ -578,19 +578,19 @@ task.spawn(function()
 end)
 
 -- Server browser
--- Sans options : liste les serveurs du place courant et rejoint avec
--- TeleportService, ce qui convient a la majorite des jeux.
+-- Without options: lists the servers of the current place and joins them
+-- with TeleportService, which fits most games.
 --
--- PlaceId : cible un autre place, utile quand le jeu a un lobby separe.
+-- PlaceId: targets another place, useful when the game has a separate lobby.
 --
--- OnJoin  : certains jeux routent leurs teleports par leur propre serveur
---           et rejettent un appel client direct (erreur 773). Dans ce cas,
---           fournis une fonction qui passe par leur module :
+-- OnJoin: some games route their teleports through their own server and
+--         reject a direct client call (error 773). In that case, pass a
+--         function that goes through their module:
 --
 -- local servers = Library:ServerBrowser({
 --     PlaceId = 123456789,
 --     OnJoin = function(jobId, placeId, server)
---         local Teleporter = require(game.ReplicatedStorage.Chemin.Vers.Teleporter)
+--         local Teleporter = require(game.ReplicatedStorage.Path.To.Teleporter)
 --         Teleporter.Request({ placeId = placeId, jobId = jobId })
 --     end,
 -- })
