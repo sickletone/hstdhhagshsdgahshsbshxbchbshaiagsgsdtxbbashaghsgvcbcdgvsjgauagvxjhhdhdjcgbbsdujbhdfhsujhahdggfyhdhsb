@@ -2591,7 +2591,27 @@ function Window:SetContentScale(value)
 	if self.RefreshTabScale then
 		self:RefreshTabScale()
 	end
+	-- The title is chrome outside the scaled body, so DPI has to move it too.
+	if self.RefreshTitleScale then
+		self:RefreshTitleScale()
+	end
 	return self.ContentScaleValue or 1
+end
+
+-- Title size tracks DPI (content scale) and the window width, so resizing the
+-- window or changing DPI keeps the header proportionate to the menu.
+function Window:RefreshTitleScale()
+	local name = self.TitleName
+	if not name or not name.Parent then return end
+	local base = self.TitleBaseSize or 14
+	local dpi = math.clamp(self.ContentScaleValue or 1, 0.55, 2.2)
+	local width = self.Width or self.BaseWidth or 620
+	local widthScale = math.clamp(width / (self.BaseWidth or 620), 0.8, 1.45)
+	local size = math.clamp(math.floor(base * dpi * widthScale + 0.5), 9, 30)
+	if self.TitleScaleValue == size then return end
+	self.TitleScaleValue = size
+	name.TextSize = size
+	if self.TitleSuffix then self.TitleSuffix.TextSize = size end
 end
 
 function Window:SetDpi(dpi)
@@ -2625,6 +2645,7 @@ function Window:SetSize(width, height, skipFit)
 	self.Width = math.max(width, self.MinWidth)
 	self.Height = math.max(height, self.MinHeight)
 	self.Main.Size = UDim2.fromOffset(self.Width, self.Height)
+	if self.RefreshTitleScale then self:RefreshTitleScale() end
 	if not skipFit and self.Refit then self.Refit() end
 end
 
@@ -3245,7 +3266,8 @@ function Library:Window(opts)
 	end))
 
 	local gripHit = New("TextButton", {
-		Size = UDim2.fromOffset(40, 40),
+		-- Fingers need a bigger target than a mouse: 40 px was easy to miss.
+		Size = UDim2.fromOffset(MSize(40, 56), MSize(40, 56)),
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -2, 1, -2),
 		BackgroundTransparency = 1,
@@ -3334,6 +3356,9 @@ function Library:Window(opts)
 	Track(gripHit.InputBegan:Connect(function(input)
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1
 			and input.UserInputType ~= Enum.UserInputType.Touch then return end
+		-- A second finger on the grip used to restart the drag from the new
+		-- touch, which is only possible on touch screens and made it jump.
+		if window.Resizing then return end
 		window.Resizing = true
 		window:CloseFloating()
 		local origin = input.Position
@@ -3351,7 +3376,12 @@ function Library:Window(opts)
 			elseif move.UserInputType ~= Enum.UserInputType.MouseMovement then
 				return
 			end
-			local s = math.max(scale.Scale, 0.05)
+			-- Read the scale from what is actually rendered. On mobile the fit
+			-- scale differs per device, and a stale scale made the grip drift
+			-- away from the finger.
+			local absW = main.AbsoluteSize.X
+			local s = (absW > 1 and window.Width > 0) and (absW / window.Width) or math.max(scale.Scale, 0.05)
+			s = math.max(s, 0.05)
 			local vp = gui.AbsoluteSize
 			local delta = move.Position - origin
 			resizeTargetW = math.clamp(resizeStartW + delta.X / s, window.MinWidth, math.max(window.MinWidth, vp.X / s - 16))
@@ -3380,6 +3410,12 @@ function Library:Window(opts)
 	if opts.MobileButton == true or (opts.MobileButton ~= false and MOBILE) then
 		Library:CreateMobileButton(opts.MobileButtonOptions)
 	end
+
+	-- Title scaling needs the labels and the base width before the first SetDpi.
+	window.TitleName = titleName
+	window.TitleSuffix = titleSuffix
+	window.TitleBaseSize = titleSize
+	window.BaseWidth = opts.Width or (MOBILE and 560 or 620)
 
 	table.insert(Library.Windows, window)
 	window:SetDpi(Library.Dpi or 96)
@@ -4114,6 +4150,61 @@ function Library:ToggleUI(state)
 	return self.Open
 end
 
+-- The touch toggle is user configurable (settings > mobile): size, fill,
+-- icon size and how it toggles (tap / tap twice / hold).
+local MOBILE_BUTTON_DEFAULTS = {
+	Width = 44,
+	Height = 44,
+	Transparency = 0.12,
+	IconSize = 18,
+	Mode = "tap",
+	HoldDuration = 0.6,
+	DoubleTapWindow = 0.35,
+}
+
+function Library:MobileConfig()
+	local config = self.MobileButtonConfig
+	if type(config) ~= "table" then
+		config = {}
+		self.MobileButtonConfig = config
+	end
+	for key, fallback in pairs(MOBILE_BUTTON_DEFAULTS) do
+		if key == "Mode" then
+			if type(config[key]) ~= "string" then config[key] = fallback end
+		elseif type(config[key]) ~= "number" then
+			config[key] = fallback
+		end
+	end
+	return config
+end
+
+function Library:SetMobileButtonOptions(options)
+	local config = self:MobileConfig()
+	for key, value in pairs(options or {}) do
+		if MOBILE_BUTTON_DEFAULTS[key] ~= nil then
+			if key == "Mode" then
+				local mode = string.lower(tostring(value))
+				if mode == "tap twice" or mode == "double" or mode == "double tap" then
+					mode = "tap_twice"
+				end
+				if mode == "tap" or mode == "tap_twice" or mode == "hold" then
+					config.Mode = mode
+				end
+			elseif type(value) == "number" then
+				config[key] = value
+			end
+		end
+	end
+	config.Width = math.clamp(config.Width, 28, 120)
+	config.Height = math.clamp(config.Height, 28, 120)
+	config.Transparency = math.clamp(config.Transparency, 0, 0.9)
+	config.IconSize = math.clamp(config.IconSize, 8, 40)
+	config.HoldDuration = math.clamp(config.HoldDuration, 0.15, 5)
+	config.DoubleTapWindow = math.clamp(config.DoubleTapWindow, 0.2, 1)
+	if self.MobileButtonApply then self.MobileButtonApply() end
+	return config
+end
+
 function Library:CreateMobileButton(opts)
 	if self.MobileGui then return self.MobileButton end
 	opts = opts or {}
@@ -4128,30 +4219,54 @@ function Library:CreateMobileButton(opts)
 	})
 	ParentGui(gui)
 
+	local config = self:MobileConfig()
+	if opts.Size then config.Width, config.Height = opts.Size, opts.Size end
+	if opts.Width then config.Width = opts.Width end
+	if opts.Height then config.Height = opts.Height end
+	if opts.Transparency then config.Transparency = opts.Transparency end
+
 	local button = New("TextButton", {
-		Size = UDim2.fromOffset(opts.Size or 44, opts.Size or 44),
+		Size = UDim2.fromOffset(config.Width, config.Height),
 		Position = opts.Position or UDim2.new(0, 18, 0.5, -22),
 		BackgroundColor3 = Theme.Section,
+		BackgroundTransparency = math.clamp(config.Transparency, 0, 0.9),
 		AutoButtonColor = false,
 		Text = "",
 		BorderSizePixel = 0,
 		Parent = gui,
 	})
-	Corner(button, 12)
+	Corner(button, 10)
 	Stroke(button, Theme.Border)
+	local bars = {}
 	for i = 1, 3 do
 		local bar = New("Frame", {
-			Size = UDim2.fromOffset(18, 2),
+			Size = UDim2.fromOffset(config.IconSize, 2),
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.5, 0, 0.5, (i - 2) * 6),
+			Position = UDim2.new(0.5, 0, 0.5, (i - 2) * (config.IconSize / 3)),
 			BackgroundColor3 = Theme.Accent,
 			BorderSizePixel = 0,
 			Parent = button,
 		})
 		Corner(bar, 1)
+		bars[i] = bar
 	end
+	local cornerObject = button:FindFirstChildOfClass("UICorner")
+	local function applyMobileConfig()
+		button.Size = UDim2.fromOffset(config.Width, config.Height)
+		button.BackgroundTransparency = math.clamp(config.Transparency, 0, 0.9)
+		if cornerObject then
+			cornerObject.CornerRadius = UDim.new(0, math.max(8, math.floor(math.min(config.Width, config.Height) * 0.27)))
+		end
+		local thickness = math.max(1, math.floor(config.IconSize / 8 + 0.5))
+		for i, bar in ipairs(bars) do
+			bar.Size = UDim2.fromOffset(config.IconSize, thickness)
+			bar.Position = UDim2.new(0.5, 0, 0.5, math.floor((i - 2) * (config.IconSize / 3) + 0.5))
+		end
+	end
+	applyMobileConfig()
 
 	local moved, origin, startPos, moveConn, endConn, touchObject
+	local holdToken = 0
 
 	local function stopDrag()
 		if moveConn then moveConn:Disconnect() moveConn = nil end
@@ -4169,6 +4284,15 @@ function Library:CreateMobileButton(opts)
 		-- Remember the exact finger that pressed: other touches must not drag it.
 		touchObject = input.UserInputType == Enum.UserInputType.Touch and input or nil
 		Tween(button, { BackgroundColor3 = Theme.FieldHover }, EASE_FAST)
+		holdToken = holdToken + 1
+		local myHold = holdToken
+		if config.Mode == "hold" then
+			task.delay(math.clamp(config.HoldDuration, 0.15, 5), function()
+				if myHold ~= holdToken or moved then return end
+				holdToken = holdToken + 1 -- one toggle per press
+				Library:ToggleUI()
+			end)
+		end
 		moveConn = UserInputService.InputChanged:Connect(function(move)
 			if touchObject then
 				if move ~= touchObject then return end
@@ -4180,6 +4304,7 @@ function Library:CreateMobileButton(opts)
 				-- Deadzone: touch jitter on a tap must never move the button.
 				if math.abs(delta.X) <= 6 and math.abs(delta.Y) <= 6 then return end
 				moved = true
+				holdToken = holdToken + 1 -- dragging cancels a hold
 			end
 			button.Position = UDim2.new(
 				startPos.X.Scale, startPos.X.Offset + delta.X,
@@ -4192,13 +4317,31 @@ function Library:CreateMobileButton(opts)
 				return
 			end
 			stopDrag()
-			Tween(button, { BackgroundColor3 = Theme.Section }, EASE_FAST)
-			if not moved then Library:ToggleUI() end
+			holdToken = holdToken + 1
+			Tween(button, {
+				BackgroundColor3 = Theme.Section,
+				BackgroundTransparency = math.clamp(config.Transparency, 0, 0.9),
+			}, EASE_FAST)
+			if moved then return end
+			local mode = config.Mode
+			if mode == "hold" then return end
+			if mode == "tap_twice" then
+				local now = os.clock()
+				if now - (self.MobileLastTap or -10) <= (config.DoubleTapWindow or 0.35) then
+					self.MobileLastTap = nil
+					Library:ToggleUI()
+				else
+					self.MobileLastTap = now
+				end
+				return
+			end
+			Library:ToggleUI()
 		end)
 	end))
 
 	self.MobileGui = gui
 	self.MobileButton = button
+	self.MobileButtonApply = applyMobileConfig
 	return button
 end
 
@@ -4343,6 +4486,10 @@ local Players = game:GetService("Players")
 Library.SearchIndex = Library.SearchIndex or {}
 Library.ParticleMode = Library.ParticleMode or "none"
 Library.ParticleCustom = Library.ParticleCustom or ""
+-- Flower particles are real art. The texture id is the image that renders,
+-- the asset id is the decal it was uploaded as, kept for reference/override.
+Library.FlowerTexture = Library.FlowerTexture or 105968320075682
+Library.FlowerAsset = Library.FlowerAsset or 85283896414966
 
 local function OrasenseResolveAsset(input)
 	if input == nil or input == "" then return nil end
@@ -5387,10 +5534,24 @@ do
 	end
 
 	local function ParticleSize(mode, style, opts)
-		return math.max(1, style.size * (opts.Size / 100) * (mode == "custom" and 18 or 4))
+		-- Flower art needs room to read; the old 4 px unit made it a dot.
+		local unit = mode == "flowers" and 16 or (mode == "custom" and 18 or 4)
+		return math.max(1, style.size * (opts.Size / 100) * unit)
 	end
 
 	local function SpawnDot(layer, mode, custom)
+		if mode == "flowers" then
+			local art = New("ImageLabel", {
+				Size = UDim2.fromOffset(24, 24),
+				BackgroundTransparency = 1,
+				Image = OrasenseResolveAsset(Library.FlowerTexture) or "",
+				ImageTransparency = 0.05,
+				ScaleType = Enum.ScaleType.Fit,
+				Parent = layer,
+			})
+			art.Rotation = math.random(0, 360)
+			return art
+		end
 		if mode == "custom" and custom then
 			return New("ImageLabel", {
 				Size = UDim2.fromOffset(18, 18),
@@ -5406,9 +5567,6 @@ do
 			transparency = 0.05
 		elseif mode == "stars" then
 			transparency = math.random() * 0.5
-		elseif mode == "flowers" then
-			color = (math.random(1, 2) == 1) and Color3.fromRGB(255, 182, 213) or Color3.fromRGB(255, 255, 255)
-			transparency = 0.1
 		end
 		local dot = New("Frame", {
 			Size = UDim2.fromOffset(4, 4),
@@ -5417,8 +5575,7 @@ do
 			BorderSizePixel = 0,
 			Parent = layer,
 		})
-		Corner(dot, mode == "flowers" and 2 or 5)
-		if mode == "flowers" then dot.Rotation = math.random(0, 90) end
+		Corner(dot, 5)
 		return dot
 	end
 
@@ -5684,6 +5841,7 @@ do
 end
 
 Library.Dpi = Library.Dpi or 96
+Library.IsMobile = MOBILE
 Library.MenuTransparency = Library.MenuTransparency or 0
 
 function Library:SetDpi(dpi)
