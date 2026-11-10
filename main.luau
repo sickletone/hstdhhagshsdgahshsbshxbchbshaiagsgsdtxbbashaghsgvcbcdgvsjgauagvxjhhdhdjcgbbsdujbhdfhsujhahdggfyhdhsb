@@ -735,19 +735,26 @@ local function MakeButton(parent, opts, size, order)
 	local btn = New("TextButton", {
 		Size = size or UDim2.new(1, 0, 0, MSize(26, 34)),
 		BackgroundColor3 = Theme.Field,
+		BackgroundTransparency = 0.35,
 		AutoButtonColor = false,
 		Text = "",
 		BorderSizePixel = 0,
 		LayoutOrder = order,
 		Parent = parent,
 	})
-	Corner(btn, 5)
-	Stroke(btn, Theme.Border)
-	local text = Label(btn, opts.Text or "button", (LabelColor(opts, Theme.TextBright)))
-	text.Size = UDim2.fromScale(1, 1)
+	Corner(btn, 6)
+	-- Flat: no outline, the fill alone separates the button from the section.
+	local text = Label(btn, opts.Text or "button", (LabelColor(opts, Theme.TextBright)), 13, Theme.FontMedium)
+	text.Size = UDim2.new(1, -16, 1, 0)
+	text.Position = UDim2.fromOffset(8, 0)
 	text.TextXAlignment = Enum.TextXAlignment.Center
 	text.TextTruncate = Enum.TextTruncate.AtEnd
-	Hover(btn, btn, "Field", "FieldHover")
+	Track(btn.MouseEnter:Connect(function()
+		Tween(btn, { BackgroundColor3 = Theme.FieldHover, BackgroundTransparency = 0.06 }, EASE_FAST)
+	end))
+	Track(btn.MouseLeave:Connect(function()
+		Tween(btn, { BackgroundColor3 = Theme.Field, BackgroundTransparency = 0.35 }, EASE_FAST)
+	end))
 	Track(btn.Activated:Connect(function()
 		if state.Enabled == false then return end
 		Library:SafeCallback(opts.Text or "button", opts.Callback)
@@ -1245,7 +1252,8 @@ function Elements:Dropdown(opts)
 		Parent = block,
 	})
 	Corner(button, 6)
-	local bStroke = Stroke(button, Theme.BorderSoft)
+	-- No outline on the field: an open dropdown used to show the field border
+	-- and the popup border as two stacked lines.
 	local value = Label(button, "", Theme.TextBright, 13, Theme.Font)
 	value.Position = UDim2.fromOffset(11, 0)
 	value.Size = UDim2.new(1, -37, 1, 0)
@@ -1269,7 +1277,6 @@ function Elements:Dropdown(opts)
 		Parent = panel.Content,
 	})
 	Corner(searchField, 4)
-	Stroke(searchField, Theme.Border)
 	local searchBox = New("TextBox", {
 		Size = UDim2.new(1, -16, 1, 0),
 		Position = UDim2.fromOffset(8, 0),
@@ -1289,8 +1296,7 @@ function Elements:Dropdown(opts)
 		Size = UDim2.new(1, 0, 0, 24),
 		AutomaticCanvasSize = Enum.AutomaticSize.Y,
 		CanvasSize = UDim2.new(),
-		ScrollBarThickness = 2,
-		ScrollBarImageColor3 = Theme.AccentDim,
+		ScrollBarThickness = 0,
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		LayoutOrder = 2,
@@ -1322,7 +1328,7 @@ function Elements:Dropdown(opts)
 		value.Text = display()
 		for v, row in pairs(rows) do
 			local picked = isPicked(v)
-			if row.Mark then row.Mark.Visible = picked end
+			if row.Button then row.Button.BackgroundTransparency = picked and 0.9 or 1 end
 			Tween(row.Text, { TextColor3 = picked and Theme.AccentSoft or Theme.Text }, EASE_FAST)
 		end
 		if flag then
@@ -1348,7 +1354,7 @@ function Elements:Dropdown(opts)
 
 	local function build()
 		for _, row in pairs(rows) do row.Button:Destroy() end
-		searchField.Visible = opts.Search == true or (opts.Search ~= false and #values > 8)
+		searchField.Visible = opts.Search == true
 		rows = {}
 		for i, v in ipairs(values) do
 			local item = New("TextButton", {
@@ -1362,28 +1368,19 @@ function Elements:Dropdown(opts)
 				ZIndex = panel.Frame.ZIndex,
 				Parent = scroller,
 			})
-			Corner(item, 5)
-			local mark = New("Frame", {
-				Size = UDim2.fromOffset(2, 12),
-				Position = UDim2.fromOffset(0, 7),
-				BackgroundColor3 = Theme.Accent,
-				BorderSizePixel = 0,
-				Visible = false,
-				ZIndex = panel.Frame.ZIndex,
-				Parent = item,
-			})
-			Corner(mark, 1)
-			local il = Label(item, tostring(v), Theme.Text)
-			il.Position = UDim2.fromOffset(10, 0)
-			il.Size = UDim2.new(1, -20, 1, 0)
+			Corner(item, 4)
+			-- Selection is a soft fill, not a marker bar: rows stay free of lines.
+			local il = Label(item, tostring(v), Theme.Text, 13, Theme.Font)
+			il.Position = UDim2.fromOffset(9, 0)
+			il.Size = UDim2.new(1, -18, 1, 0)
 			il.ZIndex = panel.Frame.ZIndex
-			rows[v] = { Button = item, Text = il, Mark = mark }
+			rows[v] = { Button = item, Text = il }
 
 			Track(item.MouseEnter:Connect(function()
 				Tween(item, { BackgroundTransparency = 0.4 }, EASE_FAST)
 			end))
 			Track(item.MouseLeave:Connect(function()
-				Tween(item, { BackgroundTransparency = 1 }, EASE_FAST)
+				Tween(item, { BackgroundTransparency = isPicked(v) and 0.9 or 1 }, EASE_FAST)
 			end))
 			Track(item.Activated:Connect(function()
 				if multi then
@@ -1406,11 +1403,11 @@ function Elements:Dropdown(opts)
 	panel.OnOpen = function()
 		searchBox.Text = ""
 		applyFilter()
-		Tween(bStroke, { Color = Theme.Accent }, EASE_FAST)
+		Tween(button, { BackgroundColor3 = Theme.FieldHover }, EASE_FAST)
 		Tween(chev, { Rotation = 180 }, EASE_FAST)
 	end
 	panel.OnClose = function()
-		Tween(bStroke, { Color = Theme.Border }, EASE_FAST)
+		Tween(button, { BackgroundColor3 = Theme.Field }, EASE_FAST)
 		Tween(chev, { Rotation = 0 }, EASE_FAST)
 	end
 
@@ -1418,7 +1415,6 @@ function Elements:Dropdown(opts)
 		if api.Enabled == false then return end
 		self.Window:ToggleFloating(panel, button, true)
 	end))
-	Hover(button, button, "Field", "FieldHover")
 
 	function api:Set(v, silent)
 		selected = v
@@ -1447,9 +1443,11 @@ function Elements:Dropdown(opts)
 		for _, panel_ in ipairs(self.Window.FloatStack) do
 			if panel_ == panel then open = true break end
 		end
-		bStroke.Color = open and Theme.Accent or Theme.Border
+		button.BackgroundColor3 = open and Theme.FieldHover or Theme.Field
 		for _, bar in ipairs(chev:GetChildren()) do
-			if bar:IsA("Frame") then bar.BackgroundColor3 = Theme.TextDim end
+			if bar:IsA("Frame") then
+				bar.BackgroundColor3 = open and Theme.AccentSoft or Theme.TextDim
+			end
 		end
 	end)
 
@@ -2307,8 +2305,10 @@ function Window:CreateFloating(width, matchAnchor, parent)
 		ZIndex = z,
 		Parent = self.Overlay,
 	})
-	Corner(frame, 5)
-	Stroke(frame, matchAnchor and Theme.Accent or Theme.PopupBorder)
+	Corner(frame, 6)
+	-- Soft, low-contrast outline for every floating panel. The bright accent
+	-- border is what made open dropdowns look like a stack of boxes.
+	Stroke(frame, Theme.PopupBorder, 1, 0.45)
 	Pad(frame, 6)
 	local content = New("Frame", {
 		Size = UDim2.new(1, 0, 0, 0),
@@ -3397,19 +3397,8 @@ function Library:Notify(opts, text, duration)
 	opts = opts or {}
 	opts.Text = opts.Text or opts.Content or opts.Description
 	local accent = opts.Color or StyleColor(opts.Style, Theme.Accent)
+	-- No style to icon fallback: an icon only shows when the caller passes one.
 	local iconName = opts.Icon
-	if iconName == nil and type(opts.Style) == "string" then
-		local key = string.lower(opts.Style)
-		if key == "warning" or key == "warn" or key == "yellow" then
-			iconName = "alert-triangle"
-		elseif key == "danger" or key == "error" or key == "red" then
-			iconName = "x-circle"
-		elseif key == "success" or key == "green" then
-			iconName = "check-circle"
-		elseif key == "accent" or key == "info" or key == "blue" then
-			iconName = "info"
-		end
-	end
 
 	if not self.NotifyGui or not self.NotifyGui.Parent then
 		local gui = New("ScreenGui", {
@@ -3422,9 +3411,9 @@ function Library:Notify(opts, text, duration)
 		})
 		ParentGui(gui)
 		local holder = New("Frame", {
-			Size = UDim2.fromOffset(300, 420),
+			Size = UDim2.fromOffset(312, 460),
 			AnchorPoint = Vector2.new(1, 1),
-			Position = UDim2.new(1, -16, 1, -16),
+			Position = UDim2.new(1, -14, 1, -14),
 			BackgroundTransparency = 1,
 			Parent = gui,
 		})
@@ -3444,29 +3433,22 @@ function Library:Notify(opts, text, duration)
 		pcall(function() live[index]:Destroy() end)
 	end
 
-	local slot = New("Frame", {
-		Size = UDim2.new(1, 0, 0, 0),
-		AutomaticSize = Enum.AutomaticSize.Y,
-		BackgroundTransparency = 1,
-		Parent = self.NotifyHolder,
-	})
-
 	local card = New("Frame", {
 		Size = UDim2.new(1, 0, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
-		Position = UDim2.fromOffset(16, 0),
-		BackgroundColor3 = Theme.Section,
+		BackgroundColor3 = Theme.PopupBg,
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ClipsDescendants = true,
-		Parent = slot,
+		LayoutOrder = #self.NotifyHolder:GetChildren() + 1,
+		Parent = self.NotifyHolder,
 	})
 	Corner(card, 8)
-	local cardStroke = Stroke(card, Theme.SectionBorder, 1, 1)
 
 	local inner = New("Frame", {
 		Size = UDim2.new(1, 0, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
+		Position = UDim2.fromOffset(0, 6),
 		BackgroundTransparency = 1,
 		Parent = card,
 	})
@@ -3544,14 +3526,13 @@ function Library:Notify(opts, text, duration)
 
 	local dismissed = false
 	local hovered = false
-	local api = { Instance = card, Holder = slot }
+	local api = { Instance = card, Holder = card }
 
 	local function close()
 		if dismissed then return end
 		dismissed = true
 		if barTween then pcall(function() barTween:Cancel() end) end
-		Tween(card, { BackgroundTransparency = 1, Position = UDim2.fromOffset(16, 0) })
-		Tween(cardStroke, { Transparency = 1 })
+		Tween(card, { BackgroundTransparency = 1 })
 		Tween(chip, { BackgroundTransparency = 1 })
 		if chipIcon then Tween(chipIcon, { ImageTransparency = 1 }) end
 		Tween(title, { TextTransparency = 1 })
@@ -3559,7 +3540,7 @@ function Library:Notify(opts, text, duration)
 		if body then Tween(body, { TextTransparency = 1 }) end
 		if bar then Tween(bar, { BackgroundTransparency = 1 }) end
 		task.delay(0.26, function()
-			if slot.Parent then slot:Destroy() end
+			if card.Parent then card:Destroy() end
 		end)
 		if opts.OnClose then task.spawn(opts.OnClose) end
 	end
@@ -3581,8 +3562,8 @@ function Library:Notify(opts, text, duration)
 	end))
 	Track(closeButton.Activated:Connect(close))
 
-	Tween(card, { BackgroundTransparency = 0.02, Position = UDim2.fromOffset(0, 0) })
-	Tween(cardStroke, { Transparency = 0.45 })
+	Tween(card, { BackgroundTransparency = 0.02 })
+	Tween(inner, { Position = UDim2.fromOffset(0, 0) }, EASE_FAST)
 	Tween(chip, { BackgroundTransparency = 0.85 })
 	if chipIcon then Tween(chipIcon, { ImageTransparency = 0 }) end
 	Tween(title, { TextTransparency = 0 })
@@ -3592,7 +3573,7 @@ function Library:Notify(opts, text, duration)
 	if lifetime > 0 then
 		task.spawn(function()
 			local left = lifetime
-			while slot.Parent and not dismissed do
+			while card.Parent and not dismissed do
 				task.wait(0.05)
 				if not hovered then
 					left -= 0.05
@@ -3938,7 +3919,7 @@ function Library:CreateHotkeyPanel(opts)
 		Parent = inner,
 	})
 	Pad(header, 0, 11, 0, 11)
-	local icon = AttachIcon(header, opts.Icon or "keyboard", Theme.TextBright, 14)
+	local icon = AttachIcon(header, opts.Icon, Theme.TextBright, 14)
 	local inset = icon and 20 or 0
 	if icon then
 		icon.AnchorPoint = Vector2.new(0, 0.5)
@@ -5495,12 +5476,13 @@ do
 				dot.Position = UDim2.fromOffset(data.x, data.y)
 			end
 
+			-- Seed the whole field in one frame. Waiting per dot made the menu
+			-- look like it was dripping particles in one at a time.
 			for _ = 1, wanted() do
 				if token ~= self.ParticleToken or not layer.Parent then return end
 				local dot = SpawnDot(layer, mode, custom)
 				place(dot, true)
 				table.insert(dots, dot)
-				task.wait(0.01)
 			end
 
 			local clock = 0
@@ -5618,7 +5600,7 @@ do
 		local placeId = tonumber(opts.PlaceId) or game.PlaceId
 		local panel = self:Panel({
 			Title = tostring(opts.Title or "servers"),
-			Icon = opts.Icon or "server",
+			Icon = opts.Icon,
 			Width = opts.Width or 230,
 			Position = opts.Position or UDim2.fromOffset(18, 120),
 			Visible = opts.Visible == true,
@@ -7154,7 +7136,7 @@ do
 			LayoutOrder = -1,
 			Parent = inner,
 		})
-		local icon = AttachIcon(head, opts.Icon or "info", accent, 14)
+		local icon = AttachIcon(head, opts.Icon, accent, 14)
 		local title = Label(head, tostring(opts.Title or opts.Text or "notice"), accent, Theme.TextSize, Theme.FontMedium)
 		title.Position = UDim2.fromOffset(icon and 20 or 0, 0)
 		title.Size = UDim2.new(1, -(icon and 20 or 0), 0, 16)

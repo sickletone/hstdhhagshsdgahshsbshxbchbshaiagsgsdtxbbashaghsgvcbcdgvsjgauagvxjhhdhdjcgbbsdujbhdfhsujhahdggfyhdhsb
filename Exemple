@@ -682,7 +682,7 @@ windowsDialogs:ButtonRow({
 
 local windowsOverlays = cWindows:Section("overlays", 2)
 windowsOverlays:Button({ Text = "sub window", Callback = function() sub:SetVisible(true) end })
-windowsOverlays:Button({ Text = "mini window", Callback = function() mini:SetVisible(true) end })
+windowsOverlays:Button({ Text = "mini window", Callback = function() float:SetVisible(true) end })
 windowsOverlays:Button({ Text = "server browser", Callback = function() servers:SetVisible(true) end })
 windowsOverlays:Button({ Text = "player panel", Callback = function()
 	hud:SetVisible(true)
