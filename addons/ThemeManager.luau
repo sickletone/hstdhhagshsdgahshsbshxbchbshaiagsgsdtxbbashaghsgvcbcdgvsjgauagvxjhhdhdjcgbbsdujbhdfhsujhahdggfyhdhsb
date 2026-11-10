@@ -218,7 +218,7 @@ return function(Library)
 		return true
 	end
 
-	function ThemeManager:Mount(window)
+	function ThemeManager:Mount(window, container)
 		window = window or self.Library.Windows[1]
 		if not window then return nil end
 
@@ -228,10 +228,18 @@ return function(Library)
 			defaults[entry[1]] = Theme[entry[1]]
 		end
 
-		-- no scrim: the interface behind has to stay readable while its
-		-- colours are being edited
-		local modal = window:Modal({ Title = "theme", Width = 300, Height = 0.82, Dim = 0, Blur = 0 })
-		local content = modal.Content
+		-- With a container the same editor is built straight into a settings
+		-- sub tab; without one it stays a modal opened from the footer.
+		local modal
+		local content
+		if container then
+			content = container
+		else
+			-- no scrim: the interface behind has to stay readable while its
+			-- colours are being edited
+			modal = window:Modal({ Title = "theme", Width = 300, Height = 0.82, Dim = 0, Blur = 0 })
+			content = modal.Content
+		end
 		local pickers = {}
 		local presetBox
 		local snapshot, snapshotAlphas, snapshotPreset
@@ -371,32 +379,36 @@ return function(Library)
 			end,
 		})
 
-		modal.OnClose = function()
-			if not dirty or self.AutoSave then
-				dirty = false
-				return
-			end
-			window:Confirm({
-				Title = "theme",
-				Text = "Save the colour changes?",
-				Confirm = "save",
-				Cancel = "discard",
-				OnConfirm = function()
-					self:Save()
+		if modal then
+			modal.OnClose = function()
+				if not dirty or self.AutoSave then
 					dirty = false
-				end,
-				OnCancel = restoreSnapshot,
-			})
-		end
+					return
+				end
+				window:Confirm({
+					Title = "theme",
+					Text = "Save the colour changes?",
+					Confirm = "save",
+					Cancel = "discard",
+					OnConfirm = function()
+						self:Save()
+						dirty = false
+					end,
+					OnCancel = restoreSnapshot,
+				})
+			end
 
-		window:IconAction("paintbrush", function()
-			if not modal.Open then takeSnapshot() end
-			modal:Toggle()
-		end)
+			window:IconAction("paintbrush", function()
+				if not modal.Open then takeSnapshot() end
+				modal:Toggle()
+			end)
+		else
+			takeSnapshot()
+		end
 
 		self.Modal = modal
 		self.Pickers = pickers
-		return modal
+		return modal or content
 	end
 
 	return ThemeManager

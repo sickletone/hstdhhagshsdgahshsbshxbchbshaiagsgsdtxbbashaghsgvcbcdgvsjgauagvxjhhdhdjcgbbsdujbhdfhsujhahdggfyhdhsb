@@ -826,7 +826,7 @@ function Elements:Input(opts)
 		cap.Size = UDim2.new(1, 0, 0, 15)
 	end
 	local field = New("Frame", {
-		Size = UDim2.new(1, 0, 0, MSize(26, 34)),
+		Size = UDim2.new(1, 0, 0, MSize(30, 34)),
 		BackgroundColor3 = Theme.Field,
 		BorderSizePixel = 0,
 		LayoutOrder = 2,
@@ -1244,17 +1244,21 @@ function Elements:Dropdown(opts)
 		LayoutOrder = 2,
 		Parent = block,
 	})
-	Corner(button, 5)
-	local bStroke = Stroke(button, Theme.Border)
-	local value = Label(button, "", Theme.TextBright)
-	value.Position = UDim2.fromOffset(10, 0)
-	value.Size = UDim2.new(1, -34, 1, 0)
+	Corner(button, 6)
+	local bStroke = Stroke(button, Theme.BorderSoft)
+	local value = Label(button, "", Theme.TextBright, 13, Theme.Font)
+	value.Position = UDim2.fromOffset(11, 0)
+	value.Size = UDim2.new(1, -37, 1, 0)
 	value.TextTruncate = Enum.TextTruncate.AtEnd
-	local chev = Chevron(button, Theme.Text)
+	local chev = Chevron(button, Theme.TextDim)
 	chev.AnchorPoint = Vector2.new(1, 0.5)
-	chev.Position = UDim2.new(1, -10, 0.5, 0)
+	chev.Position = UDim2.new(1, -11, 0.5, 0)
 
 	local panel = self.Window:CreateFloating(0, true, self.Float)
+	local popupCorner = panel.Frame:FindFirstChildOfClass("UICorner")
+	if popupCorner then popupCorner.CornerRadius = UDim.new(0, 7) end
+	local floatingList = panel.Content:FindFirstChildOfClass("UIListLayout")
+	if floatingList then floatingList.Padding = UDim.new(0, 2) end
 	local searchField = New("Frame", {
 		Size = UDim2.new(1, 0, 0, 24),
 		BackgroundColor3 = Theme.Field,
@@ -1318,6 +1322,7 @@ function Elements:Dropdown(opts)
 		value.Text = display()
 		for v, row in pairs(rows) do
 			local picked = isPicked(v)
+			if row.Mark then row.Mark.Visible = picked end
 			Tween(row.Text, { TextColor3 = picked and Theme.AccentSoft or Theme.Text }, EASE_FAST)
 		end
 		if flag then
@@ -1347,7 +1352,7 @@ function Elements:Dropdown(opts)
 		rows = {}
 		for i, v in ipairs(values) do
 			local item = New("TextButton", {
-				Size = UDim2.new(1, 0, 0, 24),
+				Size = UDim2.new(1, 0, 0, 26),
 				BackgroundColor3 = Theme.FieldHover,
 				BackgroundTransparency = 1,
 				AutoButtonColor = false,
@@ -1357,12 +1362,22 @@ function Elements:Dropdown(opts)
 				ZIndex = panel.Frame.ZIndex,
 				Parent = scroller,
 			})
-			Corner(item, 4)
+			Corner(item, 5)
+			local mark = New("Frame", {
+				Size = UDim2.fromOffset(2, 12),
+				Position = UDim2.fromOffset(0, 7),
+				BackgroundColor3 = Theme.Accent,
+				BorderSizePixel = 0,
+				Visible = false,
+				ZIndex = panel.Frame.ZIndex,
+				Parent = item,
+			})
+			Corner(mark, 1)
 			local il = Label(item, tostring(v), Theme.Text)
-			il.Position = UDim2.fromOffset(8, 0)
-			il.Size = UDim2.new(1, -16, 1, 0)
+			il.Position = UDim2.fromOffset(10, 0)
+			il.Size = UDim2.new(1, -20, 1, 0)
 			il.ZIndex = panel.Frame.ZIndex
-			rows[v] = { Button = item, Text = il }
+			rows[v] = { Button = item, Text = il, Mark = mark }
 
 			Track(item.MouseEnter:Connect(function()
 				Tween(item, { BackgroundTransparency = 0.4 }, EASE_FAST)
@@ -2132,11 +2147,11 @@ local function CreateSection(window, parent, title, order)
 	})
 	Corner(frame, 7)
 	Stroke(frame, Theme.SectionBorder)
-	Pad(frame, 12, 14, 14, 14)
+	Pad(frame, 8, 14, 12, 14)
 	local frameList = List(frame, 0)
 
 	local header = New("TextButton", {
-		Size = UDim2.new(1, 0, 0, MSize(24, 32)),
+		Size = UDim2.new(1, 0, 0, MSize(22, 30)),
 		BackgroundTransparency = 1,
 		AutoButtonColor = false,
 		Text = "",
@@ -2877,6 +2892,9 @@ function Window:SetVisible(state)
 	self.Visible = state
 	if state then
 		self.Main.Visible = true
+		-- Re-apply so a window shown before the theme or the glass settings
+		-- finished loading still picks them up.
+		if self.ApplyGlass then self:ApplyGlass() end
 		self.Scale.Scale = self.BaseScale * 0.97
 		Tween(self.Scale, { Scale = self.BaseScale }, EASE_FAST)
 	else
@@ -2923,6 +2941,8 @@ function Library:Window(opts)
 		Parent = main,
 	})
 	Corner(topBar, 10)
+	local titleSize = math.clamp(tonumber(opts.TitleSize) or 14, 9, 28)
+	local titleAlign = string.lower(tostring(opts.TitleAlign or "left"))
 	New("Frame", {
 		Size = UDim2.new(1, 0, 0, 12),
 		Position = UDim2.new(0, 0, 1, -12),
@@ -2938,13 +2958,21 @@ function Library:Window(opts)
 		Parent = topBar,
 	})
 	local titleList = List(title, 0, Enum.FillDirection.Horizontal)
+
+	if titleAlign == "center" then
+		title.AnchorPoint = Vector2.new(0.5, 0)
+		title.Position = UDim2.new(0.5, 0, 0, 0)
+	elseif titleAlign == "right" then
+		title.AnchorPoint = Vector2.new(1, 0)
+		title.Position = UDim2.new(1, -16, 0, 0)
+	end
 	titleList.VerticalAlignment = Enum.VerticalAlignment.Center
 
-	local titleName = Label(title, opts.Title or "orasense", Theme.TextBright, 14, Theme.FontMedium)
+	local titleName = Label(title, opts.Title or "orasense", Theme.TextBright, titleSize, Theme.FontMedium)
 	titleName.Size = UDim2.new(0, 0, 1, 0)
 	titleName.AutomaticSize = Enum.AutomaticSize.X
 
-	local titleSuffix = Label(title, opts.Suffix or ".win", Theme.Accent, 14, Theme.FontMedium)
+	local titleSuffix = Label(title, opts.Suffix or ".win", Theme.Accent, titleSize, Theme.FontMedium)
 	titleSuffix.Size = UDim2.new(0, 0, 1, 0)
 	titleSuffix.AutomaticSize = Enum.AutomaticSize.X
 	titleSuffix.LayoutOrder = 2
@@ -2960,7 +2988,9 @@ function Library:Window(opts)
 
 	local tabStyle = (opts.TabStyle == "side" or opts.CategoryMod == 2) and "side" or "top"
 	local tabWidth = opts.TabWidth or 140
-	local footerHeight = opts.Footer == false and 0 or 40
+	local footerHeight = opts.Footer == false and 0 or 34
+	local tabAlign = string.lower(tostring(opts.TabAlign or "left"))
+	local bottomTabs = tabStyle ~= "side" and string.find(tabAlign, "bottom", 1, true) ~= nil
 
 	local tabBar
 	local layoutTabs
@@ -2969,8 +2999,8 @@ function Library:Window(opts)
 		titleDivider.Visible = false
 
 		tabBar = New("ScrollingFrame", {
-			Size = UDim2.new(0, tabWidth, 1, -(47 + footerHeight + 22)),
-			Position = UDim2.fromOffset(14, 58),
+			Size = UDim2.new(0, tabWidth, 1, -(50 + footerHeight + 10)),
+			Position = UDim2.fromOffset(14, 50),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			ClipsDescendants = true,
@@ -2985,9 +3015,11 @@ function Library:Window(opts)
 
 		layoutTabs = function() end
 	else
+		local horizontal = tabAlign == "center" and Enum.HorizontalAlignment.Center
+			or (tabAlign == "right" and Enum.HorizontalAlignment.Right or Enum.HorizontalAlignment.Left)
 		tabBar = New("ScrollingFrame", {
-			Size = UDim2.new(1, -180, 1, 0),
-			Position = UDim2.fromOffset(0, 0),
+			Size = bottomTabs and UDim2.new(1, -28, 0, 26) or UDim2.new(1, -180, 1, 0),
+			Position = bottomTabs and UDim2.new(0, 14, 1, -(footerHeight + 32)) or UDim2.fromOffset(0, 0),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			ClipsDescendants = true,
@@ -2996,18 +3028,24 @@ function Library:Window(opts)
 			ScrollingDirection = Enum.ScrollingDirection.X,
 			ScrollBarThickness = 0,
 			ElasticBehavior = Enum.ElasticBehavior.Never,
-			Parent = topBar,
+			Parent = bottomTabs and main or topBar,
 		})
 		local tabList = List(tabBar, 18, Enum.FillDirection.Horizontal)
 		tabList.VerticalAlignment = Enum.VerticalAlignment.Center
+		tabList.HorizontalAlignment = horizontal
 
+		-- The strip always starts after the title, wherever the title sits, so
+		-- a centred or right aligned title never collides with the tabs.
 		layoutTabs = function()
+			if bottomTabs then return end
 			local s = math.max(scale.Scale, 0.05)
-			local width = title.AbsoluteSize.X / s
-			titleDivider.Position = UDim2.new(0, 16 + width + 12, 0.5, 0)
-			local x = 16 + width + 25
-			tabBar.Position = UDim2.fromOffset(x, 0)
-			tabBar.Size = UDim2.new(1, -(x + 14), 1, 0)
+			local mainAbs = main.AbsolutePosition
+			local titleAbs = title.AbsolutePosition
+			local tSize = title.AbsoluteSize
+			local edge = math.max((titleAbs.X - mainAbs.X + tSize.X) / s + 18, 14)
+			tabBar.Position = UDim2.fromOffset(edge, 0)
+			tabBar.Size = UDim2.new(1, -(edge + 14), 1, 0)
+			titleDivider.Position = UDim2.new(0, edge - 6, 0.5, 0)
 		end
 	end
 	Track(title:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutTabs))
@@ -3025,8 +3063,8 @@ function Library:Window(opts)
 
 	local shellLeft = tabStyle == "side" and (14 + tabWidth + 10) or 14
 	local shell = New("Frame", {
-		Size = UDim2.new(1, -(14 + shellLeft), 1, -(47 + footerHeight + 22)),
-		Position = UDim2.fromOffset(shellLeft, 58),
+		Size = UDim2.new(1, -(14 + shellLeft), 1, -(50 + footerHeight + (bottomTabs and 44 or 10))),
+		Position = UDim2.fromOffset(shellLeft, 50),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		Parent = main,
@@ -3035,8 +3073,8 @@ function Library:Window(opts)
 	Stroke(shell, Theme.SectionBorder, 1, 1)
 
 	local body = New("Frame", {
-		Size = UDim2.new(1, -24, 1, -24),
-		Position = UDim2.fromOffset(12, 12),
+		Size = UDim2.new(1, -12, 1, -12),
+		Position = UDim2.fromOffset(6, 6),
 		BackgroundTransparency = 1,
 		ClipsDescendants = true,
 		Parent = shell,
@@ -3130,8 +3168,8 @@ function Library:Window(opts)
 		local cs = math.clamp(tonumber(value) or 1, 0.7, 1.6)
 		window.ContentScaleValue = cs
 		contentScale.Scale = cs
-		body.Size = UDim2.new(1 / cs, -24 / cs, 1 / cs, -24 / cs)
-		body.Position = UDim2.fromOffset(12, 12)
+		body.Size = UDim2.new(1 / cs, -12 / cs, 1 / cs, -12 / cs)
+		body.Position = UDim2.fromOffset(6, 6)
 	end
 	window.ApplyContentScale = applyContentScale
 
@@ -3598,6 +3636,8 @@ function Library:Panel(opts)
 	})
 	ParentGui(gui)
 
+	if opts.Visible == false then gui.Enabled = false end
+
 	local root = New("Frame", {
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
@@ -3774,8 +3814,11 @@ function Library:Panel(opts)
 	end))
 
 	function api:SetVisible(state)
+		state = state ~= false
+		self.Visible = state
 		if not state then self:CloseFloating() end
-		gui.Enabled = state and true or false
+		gui.Enabled = state
+		return self
 	end
 
 	function api:SetPosition(position)
@@ -5820,9 +5863,11 @@ do
 		opts = opts or {}
 		if opts.Title == nil then opts.Title = "orasense" end
 		local window = OrigWindow(self, opts)
-		if self.LiquidGlass or self.Glass then
-			pcall(function() window:ApplyGlass() end)
-		end
+		-- Glass used to be applied only when it was already on at build time, so
+		-- a theme or config loaded later left the window flat until a hide/show.
+		task.defer(function()
+			if window.ApplyGlass then pcall(function() window:ApplyGlass() end) end
+		end)
 		if self.BackgroundAsset and self.BackgroundAsset ~= "" then
 			pcall(function() window:SetBackground(self.BackgroundAsset, 0.25) end)
 		end

@@ -32,6 +32,13 @@ local Window = Library:Window({
 	TabStyle = "top",    -- "top" (defaut) ou "side" ; CategoryMod = 1 / 2 marche aussi
 	TabWidth = 140,
 
+	-- Titre : taille libre et alignement horizontal.
+	TitleSize = 15,      -- 9 a 28
+	TitleAlign = "left", -- "left", "center" ou "right"
+
+	-- Onglets : alignes en haut, ou poses en bas de la fenetre.
+	TabAlign = "left",   -- "left", "center", "right", "bottomleft", "bottom", "bottomright"
+
 	-- Discord : rejoint le serveur silencieusement via l'API RPC locale
 	-- Discord = {
 	--     Invite        = "xxxxxxx",   -- code sans discord.gg/
@@ -56,6 +63,9 @@ local Combat   = Window:Tab("combat")
 local Visuals  = Window:Tab("visuals")
 local Misc     = Window:Tab("misc")
 local Settings = Window:Tab("settings")
+
+local settingsOptions = Settings:SubTab("options")
+local settingsThemes = Settings:SubTab("themes")
 
 local global = Main:Section("global", 1)
 
@@ -398,7 +408,7 @@ Window:Action("Connect", function()
 	Library:Notify({ Title = "connected", Text = "session started.", Duration = 3 })
 end)
 
-local notifications = Settings:Section("notifications", 1)
+local notifications = settingsOptions:Section("notifications", 1)
 
 notifications:ButtonRow({
 	{ Text = "normal", Callback = function() Library:Notify("Orasense", "test notification.", 4) end },
@@ -422,13 +432,13 @@ InterfaceManager:SetFolder("Orasense")
 ThemeManager:SetFolder("Orasense")
 SaveManager:SetFolder("Orasense/game")
 
-InterfaceManager:BuildInterfaceSection(Settings, 1)
-SaveManager:BuildConfigSection(Settings, 2)
-if Library.BuildEffectsSection and Settings then
+InterfaceManager:BuildInterfaceSection(settingsOptions, 1)
+SaveManager:BuildConfigSection(settingsOptions, 2)
+if Library.BuildEffectsSection and settingsOptions then
 	-- effects section (particles / background / liquid glass) lives in settings tab
-	pcall(function() Library:BuildEffectsSection(Settings, 1) end)
+	pcall(function() Library:BuildEffectsSection(settingsOptions, 1) end)
 end
-ThemeManager:Mount(Window)
+ThemeManager:Mount(Window, settingsThemes:Section("theme", 1))
 
 Window:SetTab(Main)
 
@@ -440,6 +450,10 @@ Library:Notify({
 
 SaveManager:LoadAutoloadConfig()
 ThemeManager:Load()
+
+-- The theme and the config load after the window is built, so the glass
+-- has to be applied once more or the window stays flat until a hide/show.
+if Window.ApplyGlass then Window:ApplyGlass() end
 
 local RunService = game:GetService("RunService")
 
@@ -500,7 +514,7 @@ local watermark = Library:Watermark({
 	Position = UDim2.fromOffset(18, 18),
 })
 
-local overlay = Settings:Section("overlay", 1)
+local overlay = settingsOptions:Section("overlay", 1)
 
 overlay:Toggle({
 	Text = "watermark",
@@ -524,8 +538,7 @@ overlay:Toggle({
 
 overlay:Toggle({
 	Text = "player panel",
-	Flag = "overlay_player",
-	Hint = "shows the floating player panel",
+	Hint = "shows the floating player panel, off on every launch",
 	Default = false,
 	Callback = function(state)
 		hud:SetVisible(state)
@@ -543,7 +556,7 @@ local mini = Library:MiniWindow({ Title = "mini", Width = 180 })
 mini.Content:Label("tiny floating widget.", { Style = "dim" })
 mini:SetVisible(false)
 
-local demoToggles = Settings:Section("windows", 1)
+local demoToggles = settingsOptions:Section("windows", 1)
 demoToggles:Toggle({ Text = "sub window", Flag = "demo_subwindow", Callback = function(state) sub:SetVisible(state) end })
 demoToggles:Toggle({ Text = "mini window", Flag = "demo_miniwindow", Callback = function(state) mini:SetVisible(state) end })
 demoToggles:Toggle({ Text = "liquid glass", Flag = "demo_liquid", Callback = function(state) Library:SetLiquidGlass(state) end })
