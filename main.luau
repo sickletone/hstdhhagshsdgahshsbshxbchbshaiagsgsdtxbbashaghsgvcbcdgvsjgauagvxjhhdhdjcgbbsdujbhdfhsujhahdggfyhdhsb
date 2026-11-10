@@ -4621,6 +4621,48 @@ Library.ParticleCustom = Library.ParticleCustom or ""
 Library.FlowerTexture = Library.FlowerTexture or 105968320075682
 Library.FlowerAsset = Library.FlowerAsset or 85283896414966
 
+local AssetCache = {}
+
+local function EnsureAssetFolder(path)
+	if typeof(isfolder) == "function" and typeof(makefolder) == "function" then
+		local ok, exists = pcall(isfolder, path)
+		if not ok or not exists then pcall(makefolder, path) end
+	end
+end
+
+local function DownloadAsset(url)
+	local cached = AssetCache[url]
+	if cached then return cached end
+	if typeof(getcustomasset) ~= "function" or typeof(writefile) ~= "function" then return nil end
+	local clean = string.match(url, "^[^?#]+") or url
+	local ext = string.lower(string.match(clean, "%.([%w]+)$") or "png")
+	if not (ext == "png" or ext == "jpg" or ext == "jpeg" or ext == "gif" or ext == "bmp" or ext == "webp" or ext == "tga") then
+		ext = "png"
+	end
+	local key = string.gsub(url, "[^%w]", "_")
+	if #key > 96 then key = string.sub(key, 1, 80) end
+	local folder = "Orasense/assets"
+	EnsureAssetFolder("Orasense")
+	EnsureAssetFolder(folder)
+	local path = folder .. "/" .. key .. "." .. ext
+	local exists = false
+	if typeof(isfile) == "function" then
+		local ok, value = pcall(isfile, path)
+		exists = ok and value == true
+	end
+	if not exists then
+		local fetched, body = pcall(function() return game:HttpGet(url) end)
+		if not fetched or type(body) ~= "string" or #body == 0 then return nil end
+		if not pcall(writefile, path, body) then return nil end
+	end
+	local ok, asset = pcall(getcustomasset, path)
+	if ok and type(asset) == "string" and asset ~= "" then
+		AssetCache[url] = asset
+		return asset
+	end
+	return nil
+end
+
 local function OrasenseResolveAsset(input)
 	if input == nil or input == "" then return nil end
 	if typeof(input) == "number" then
@@ -4629,6 +4671,9 @@ local function OrasenseResolveAsset(input)
 	if typeof(input) ~= "string" then return nil end
 	local s = string.match(input, "^%s*(.-)%s*$")
 	if s == "" then return nil end
+	if string.find(s, "^https?://") then
+		return DownloadAsset(s)
+	end
 	if string.find(s, "^rbxassetid://") == 1 or string.find(s, "^rbxasset://") == 1 then
 		return s
 	end
@@ -4638,6 +4683,7 @@ local function OrasenseResolveAsset(input)
 	end
 	return s
 end
+
 
 function Library:IndexElement(window, tab, kind, label, api)
 	if type(label) ~= "string" or label == "" then return end
@@ -5690,22 +5736,50 @@ do
 	Library.GlassStrength = Library.GlassStrength or 1
 	Library.LiquidGlass = Library.LiquidGlass or false
 
-	local function EnsureBlur(size)
-		local blur = Lighting:FindFirstChild("OrasenseLiquidBlur")
-		if size <= 0 then
-			local modalBlur = Lighting:FindFirstChild("OrasenseModalBlur")
-			if modalBlur then modalBlur:Destroy() end
-			if blur then pcall(function() blur:Destroy() end) end
-			return nil
-		end
-		if not blur then
-			blur = Instance.new("BlurEffect")
-			blur.Name = "OrasenseLiquidBlur"
-			pcall(function() blur.Parent = Lighting end)
-		end
-		pcall(function() blur.Size = math.clamp(size, 0, 24) end)
-		return blur
+	local function EnsureFrost(window)
+		if window.GlassFrost and window.GlassFrost.Parent then return window.GlassFrost end
+		local frost = New("Frame", {
+			Name = "OrasenseGlassFrost",
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = Theme.Group,
+			BackgroundTransparency = 0.6,
+			BorderSizePixel = 0,
+			ZIndex = 0,
+			Parent = window.Main,
+		})
+		Corner(frost, 10)
+		New("UIGradient", {
+			Rotation = 90,
+			Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 0.35),
+				NumberSequenceKeypoint.new(0.55, 0.65),
+				NumberSequenceKeypoint.new(1, 0.45),
+			}),
+			Parent = frost,
+		})
+		local sheen = New("Frame", {
+			Size = UDim2.new(0.7, 0, 1.6, 0),
+			Position = UDim2.new(-0.25, 0, -0.3, 0),
+			Rotation = 18,
+			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+			BackgroundTransparency = 0.92,
+			BorderSizePixel = 0,
+			ZIndex = 0,
+			Parent = frost,
+		})
+		New("UIGradient", {
+			Rotation = 90,
+			Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 1),
+				NumberSequenceKeypoint.new(0.5, 0),
+				NumberSequenceKeypoint.new(1, 1),
+			}),
+			Parent = sheen,
+		})
+		window.GlassFrost = frost
+		return frost
 	end
+
 
 	local function EnsureLiquidFX(window)
 		if window.LiquidFX and window.LiquidFX.Parent then return window.LiquidFX end
@@ -5773,20 +5847,21 @@ do
 		return fx
 	end
 
-	function Window:ApplyGlass()
+		function Window:ApplyGlass()
 		local useGlass = Library.Glass == true or Library.LiquidGlass == true
 		local shown = self.Visible ~= false and self.Main.Visible ~= false
 		local strength = math.clamp(tonumber(Library.GlassStrength) or 1, 0, 1.5)
 		if useGlass and shown then
 			self.Main.BackgroundTransparency = math.clamp(0.18 + strength * 0.22, 0, 0.8)
-			if Library.GlassBlur then
-				EnsureBlur(Library.LiquidGlass and (8 + strength * 8) or (4 + strength * 6))
-			else
-				EnsureBlur(0)
-			end
 		else
 			self.Main.BackgroundTransparency = 1 - (self.Opacity or (1 - Theme.WindowAlpha))
-			EnsureBlur(0)
+		end
+		if useGlass and shown and Library.GlassBlur == true then
+			local frost = EnsureFrost(self)
+			frost.Visible = true
+			frost.BackgroundTransparency = math.clamp(0.88 - strength * 0.30, 0.35, 0.88)
+		elseif self.GlassFrost then
+			self.GlassFrost.Visible = false
 		end
 		if Library.LiquidGlass == true then
 			local fx = EnsureLiquidFX(self)
@@ -5795,6 +5870,7 @@ do
 			self.LiquidFX.Visible = false
 		end
 	end
+
 
 	function Library:SetGlass(state)
 		self.Glass = state ~= false
@@ -6033,7 +6109,7 @@ do
 		end
 		local custom = OrasenseResolveAsset(customAsset or Library.ParticleCustom)
 		if mode == "custom" and not custom then
-			Library:Warn("particles", "custom particle needs an asset id.", 4)
+			Library:Warn("particles", "custom particle needs an asset id or image link.", 4)
 			self.ParticleMode = "none"
 			gui.Enabled = false
 			return "none"
@@ -6316,7 +6392,7 @@ do
 			Text = "custom particle asset",
 			Flag = "orasense_particle_custom",
 			Default = tostring(self.ParticleCustom or ""),
-			Placeholder = "rbxassetid://123456 or asset id",
+			Placeholder = "rbxassetid://123456 or https:// image link",
 			Callback = function(text)
 				self.ParticleCustom = text
 				if string.lower(tostring(self.ParticleMode)) == "custom" then
@@ -6387,7 +6463,7 @@ do
 			Text = "background asset",
 			Flag = "orasense_background",
 			Default = tostring(self.BackgroundAsset or ""),
-			Placeholder = "rbxassetid://123456 or asset id",
+			Placeholder = "rbxassetid://123456 or https:// image link",
 			Callback = function(text)
 				if text == "" then
 					self:ClearBackground()

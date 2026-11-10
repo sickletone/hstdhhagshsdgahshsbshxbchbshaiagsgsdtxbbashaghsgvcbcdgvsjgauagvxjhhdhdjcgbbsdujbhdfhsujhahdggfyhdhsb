@@ -39,12 +39,13 @@ configs, theme, server browser, player panel).
 - **Menu search** — `Window:EnableMenuSearch()` (or `MenuSearch = true`
   in `Library:Window`) adds a search box that finds any feature by name
   and jumps to it. Dropdowns support `Search = true` too.
-- **Liquid glass** — a real liquid look (tinted translucency + blur,
+- **Liquid glass** — a real liquid look (tinted translucency + frost,
   specular wash, travelling sheen), not plain glassmorphism:
   `Library:SetLiquidGlass(true)`, plus `SetGlass`,
-  `SetGlassBlur`, `SetGlassStrength`. Blur is off by default; the glass
-  controls (including blur) live in settings > themes. Preset `liquid` in the
-  theme manager.
+  `SetGlassBlur`, `SetGlassStrength`. Glass blur is a frost layer inside the
+  window rather than a full-screen `BlurEffect` (Roblox cannot blur a screen
+  region), and it is off by default. All glass controls live in settings >
+  themes. Preset `liquid` in the theme manager.
 - **Sub tabs** — `tab:SubTab("name")` adds a nested tab strip inside a tab:
   a row of text tabs with an accent underline on the active one (plus the
   parent tab's icon at the left). Each sub tab is a full tab (`:Section`,
@@ -53,12 +54,14 @@ configs, theme, server browser, player panel).
 - **Menu particles** — `Library:SetParticles("snow" | "blizzard" |
   "stars" | "flowers" | "custom", assetId)` draws on a full-screen overlay
   above the menu, so the effect covers the whole screen and hides whenever
-  the UI closes. Custom mode takes an `rbxassetid://` image or asset id.
+  the UI closes. Custom mode takes an `rbxassetid://`, a raw asset id, or a direct image URL.
   Rate, size, speed, start/end speed and spread are adjustable from settings
   (or with `Library:SetParticleOptions{ ... }`).
   Built into the settings/effects section.
 - **Custom background** — `Library:SetBackground(asset)` /
-  `Window:SetBackground(asset, transparency)` with fade control.
+  `Window:SetBackground(asset, transparency)` with fade control. The asset is
+  an `rbxassetid://`, a raw asset id, or a direct image URL (downloaded through
+  the executor's custom-asset API and cached in `Orasense/assets`).
 - **Sub / mini windows** — `Window:SubWindow(opts)` (a window inside the
   window) and `Library:MiniWindow(opts)`, a second floating window that is
   smaller than the menu but keeps the same chrome: its own title bar, drag,
@@ -70,7 +73,7 @@ configs, theme, server browser, player panel).
   as autoload, remove autoload, copy to clipboard, import from clipboard,
   reset defaults (`SaveManager:BuildConfigSection`).
 - **Addons** — `SaveManager`, `InterfaceManager`, `ThemeManager`
-  (15 presets + liquid + custom colors). Settings tab is wired in `Example`.
+  (15 presets + liquid + custom colors), and exports a theme to `Orasense/themes/<name>.json` and the clipboard. Settings tab is wired in `Example`.
 
 ## Repo
 

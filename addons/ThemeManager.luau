@@ -210,6 +210,43 @@ return function(Library)
 		return true
 	end
 
+	function ThemeManager:Encode()
+		local alphas = self.Library.ThemeAlpha or {}
+		local colors = {}
+		for _, entry in ipairs(self.Keys) do
+			colors[entry[1]] = toHex(Theme[entry[1]], alphas[entry[1]])
+		end
+		local ok, encoded = pcall(function()
+			return HttpService:JSONEncode({
+				Preset = self.Current,
+				Colors = colors,
+				Glass = self.Library.Glass == true,
+				GlassBlur = self.Library.GlassBlur == true,
+				GlassStrength = self.Library.GlassStrength or 1,
+				LiquidGlass = self.Library.LiquidGlass == true,
+			})
+		end)
+		if not ok then return nil end
+		return encoded
+	end
+
+	function ThemeManager:Export(name)
+		local encoded = self:Encode()
+		if not encoded then return false, "encode failed" end
+		local file = tostring(name or self.Current or "theme")
+		file = string.gsub(file, "[^%w%-%_ ]", "")
+		if file == "" then file = "theme" end
+		local folder = self.Folder .. "/themes"
+		self.Library.FileSystem:MakeFolder(folder)
+		local path = folder .. "/" .. file .. ".json"
+		if not self.Library.FileSystem:Write(path, encoded) then return false, "write failed" end
+		local copied = false
+		if typeof(setclipboard) == "function" then
+			copied = pcall(setclipboard, encoded)
+		end
+		return true, path .. (copied and " (copied)" or "")
+	end
+
 	function ThemeManager:Mount(window, container)
 		window = window or self.Library.Windows[1]
 		if not window then return nil end
@@ -297,7 +334,7 @@ return function(Library)
 				Text = "glass blur",
 				Flag = false,
 				Default = self.Library.GlassBlur ~= false,
-				Hint = "blurs the game behind the window while glass is on",
+				Hint = "frosts the menu glass instead of blurring the whole screen",
 				Callback = function(state)
 					self.Library:SetGlassBlur(state)
 					dirty = true
@@ -368,6 +405,18 @@ return function(Library)
 				syncPickers()
 				if presetBox then presetBox:Set("orasense", true) end
 				dirty = true
+			end,
+		})
+
+		content:Button({
+			Text = "export theme",
+			Callback = function()
+				local ok, result = self:Export()
+				self.Library:Notify({
+					Title = ok and "theme exported" or "theme error",
+					Text = tostring(result),
+					Duration = 4,
+				})
 			end,
 		})
 
