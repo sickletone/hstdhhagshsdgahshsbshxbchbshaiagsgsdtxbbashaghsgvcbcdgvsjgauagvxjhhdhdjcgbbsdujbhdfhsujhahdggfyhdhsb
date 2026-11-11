@@ -53,7 +53,8 @@ configs, theme, server browser, player panel).
   (active while held) or `toggle` (press to flip). Double right click its key
   pill in game to pick the mode; one right click clears the key.
   `keybind:SetMode("toggle")`, `:GetMode()` and `:Clear()` do the same from
-  code, and `OnModeChanged(mode)` reports the change.
+  code, and `OnModeChanged(mode)` reports the change. With a `Flag`, both the
+  key and the mode are saved in configs (`<flag>` and `<flag>_mode`).
 - **Sub tabs** — `tab:SubTab("name")` adds a nested tab strip inside a tab:
   a row of text tabs with an accent underline on the active one (plus the
   parent tab's icon at the left). Each sub tab is a full tab (`:Section`,

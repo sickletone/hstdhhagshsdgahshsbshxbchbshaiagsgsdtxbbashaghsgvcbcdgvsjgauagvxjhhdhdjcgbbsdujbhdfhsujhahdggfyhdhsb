@@ -2220,6 +2220,10 @@ function Elements:Keybind(opts)
 		end
 		refresh()
 		if modeMenu then modeMenu:Paint(mode) end
+		if flag then
+			Library.Flags[flag .. "_mode"] = mode
+			Library:MarkDirty(flag .. "_mode")
+		end
 		Library:SafeCallback(opts.Text or "keybind", opts.OnModeChanged, mode)
 		return mode
 	end
@@ -2247,10 +2251,18 @@ function Elements:Keybind(opts)
 
 	if flag then
 		Library.Flags[flag] = key or ""
+		Library.Flags[flag .. "_mode"] = mode
 		Library:Register(flag, {
 			Type = "Keybind",
 			Get = function() return key or "" end,
 			Set = function(v) api:Set(v) end,
+		})
+		-- The mode is saved next to the key (<flag>_mode) so a toggle keybind is
+		-- still a toggle after a config load.
+		Library:Register(flag .. "_mode", {
+			Type = "KeybindMode",
+			Get = function() return mode end,
+			Set = function(v) api:SetMode(v) end,
 		})
 	end
 	if key then apply() end
