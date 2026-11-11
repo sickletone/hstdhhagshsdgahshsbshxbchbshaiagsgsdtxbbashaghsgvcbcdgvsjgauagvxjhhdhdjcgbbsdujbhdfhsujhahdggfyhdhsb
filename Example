@@ -1,25 +1,3 @@
---[[
-	Orasense UI | full example
-	==================================================================
-
-	This file is the reference for everything the library exposes:
-	the window options, every tab / section helper, every component,
-	the overlay windows (watermark, panel, mini window, sub window,
-	server browser), the look controls (glass, liquid glass, menu blur,
-	particles, custom background) and the three addons (SaveManager,
-	InterfaceManager, ThemeManager).
-
-	The comments follow the old Linoria example style:
-	the block comment above a call documents its arguments, the inline
-	comments explain each option.
-
-	Loading
-	-------
-	main.luau is the library itself; the addons live in addons/ and are
-	loaded through Library:LoadAddon (they are also preloaded, so the
-	short Library.SaveManager form works as well).
-]]
-
 local BASE = "https://raw.githubusercontent.com/sickletone/hstdhhagshsdgahshsbshxbchbshaiagsgsdtxbbashaghsgvcbcdgvsjgauagvxjhhdhdjcgbbsdujbhdfhsujhahdggfyhdhsb/refs/heads/main/"
 
 local source = game:HttpGet(BASE .. "main.luau")
@@ -32,39 +10,14 @@ assert(chunk, "main.luau does not compile: " .. tostring(err))
 local Library = chunk()
 assert(type(Library) == "table", "main.luau returned nothing; the file is incomplete or truncated")
 
--- BaseUrl is what Library:LoadAddon prefixes to addons/<name>.luau
 Library.BaseUrl = BASE
 
-
---[[
-	Library globals
-	---------------
-	Read every time the look is applied, so setting them before the
-	window exists is enough. They can also be driven from the UI at
-	runtime (see the "look" section in the visuals tab).
-
-	Library.Glass            -- see-through window
-	Library.GlassStrength    -- 0 to 1.5, how transparent the glass is
-	Library.LiquidGlass      -- liquid sheen on top of the glass
-	Library.MenuBlur         -- blurs the game behind the open menu
-	Library.MenuBlurStrength -- 0 to 30, the BlurEffect size
-]]
+-- Glass is opt-in: the only controls for it live in settings > themes.
 Library.Glass = false
 Library.LiquidGlass = false
-Library.MenuBlur = false
-Library.MenuBlurStrength = 12
 
 local Players = game:GetService("Players")
 
---[[
-	Addons
-	------
-	SetLibrary hands the library over. Each addon lives in its own folder
-	(ThemeManager -> Orasense/themes, SaveManager -> Orasense/game/configs).
-
-	Library:LoadAddon("SaveManager") is the public loader: it returns the
-	addon and caches it, so calling it twice is free.
-]]
 local SaveManager = Library.SaveManager
 local InterfaceManager = Library.InterfaceManager
 local ThemeManager = Library.ThemeManager
@@ -72,29 +25,6 @@ local ThemeManager = Library.ThemeManager
 assert(SaveManager and InterfaceManager and ThemeManager,
 	"addons not found, check Library.BaseUrl and the addons/ folder")
 
-
---[[
-	Window
-	------
-	Library:Window(Options)
-
-	Options:
-		Title      = string   -- text before the suffix
-		Suffix     = string   -- accented text after the title (".win")
-		Name       = string   -- ScreenGui name
-		Width      = number   -- default 620 (560 on touch devices)
-		Height     = number   -- default 560
-		MinWidth   = number   -- resize floor
-		MinHeight  = number   -- resize floor
-		Position   = UDim2    -- default UDim2.fromScale(0.5, 0.5)
-		TabStyle   = "top" | "side"
-		TabWidth   = number   -- width of the side tab strip
-		TabAlign   = "left" | "center" | "right" | "bottomleft" | "bottom" | "bottomright"
-		TitleSize  = number   -- 9 to 28
-		TitleAlign = "left" | "center" | "right"
-		Discord    = { Invite = string, RememberJoins = boolean } -- optional
-		KeySystem  = boolean, KeySettings = { ... }              -- optional
-]]
 local Window = Library:Window({
 	Title = "orasense",
 	Suffix = ".win",
@@ -103,394 +33,395 @@ local Window = Library:Window({
 	MinWidth = 520,
 	MinHeight = 340,
 
-	TabStyle = "top",    -- "top" or "side"
-	TabWidth = 140,      -- only used by side tabs
+	TabStyle = "top",    -- "top" (default) or "side"; CategoryMod = 1 / 2 also works
+	TabWidth = 140,
+
+	-- Title: free size and horizontal alignment.
 	TitleSize = 15,      -- 9 to 28
 	TitleAlign = "left", -- "left", "center" or "right"
-	TabAlign = "left",   -- "left", "center", "right" or bottom* variants
 
-	-- Discord = { Invite = "xxxxxxx", RememberJoins = true },
+	-- Tabs: aligned at the top, or placed at the bottom of the window.
+	TabAlign = "left",   -- "left", "center", "right", "bottomleft", "bottom", "bottomright"
+
+	-- Discord: joins the server silently through the local RPC API
+	-- Discord = {
+	--     Invite        = "xxxxxxx",   -- code without discord.gg/
+	--     RememberJoins = true,
+	-- },
+
+	-- Key system: blocks until a key is validated
 	-- KeySystem = true,
-	-- KeySettings = { Title = "Orasense", Key = { "ORASENSE-2024" } },
+	-- KeySettings = {
+	--     Title           = "Orasense",
+	--     Subtitle        = "Enter your key to continue",
+	--     Note            = "Get your key on our Discord",
+	--     FileName        = "OrasenseKey",
+	--     SaveKey         = true,
+	--     GrabKeyFromSite = false,
+	--     Key             = { "ORASENSE-2024", "ORASENSE-BETA" },
+	-- },
 })
 
+local Main     = Window:Tab("main")
+local Combat   = Window:Tab("combat")
+local Visuals  = Window:Tab("visuals")
+local Misc     = Window:Tab("misc")
+local Settings = Window:Tab("settings")
 
---[[
-	Tabs
-	----
-	Window:Tab(name, icon) or Window:Tab({ Title = ..., Icon = ... })
-
-	Icon names are Molto / lucide names ("wrench", "settings", ...), or an
-	rbxassetid:// image. Tabs are created in the order you call them.
-]]
-local Main = Window:Tab("main")
-local Combat = Window:Tab("combat")
-local Visuals = Window:Tab("visuals")
-local Misc = Window:Tab("misc")
-local Components = Window:Tab("components", "layers")
-local Settings = Window:Tab("settings", "settings")
-
--- Window:TabDivider({ Text, Height, Inset }) draws a rule (or a caption)
--- between side tabs; it is a no-op on a "top" tab strip like this one.
--- Window:TabDivider({ Text = "windows" })
-
---[[
-	Sub tabs
-	--------
-	Tab:SubTab(name, icon) adds the pill row ("options themes mobile") at
-	the top of the tab. Every sub tab is a full tab: :Section, :Groupbox,
-	:Full and every component work on it. Content added to the parent tab
-	*after* the first SubTab call lands in the active sub tab.
-]]
 local settingsOptions = Settings:SubTab("options")
 local settingsThemes = Settings:SubTab("themes")
--- the mobile sub tab is created further down, only on touch devices
 
+-- The touch toggle only exists on mobile, so this sub tab is mobile-only.
+-- Every control carries a Flag, so the whole panel is written to a config file.
+if Library.IsMobile then
+	local mobileTab = Settings:SubTab("mobile")
+	local mobileButton = mobileTab:Section("menu button", 1)
+	local cfg = Library.MobileConfig and Library:MobileConfig() or {}
+	local function apply(options) Library:SetMobileButtonOptions(options) end
 
---[[
-	Sections
-	--------
-	Tab:Section(title, column)   -- column 1 (left), 2 (right) or "full"
-	Tab:Full(title)              -- alias for a full width section
-	Tab:Groupbox(title, side)    -- same thing; "left" / "center" / "right"
-	Tab:LeftGroupbox / MiddleGroupbox / RightGroupbox(title)
-	Section:Divider / :Split / :Card also exist (see the components tab)
+	mobileButton:Slider({
+		Text = "transparency",
+		Flag = "mobile_button_transparency",
+		Min = 0, Max = 1, Decimals = 2,
+		Default = cfg.Transparency or 0,
+		Callback = function(v) apply({ Transparency = v }) end,
+	})
+	mobileButton:Slider({
+		Text = "width",
+		Flag = "mobile_button_width",
+		Min = 28, Max = 96,
+		Default = cfg.Width or 44,
+		Callback = function(v) apply({ Width = v }) end,
+	})
+	mobileButton:Slider({
+		Text = "height",
+		Flag = "mobile_button_height",
+		Min = 28, Max = 96,
+		Default = cfg.Height or 44,
+		Callback = function(v) apply({ Height = v }) end,
+	})
+	mobileButton:Slider({
+		Text = "icon size",
+		Flag = "mobile_button_icon",
+		Min = 8, Max = 36,
+		Default = cfg.IconSize or 18,
+		Callback = function(v) apply({ IconSize = v }) end,
+	})
 
-	Leaving the column out puts the section in column 1. Asking for the
-	middle or the right column upgrades the page to a three column layout.
-]]
-local global = Main:Section("global", 1)
-local settingsSide = Main:Section("settings", 2)
-local reference = Main:Full("reference")
+	local holdSlider
+	mobileButton:Dropdown({
+		Text = "toggle mode",
+		Flag = "mobile_button_mode",
+		Options = { "tap", "tap twice", "hold" },
+		Default = cfg.Mode == "tap_twice" and "tap twice" or (cfg.Mode or "tap"),
+		Callback = function(choice)
+			local mode = (choice == "tap twice") and "tap_twice" or choice
+			apply({ Mode = mode })
+			if holdSlider then holdSlider.Instance.Visible = (mode == "hold") end
+		end,
+	})
+	holdSlider = mobileButton:Slider({
+		Text = "hold duration",
+		Flag = "mobile_button_hold",
+		Min = 0.2, Max = 2, Decimals = 2, Suffix = " s",
+		Default = cfg.HoldDuration or 0.6,
+		Callback = function(v) apply({ HoldDuration = v }) end,
+	})
+	if holdSlider then holdSlider.Instance.Visible = (cfg.Mode == "hold") end
 
+	local behaviour = mobileTab:Section("behaviour", 1)
 
---[[
-	Toggle
-	------
-	Section:Toggle(Options)
+	behaviour:Toggle({
+		Text = "invisible button",
+		Flag = "mobile_button_invisible",
+		Hint = "hides the button, tapping it still works",
+		Default = cfg.Invisible == true,
+		Callback = function(state) apply({ Invisible = state }) end,
+	})
 
-	Options:
-		Text     = string   -- row label
-		Flag     = string   -- config key (false to skip saving)
-		Default  = boolean
-		Hint     = string   -- small "?" tooltip next to the label
-		Style    = "warning" | "danger" | "success" | "accent"
+	local lockToggle
+	lockToggle = behaviour:Toggle({
+		Text = (cfg.Locked and "Unlock Mobile Toggle" or "Lock Mobile Toggle"),
+		Flag = "mobile_button_locked",
+		Hint = "keeps the button in place so it cannot be dragged",
+		Default = cfg.Locked == true,
 		Callback = function(state)
+			apply({ Locked = state })
+			if lockToggle then
+				lockToggle:SetText(state and "Unlock Mobile Toggle" or "Lock Mobile Toggle")
+			end
+		end,
+	})
+end
 
-	Every toggle also takes these chained helpers:
-		:Dependency(function(dep) ... end) -- child elements, only shown when on
-		:SubToggle(Options)                -- one indented child toggle
-		:Keybind(Options)                  -- the small key pill on the right
-		:ColorPicker(Options)              -- the swatch on the right
-		:Gear(function(panel) ... end)     -- extra settings in a popup
-]]
+local global = Main:Section("global", 1)
+
 global:Toggle({
 	Text = "enable",
 	Flag = "global_enable",
-	Hint = "master switch for this tab",
-	Callback = function(state) print("[cb] enable:", state) end,
+	Callback = function(state) print("enable", state) end,
 })
-	-- the key pill: double right click in game picks always / hold / toggle
-	:Keybind({ Default = "F", Flag = "global_enable_key", Mode = "toggle" })
+	:Keybind({ Default = "F", Flag = "global_enable_key" })
 	:Gear(function(panel)
 		panel:Slider({ Text = "delay", Flag = "global_delay", Min = 0, Max = 500, Suffix = " ms", Default = 60 })
 		panel:Dropdown({ Text = "profile", Flag = "global_profile", Options = { "default", "custom" }, Default = "default" })
 	end)
 
--- A toggle with children. The children are hidden until the toggle is on.
-global:Toggle({ Text = "simulation", Flag = "simulation", Default = true })
-	:Dependency(function(dep)
-		dep:Toggle({ Text = "predict movement", Flag = "simulation_predict", Default = true })
-		dep:Slider({ Text = "prediction step", Flag = "simulation_step", Min = 1, Max = 32, Default = 8 })
+global:Toggle({ Text = "auto refresh", Flag = "auto_refresh", Default = true })
+	:Gear(function(panel)
+		panel:Slider({ Text = "interval", Flag = "auto_refresh_interval", Min = 1, Max = 60, Suffix = " s", Default = 5 })
 	end)
 
--- Blueprint style: indented child toggle, no parent needed.
-global:SubToggle({ Text = "verbose logs", Flag = "verbose_logs", Hint = "prints every pass" })
+global:Toggle({ Text = "simulation", Flag = "simulation", Hint = "runs the local prediction pass" })
+global:Toggle({ Text = "cache check", Flag = "cache_check" })
 
--- RadioGroup / Segmented / Checkbox / ToggleSwitch / BoxToggle are all
--- covered in the components tab, this is just the everyday look.
-global:Toggle({ Text = "motion smoothing", Flag = "motion_smoothing", Default = true })
+global:Toggle({ Text = "motion smoothing", Flag = "motion_smoothing", Default = true, Hint = "interpolates between frames" })
 	:Gear(function(panel)
 		panel:Slider({ Text = "strength", Flag = "motion_strength", Min = 0, Max = 1, Decimals = 2, Default = 0.35 })
 	end)
 
-global:Toggle({ Text = "experimental hitbox", Flag = "exp_hitbox", Style = "warning", Hint = "may break in some places" })
-global:Toggle({ Text = "force respawn", Flag = "force_respawn", Style = "danger", Hint = "kills the character" })
+global:Toggle({ Text = "no jitter", Flag = "no_jitter", Default = true })
+	:Gear(function(panel)
+		panel:Slider({ Text = "threshold", Flag = "jitter_threshold", Min = 0, Max = 20, Default = 4 })
+	end)
 
+global:Toggle({ Text = "no drift", Flag = "no_drift", Default = true })
+	:Gear(function(panel)
+		panel:Slider({ Text = "tolerance", Flag = "drift_tolerance", Min = 0, Max = 10, Decimals = 1, Default = 1.5 })
+	end)
 
---[[
-	Dropdown
-	--------
-	Section:Dropdown(Options)
+global:Toggle({ Text = "clamp to bounds", Flag = "clamp_bounds", Hint = "keeps values inside the viewport" })
 
-	Options:
-		Text    = string
-		Flag    = string
-		Options = { "a", "b", "c" }  -- the values
-		Default = "a"                -- a value or an index
-		Multi   = boolean            -- multi select (values come back as a table)
-		Search  = true               -- search box inside the popup
-		Empty   = string             -- text when nothing is selected
-		Callback = function(value)
-]]
-settingsSide:Dropdown({ Text = "visualization", Flag = "visualization", Options = { "visible", "always", "hidden" }, Default = "visible" })
-settingsSide:Dropdown({ Text = "anchor", Flag = "anchor", Options = { "head", "torso", "origin", "bounds" }, Default = "head" })
+global:Toggle({ Text = "radius circle", Flag = "radius_circle" })
+	:ColorPicker({ Flag = "radius_outline", Default = Color3.fromRGB(232, 161, 168) })
+	:ColorPicker({ Flag = "radius_fill", Default = Color3.fromRGB(60, 60, 65), DefaultAlpha = 0.35 })
+	:Gear(function(panel)
+		panel:Slider({ Text = "thickness", Flag = "radius_thickness", Min = 1, Max = 6, Default = 2 })
+	end)
 
-settingsSide:MultiDropdown({
+global:Toggle({ Text = "object lock", Flag = "object_lock", Hint = "keeps the current selection" })
+global:Toggle({ Text = "fast scan", Flag = "fast_scan" })
+
+global:Toggle({
+	Text = "experimental hitbox",
+	Flag = "exp_hitbox",
+	Style = "warning",
+	Hint = "unstable, may break in some places",
+})
+
+global:Toggle({
+	Text = "force respawn",
+	Flag = "force_respawn",
+	Style = "danger",
+	Hint = "kills the character immediately",
+})
+
+global:Slider({
+	Text = "aggressive rate",
+	Flag = "aggressive_rate",
+	Style = "warning",
+	Min = 1,
+	Max = 60,
+	Suffix = " /s",
+	Default = 8,
+})
+
+local transform = Main:Section("transform", 1)
+
+transform:Toggle({ Text = "enable", Flag = "transform_enable" })
+	:Keybind({ Default = "G", Flag = "transform_enable_key" })
+
+transform:Dropdown({ Text = "direction", Flag = "transform_direction", Options = { "forward", "backward", "mirrored" }, Default = "forward" })
+transform:Dropdown({ Text = "yaw", Flag = "transform_yaw", Options = { "none", "relative", "absolute" }, Default = "none" })
+transform:Dropdown({ Text = "pitch", Flag = "transform_pitch", Options = { "off", "clamped", "free" }, Default = "off" })
+
+transform:Divider()
+
+transform:Toggle({ Text = "offset angle", Flag = "transform_offset" })
+	:Gear(function(panel)
+		panel:Slider({ Text = "angle", Flag = "transform_angle", Min = -180, Max = 180, Suffix = "°", Default = 0 })
+	end)
+
+local settings = Main:Section("settings", 2)
+
+settings:Dropdown({ Text = "visualization", Flag = "visualization", Options = { "visible", "always", "hidden" }, Default = "visible" })
+settings:Dropdown({ Text = "anchor", Flag = "anchor", Options = { "head", "torso", "origin", "bounds" }, Default = "head" })
+settings:Dropdown({ Text = "target selection", Flag = "target_selection", Options = { "crosshair", "distance", "priority" }, Default = "crosshair" })
+
+settings:Dropdown({
 	Text = "ignore conditions",
 	Flag = "ignore_conditions",
 	Options = { "friends", "hidden", "inactive" },
+	Multi = true,
 	Default = { "friends" },
 	Empty = "none",
 })
 
+settings:Slider({ Text = "radius", Flag = "radius", Min = 0, Max = 200, Default = 1 })
+settings:Slider({ Text = "max distance", Flag = "max_distance", Min = 0, Max = 5000, Default = 0, ZeroText = "0 - unlimited" })
 
---[[
-	Slider
-	------
-	Section:Slider(Options)
-
-	Options:
-		Text     = string
-		Flag     = string
-		Min      = number
-		Max      = number
-		Default  = number
-		Suffix   = string   -- " ms", " %", "°" ...
-		Decimals = number   -- decimal places
-		ZeroText = string   -- replaces "0" in the readout
-		Style    = "warning" | "danger" | ...
-		Callback = function(value)
-]]
-settingsSide:Slider({ Text = "radius", Flag = "radius", Min = 0, Max = 200, Default = 1 })
-settingsSide:Slider({ Text = "max distance", Flag = "max_distance", Min = 0, Max = 5000, Default = 0, ZeroText = "0 - unlimited" })
-settingsSide:Slider({ Text = "aggressive rate", Flag = "aggressive_rate", Min = 1, Max = 60, Suffix = " /s", Default = 8, Style = "warning" })
-
-
---[[
-	ColorPicker
-	-----------
-	Section:ColorPicker(Options)
-
-	Options:
-		Text         = string
-		Flag         = string
-		Default      = Color3
-		DefaultAlpha = 0 to 1
-		Callback     = function(color, alpha)
-]]
-settingsSide:ColorPicker({
+settings:ColorPicker({
 	Text = "highlight",
 	Flag = "highlight_color",
 	Default = Color3.fromRGB(232, 161, 168),
 	DefaultAlpha = 1,
-	Callback = function(color, alpha) print("[cb] highlight:", color, alpha) end,
+	Callback = function(color, alpha) print("highlight", color, alpha) end,
 })
 
-
---[[
-	Input / Search / Button / ButtonRow / Label / Paragraph
-	------------------------------------------------------
-	These are the text and action rows used in every script hub.
-]]
 local groups = Main:Section("group filter", 2)
 
 groups:Search({
-	Label = "search",           -- small caption above the box
-	Placeholder = "filter...",
-	Live = true,                -- call the callback on every keystroke
-	Callback = function(text) print("[cb] query:", text) end,
+	Placeholder = "",
+	Label = "search",
+	Live = true,
+	Callback = function(text) print("query:", text) end,
+})
+groups:Label("no groups found.")
+
+
+local leftNotes = Main:Section("notes", 1)
+leftNotes:Paragraph({
+	Title = "left column",
+	Content = "A paragraph inside a normal card. Text wraps on the column width.",
+	Icon = "info",
+})
+leftNotes:Label("plain label, no icon, no style.")
+
+local rightNotes = Main:Section("warnings", 2)
+rightNotes:Paragraph({
+	Title = "right column",
+	Content = "Same thing on the other side.",
+	Style = "warning",
+	Icon = "alert-triangle",
+})
+rightNotes:Label("all systems nominal.", { Style = "success", Icon = "check" })
+
+local visual = Main:Section("preview", 2)
+
+local avatar = visual:Image({ Height = 96, Corner = 8 })
+avatar:SetUser(Players.LocalPlayer.UserId)
+
+local board = Main:Section("nearby", 2)
+
+local roster = board:Table({
+	Columns = { "player", "distance", "team" },
+	MaxRows = 6,
+	EmptyText = "nobody nearby",
 })
 
-groups:Label("no groups found.", { Style = "dim" })
-groups:Label("a label with an icon.", { Icon = "info" })
+local function rootOf(player)
+	local character = player.Character
+	return character and character:FindFirstChild("HumanoidRootPart")
+end
 
-groups:Input({
-	Text = "prefix",
-	Flag = "objects_prefix",
-	Default = "",
-	Placeholder = "obj_",
-	Callback = function(text) print("[cb] prefix:", text) end,
-})
+task.spawn(function()
+	while task.wait(1) do
+		local rows = {}
+		local myRoot = rootOf(Players.LocalPlayer)
 
-groups:Button({ Text = "apply", Callback = function() Library:Success("done", "prefix applied.", 3) end })
+		for _, other in ipairs(Players:GetPlayers()) do
+			if other ~= Players.LocalPlayer and #rows < 6 then
+				local otherRoot = rootOf(other)
+				local distance = "-"
+				if myRoot and otherRoot then
+					distance = string.format("%dm",
+						math.floor((myRoot.Position - otherRoot.Position).Magnitude))
+				end
 
-groups:ButtonRow({
-	{ Text = "run", Callback = function() Library:Notify("run", "started.", 2) end },
-	{ Text = "stop", Callback = function() Library:Notify("stop", "stopped.", 2) end },
-})
+				table.insert(rows, {
+					other.DisplayName,
+					distance,
+					other.Team and other.Team.Name or "none",
+				})
+			end
+		end
 
-groups:Paragraph({
-	Title = "paragraph",
-	Content = "Paragraphs wrap their body, take a style and an icon.",
-	Style = "success",
-	Icon = "check",
-})
+		roster:SetRows(rows)
+	end
+end)
 
+local notes = Main:Section("reference", "full")
 
---[[
-	Full width sections and Split
-	-----------------------------
-	Tab:Full(title) spans both columns.
-	Section:Split({ function(left) ..., function(middle) ..., function(right) ... })
-	splits it into 2 or 3 sub columns.
-]]
-reference:Paragraph({
+notes:Paragraph({
 	Title = "full width",
-	Content = "Any element fits in a full width section, stacked or side by side.",
+	Content = "This box spans both columns. Any element fits inside, stacked or side by side.",
 	Icon = "info",
 })
 
-reference:Split({
+notes:Split({
 	function(left)
-		left:Paragraph({ Title = "gears", Content = "Options with a gear open a popup.", Style = "warning", Icon = "alert-triangle" })
+		left:Paragraph({
+			Title = "gears",
+			Content = "Options marked with a gear expose extra settings.",
+			Style = "warning",
+			Icon = "alert-triangle",
+		})
 	end,
 	function(right)
-		right:Paragraph({ Title = "configs", Content = "Only flagged elements are saved.", Style = "success", Icon = "check" })
+		right:Paragraph({
+			Title = "configs",
+			Content = "Only flagged elements are written to a config file.",
+			Style = "success",
+			Icon = "check",
+		})
 	end,
 })
 
+notes:Label("a full width box can hold as many paragraphs as you need.")
 
---[[
-	Tab boxes
-	---------
-	Tab:LeftGroupbox / MiddleGroupbox / RightGroupbox(title) create the
-	three column tab boxes. Tab:Groupbox(title, side) is the same call with
-	a string side ("left", "center", "right" / "full").
-]]
-local leftBox = Main:LeftGroupbox({ Title = "left box", Icon = "sliders-horizontal" })
-leftBox:Toggle({ Text = "master switch", Flag = "demo_master", Default = true })
+-- Orasense extras demo: dependency toggle, sub toggles, tab boxes.
+local demoTab = Main
+local leftBox = demoTab:LeftGroupbox("left box")
+leftBox:Toggle({ Text = "master switch", Flag = "demo_master", Default = true }):Dependency(function(dep)
+	dep:Toggle({ Text = "hidden option a", Flag = "demo_a", Default = true })
+	dep:Slider({ Text = "hidden strength", Flag = "demo_strength", Min = 0, Max = 100, Default = 40 })
+end)
+local midBox = demoTab:MiddleGroupbox("middle box")
+midBox:Toggle({ Text = "parent", Flag = "demo_parent" })
+midBox:SubToggle({ Text = "sub toggle", Flag = "demo_sub", Hint = "indented child toggle" })
+midBox:Dropdown({ Text = "searchable", Flag = "demo_search", Options = { "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota" }, Default = "alpha", Search = true })
+local rightBox = demoTab:RightGroupbox("right box")
+rightBox:Dropdown({ Text = "multi select", Flag = "demo_multi", Options = { "a", "b", "c", "d" }, Multi = true, Default = { "a" } })
 
-local middleBox = Main:MiddleGroupbox({ Title = "middle box", Icon = "settings" })
-middleBox:Label("middle column label.", { Style = "dim" })
-
-local rightBox = Main:RightGroupbox({ Title = "right box", Icon = "wrench" })
-rightBox:Button({ Text = "right button", Callback = function() Library:Success("right", "works.", 2) end })
-
-
---[[
-	Combat tab
-	----------
-	A second tab, so the tab strip and Window:SetTab are exercised.
-]]
 local aim = Combat:Section("aim", 1)
+
 aim:Toggle({ Text = "enabled", Flag = "aim_enabled", Default = true })
-	:Keybind({ Default = "Q", Flag = "aim_key", Mode = "hold" })
+	:Keybind({ Default = "Q", Flag = "aim_key" })
 aim:Slider({ Text = "field of view", Flag = "aim_fov", Min = 1, Max = 180, Suffix = "°", Default = 80 })
 aim:Slider({ Text = "smoothness", Flag = "aim_smooth", Min = 0, Max = 100, Default = 20 })
 aim:Segmented({ Text = "mode", Flag = "aim_mode", Options = { "hold", "toggle" }, Default = "hold" })
 
 local targeting = Combat:Section("targeting", 2)
+
 targeting:Dropdown({ Text = "hitbox", Flag = "aim_hitbox", Options = { "head", "torso", "nearest" }, Default = "head" })
+targeting:MultiDropdown({
+	Text = "ignore",
+	Flag = "aim_ignore",
+	Options = { "friends", "team", "invisible", "dead" },
+	Default = { "friends", "dead" },
+})
 targeting:ToggleSwitch({ Text = "wall check", Flag = "aim_wall", Default = true })
 targeting:SliderButtons({ Text = "delay", Flag = "aim_delay", Min = 0, Max = 500, Step = 10, Suffix = " ms", Default = 60 })
 targeting:ProgressBar({ Text = "confidence", Default = 72, Style = "accent" })
 
-
---[[
-	Visuals tab (look controls)
-	---------------------------
-	The glass / liquid glass / menu blur APIs can be driven from here and
-	from settings > themes + settings > options at the same time; they all
-	end up in Library:SetGlass / SetLiquidGlass / SetMenuBlur.
-]]
 local render = Visuals:Section("render", 1)
 render:Slider({ Text = "quality", Flag = "render_quality", Min = 1, Max = 10, Default = 8 })
+render:Slider({ Text = "field of view", Flag = "render_fov", Min = 40, Max = 120, Suffix = "°", Default = 70 })
 render:Toggle({ Text = "fullbright", Flag = "render_fullbright" })
+	:ColorPicker({ Flag = "render_ambient", Default = Color3.fromRGB(180, 180, 190) })
 
-local look = Visuals:Section("look", 2)
+local effects = Visuals:Section("effects", 2)
+effects:Toggle({ Text = "bloom", Flag = "fx_bloom", Default = true })
+effects:Toggle({ Text = "blur", Flag = "fx_blur" })
+	:Gear(function(panel)
+		panel:Slider({ Text = "size", Flag = "fx_blur_size", Min = 0, Max = 24, Default = 8 })
+	end)
+effects:Slider({ Text = "saturation", Flag = "fx_saturation", Min = -1, Max = 1, Decimals = 2, Default = 0 })
 
-look:Toggle({
-	Text = "glass",
-	Default = Library.Glass == true,
-	Hint = "see-through window fill",
-	Callback = function(state) Library:SetGlass(state) end,
-})
-
-look:Slider({
-	Text = "glass strength",
-	Min = 0,
-	Max = 150,
-	Suffix = "%",
-	Default = 100,
-	Callback = function(value) Library:SetGlassStrength(value / 100) end,
-})
-
-look:Toggle({
-	Text = "liquid glass",
-	Default = Library.LiquidGlass == true,
-	Hint = "sheen travelling over the glass",
-	Callback = function(state) Library:SetLiquidGlass(state) end,
-})
-
-look:Toggle({
-	Text = "menu blur",
-	Default = Library.MenuBlur == true,
-	Hint = "blurs the game behind the menu",
-	Callback = function(state) Library:SetMenuBlur(state) end,
-})
-
-look:Slider({
-	Text = "blur strength",
-	Min = 0,
-	Max = 30,
-	Default = Library.MenuBlurStrength or 12,
-	Callback = function(value) Library:SetMenuBlurStrength(value) end,
-})
-
-look:ButtonRow({
-	{ Text = "snow", Callback = function() Library:SetParticles("snow") end },
-	{ Text = "off", Callback = function() Library:StopParticles() end },
-})
-
-look:Slider({
-	Text = "particle rate",
-	Min = 10,
-	Max = 300,
-	Suffix = "%",
-	Default = 100,
-	Callback = function(value) Library:SetParticleOptions({ Rate = value }) end,
-})
-
---[[
-	Custom background
-	-----------------
-	Library:SetBackground(asset, transparency) -- rbxassetid://, raw id or URL
-	Library:ClearBackground()
-	Window:SetBackground(asset, transparency, tint) / Window:ClearBackground()
-]]
-local backgroundBox = look:Input({ Text = "background asset", Placeholder = "rbxassetid://123456 or https:// image link" })
-
-look:ButtonRow({
-	{ Text = "set background", Callback = function()
-		local asset = backgroundBox:Get()
-		if asset and asset ~= "" then
-			Library:SetBackground(asset, 0.25)
-		else
-			Library:ClearBackground()
-		end
-	end },
-	{ Text = "clear background", Callback = function() Library:ClearBackground() end },
-})
-
-look:Button({
-	Text = "shuffle accent",
-	Callback = function()
-		local hues = { Color3.fromRGB(232, 161, 168), Color3.fromRGB(140, 200, 255), Color3.fromRGB(150, 230, 170) }
-		Library:SetColor("Accent", hues[math.random(#hues)], 1)
-		Library:Repaint()
-	end,
-})
-
-
---[[
-	Misc tab
-	--------
-	Keybind modes, output helpers and the small library utilities.
-]]
 local objects = Misc:Section("filters", 1)
 
 objects:Toggle({ Text = "static objects", Flag = "static_objects" })
+
 objects:Dropdown({
 	Text = "material",
 	Flag = "objects_material",
@@ -498,30 +429,12 @@ objects:Dropdown({
 	Default = "plastic",
 })
 
---[[
-	Keybind
-	-------
-	Section:Keybind(Options)
-
-	Options:
-		Text          = string
-		Flag          = string   -- saves the key AND the mode (<flag>_mode)
-		Default       = "E"      -- key name, "MB1" / "MB2" / "MB3" for the mouse
-		Mode          = "always" | "hold" | "toggle"
-		Callback      = function(state)
-		OnChanged     = function(key)         -- the pill picked a new key
-		OnModeChanged = function(mode)        -- the mode picker picked a mode
-
-	In game: a double right click on the pill opens the mode picker; a
-	single right click does nothing, so the key is never wiped by accident.
-	From code: :SetMode(mode), :GetMode(), :Clear().
-]]
 objects:Keybind({
 	Text = "hold to inspect",
 	Flag = "objects_inspect",
 	Default = "E",
 	Mode = "hold",
-	Callback = function(down) print("[cb] inspect:", down) end,
+	Callback = function(down) print("inspect", down) end,
 })
 
 objects:Keybind({
@@ -529,132 +442,279 @@ objects:Keybind({
 	Flag = "objects_collect",
 	Default = "H",
 	Mode = "toggle",
-	Callback = function(active) print("[cb] collect:", active) end,
+	Callback = function(active) print("collect", active) end,
 })
 
-local output = Misc:Section("output", 2)
-
---[[
-	Notifications
-	-------------
-	Library:Notify(Options) / (title, text, duration)
-	Library:Success / Warn / Error(title, text, duration)
-
-	Options: Title, Text, Style ("success" | "warning" | "danger"), Icon, Duration
-]]
-output:ButtonRow({
-	{ Text = "notify", Callback = function() Library:Notify("orasense", "test notification.", 4) end },
-	{ Text = "success", Callback = function() Library:Success("done", "config applied.", 4) end },
+local naming = Misc:Section("naming", 2)
+naming:Input({
+	Text = "prefix",
+	Flag = "objects_prefix",
+	Default = "",
+	Placeholder = "obj_",
+	Callback = function(text) print("prefix", text) end,
 })
-output:ButtonRow({
-	{ Text = "warning", Callback = function() Library:Warn("attention", "experimental option.", 4) end },
-	{ Text = "error", Callback = function() Library:Error("risky", "cannot be undone.", 4) end },
+naming:Button({ Text = "apply to selection", Callback = function() Library:Success("done", "prefix applied.", 3) end })
+
+local status = Misc:Section("status", 1)
+status:Label("idle.", { Style = "dim" })
+status:Slider({ Text = "timeout", Flag = "net_timeout", Min = 1, Max = 30, Suffix = " s", Default = 10 })
+
+Misc:Section("mixer", 1):Slider({ Text = "volume", Flag = "audio_volume", Min = 0, Max = 100, Suffix = "%", Default = 70 })
+
+local editor = Misc:Section("editor", 1)
+editor:Button({ Text = "reload scripts", Callback = function() Library:Notify("orasense", "scripts reloaded.", 3) end })
+editor:ButtonRow({
+	{ Text = "run", Callback = function() print("run") end },
+	{ Text = "stop", Callback = function() print("stop") end },
 })
 
---[[
-	Library:ListComponents() returns a copy of Library.Components, the names
-	of every element the library can build.
-]]
-output:Button({
-	Text = "list components",
-	Callback = function()
-		local names = Library:ListComponents()
-		print("[orasense] " .. #names .. " components: " .. table.concat(names, ", "))
-		Library:Notify({ Title = "components", Text = #names .. " element types", Duration = 3 })
+local console = Misc:Section("output", 1)
+console:Label("empty.")
+
+local reference = Misc:Section("reference", "full")
+reference:Split({
+	function(left)
+		left:Paragraph({ Title = "flags", Content = "Every stateful element takes a Flag, used for saving.", Icon = "info" })
+	end,
+	function(middle)
+		middle:Paragraph({ Title = "styles", Content = "warning, danger, success, accent.", Style = "warning", Icon = "alert-triangle" })
+	end,
+	function(right)
+		right:Paragraph({ Title = "no filesystem", Content = "Configs stay in memory for the session.", Style = "danger", Icon = "x-circle" })
 	end,
 })
 
---[[
-	Library:LoadAddon(name) fetches addons/<name>.luau, runs it once and
-	caches the module in Library.Addons.
-]]
-output:Button({
-	Text = "load addon",
-	Callback = function()
-		local ok, addon = pcall(function() return Library:LoadAddon("SaveManager") end)
-		Library:Notify({ Title = "addons", Text = (ok and addon) and "SaveManager ready" or "unavailable", Duration = 3 })
-	end,
+
+Window:IconAction("info", function()
+	Library:Notify("footer", "icon action from the footer.", 3)
+end, 1)
+Window:IconAction("check", function()
+	Library:Success("footer", "second icon action.", 3)
+end, 2)
+Window:Action("Connect", function()
+	Library:Notify({ Title = "connected", Text = "session started.", Duration = 3 })
+end)
+
+SaveManager:SetLibrary(Library)
+InterfaceManager:SetLibrary(Library)
+InterfaceManager:SetWindow(Window)
+ThemeManager:SetLibrary(Library)
+
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({})
+
+InterfaceManager:SetFolder("Orasense")
+ThemeManager:SetFolder("Orasense")
+SaveManager:SetFolder("Orasense/game")
+
+InterfaceManager:BuildInterfaceSection(settingsOptions, 1)
+SaveManager:BuildConfigSection(settingsOptions, 2)
+if Library.BuildEffectsSection and settingsOptions then
+	-- effects section (particles / background) lives in settings tab;
+	-- the glass controls are in settings > themes, not here
+	pcall(function() Library:BuildEffectsSection(settingsOptions, 1) end)
+end
+ThemeManager:Mount(Window, settingsThemes:Section("theme", "full"))
+
+Window:SetTab(Main)
+
+Library:Notify({
+	Title = "Orasense",
+	Text = "script loaded.",
+	Duration = 5,
 })
 
-output:Button({
-	Text = "toggle the menu",
-	Callback = function() Library:ToggleUI() end,
+SaveManager:LoadAutoloadConfig()
+ThemeManager:Load()
+
+-- The theme and the config load after the window is built, so the glass
+-- has to be applied once more or the window stays flat until a hide/show.
+if Window.ApplyGlass then Window:ApplyGlass() end
+
+local RunService = game:GetService("RunService")
+
+-- Floating player panel: hidden until its settings toggle turns it on.
+local hud = Library:Panel({
+	Title = "player",
+	Icon = "user",
+	Width = 190,
+	Position = UDim2.fromOffset(18, 320),
+	Visible = false,
 })
 
-output:Toggle({
-	Text = "custom cursor",
+hud.Content:Label("name", { Style = "dim" })
+hud.Content:Label(Players.LocalPlayer.Name, { Style = "bright" })
+
+hud.Content:Divider()
+
+hud.Content:Label("health", { Style = "dim" })
+local healthLabel = hud.Content:Label("-", { Style = "success" })
+
+hud.Content:Label("players", { Style = "dim" })
+local playersLabel = hud.Content:Label(tostring(#Players:GetPlayers()), { Style = "bright" })
+
+hud:SetVisible(false)
+
+task.spawn(function()
+	while task.wait(0.5) do
+		local character = Players.LocalPlayer.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		healthLabel:Set(humanoid and string.format("%d / %d", humanoid.Health, humanoid.MaxHealth) or "-")
+		playersLabel:Set(tostring(#Players:GetPlayers()))
+	end
+end)
+
+-- Server browser
+-- Without options: lists the servers of the current place and joins them
+-- with TeleportService, which fits most games.
+--
+-- PlaceId: targets another place, useful when the game has a separate lobby.
+--
+-- OnJoin: some games route their teleports through their own server and
+--         reject a direct client call (error 773). In that case, pass a
+--         function that goes through their module:
+--
+-- local servers = Library:ServerBrowser({
+--     PlaceId = 123456789,
+--     OnJoin = function(jobId, placeId, server)
+--         local Teleporter = require(game.ReplicatedStorage.Path.To.Teleporter)
+--         Teleporter.Request({ placeId = placeId, jobId = jobId })
+--     end,
+-- })
+
+local servers = Library:ServerBrowser()
+
+local watermark = Library:Watermark({
+	Title = "orasense",
+	Suffix = ".win",
+	Position = UDim2.fromOffset(18, 18),
+})
+
+local overlay = settingsOptions:Section("overlay", 1)
+
+overlay:Toggle({
+	Text = "watermark",
+	Flag = "overlay_watermark",
+	Hint = "fps, ping, players and region",
 	Default = true,
-	Callback = function(state) Library:SetCursor(state) end,
+	Callback = function(state)
+		watermark:SetVisible(state)
+	end,
 })
 
-output:Toggle({
-	Text = "hotkeys panel",
+overlay:Toggle({
+	Text = "server browser",
+	Flag = "overlay_servers",
+	Hint = "lists the public servers of this game",
 	Default = false,
-	Callback = function(state) Library:SetHotkeysVisible(state) end,
+	Callback = function(state)
+		servers:SetVisible(state)
+	end,
+})
+
+overlay:Toggle({
+	Text = "player panel",
+	Hint = "shows the floating player panel, off on every launch",
+	Default = false,
+	Callback = function(state)
+		hud:SetVisible(state)
+	end,
 })
 
 
---[[
-	Components tab
-	==============
-	Every element in Library.Components, grouped in sub tabs:
+-- Mini window: a second, smaller window that floats outside the menu. It
+-- keeps its own title bar, drag and corner grip, and its Content accepts every
+-- component. A toggle, a dropdown and a button all drive the same window.
+local float = Library:MiniWindow({
+	Title = "mini window",
+	Width = 230,
+	Height = 250,
+	Position = UDim2.fromOffset(24, 120),
+})
+float.Content:Label("lives outside the menu, drag it anywhere.", { Style = "dim" })
+float.Content:Dropdown({
+	Text = "popup",
+	Flag = false,
+	Options = { "glass", "solid", "liquid" },
+	Default = "glass",
+})
+float.Content:Slider({
+	Text = "value",
+	Flag = false,
+	Min = 0,
+	Max = 100,
+	Suffix = "%",
+	Default = 40,
+})
+float.Content:Button({
+	Text = "notify",
+	Callback = function()
+		Library:Notify({ Title = "orasense", Text = "mini window works.", Style = "success", Duration = 2 })
+	end,
+})
+float.Content:Toggle({ Text = "stay open", Default = true })
+float:SetVisible(false)
 
-	Toggle, ToggleSwitch, BoxToggle, Checkbox, SubToggle, DependencyToggle,
-	RadioGroup, Segmented, Slider, SliderButtons, Stepper, ProgressBar,
-	ColorPicker, ColorSwatches, Dropdown, MultiDropdown, Search, Input,
-	TextArea, CopyField, Keybind, Button, ButtonRow, Link, Label,
-	Paragraph, Badge, Banner, Stat, Spinner, Avatar, BulletList,
-	KeyValueGrid, Table, Image, Divider, LabelDivider, Split, Card.
-]]
+local demoToggles = settingsOptions:Section("windows", 1)
+
+local floatToggle
+local floatDropdown
+
+local function setFloat(open)
+	open = open ~= false
+	if float.Visible == open then return end
+	float:SetVisible(open)
+	if floatToggle then pcall(function() floatToggle:Set(open, true) end) end
+	if floatDropdown then pcall(function() floatDropdown:Set(open and "open" or "closed", true) end) end
+end
+
+floatToggle = demoToggles:Toggle({
+	Text = "mini window",
+	Default = false,
+	Hint = "the dropdown and the button below drive the same window",
+	Callback = function(state) setFloat(state) end,
+})
+
+floatDropdown = demoToggles:Dropdown({
+	Text = "mini window state",
+	Options = { "closed", "open" },
+	Default = "closed",
+	Callback = function(value) setFloat(value == "open") end,
+})
+
+demoToggles:Button({ Text = "toggle mini window", Callback = function() setFloat(not float.Visible) end })
+
+-- Embedded sub window: it stays inside the main window instead.
+local sub = Window:SubWindow({ Title = "sub window", Width = 250, Height = 170 })
+sub.Content:Label("a window inside the window.", { Style = "dim" })
+sub.Content:Button({ Text = "ping", Callback = function() Library:Notify({ Title = "orasense", Text = "pong", Duration = 2 }) end })
+sub:SetVisible(false)
+demoToggles:Toggle({ Text = "sub window", Flag = "demo_subwindow", Callback = function(state) sub:SetVisible(state) end })
+
+
+-- Every component, grouped in sub tabs.
+local Components = Window:Tab("components")
 local cInputs = Components:SubTab("inputs")
 local cGroups = Components:SubTab("groups")
 local cWindows = Components:SubTab("windows")
-local cSwitches = Components:SubTab("switches")
-local cSliders = Components:SubTab("sliders")
-local cDisplay = Components:SubTab("display")
-local cLayout = Components:SubTab("layout")
 
 local inputsLeft = cInputs:Section("controls", 1)
-inputsLeft:Label("every input, with its default look.")
-
---[[
-	Toggle + Dependency + SubToggle
-	-------------------------------
-	:Dependency(function(dep) ... end) creates children that only exist
-	while the toggle is on. :SubToggle(Options) is a single indented child.
-]]
+inputsLeft:Label("every control, with its default look.")
 inputsLeft:Toggle({ Text = "parent toggle", Flag = "cmp_parent", Default = true })
 	:Dependency(function(dep)
 		dep:Toggle({ Text = "child toggle", Flag = "cmp_child", Default = true })
 		dep:Slider({ Text = "child slider", Flag = "cmp_child_slider", Min = 0, Max = 100, Default = 25 })
 	end)
 inputsLeft:SubToggle({ Text = "sub toggle", Flag = "cmp_sub", Hint = "indented child toggle" })
-
---[[
-	DependencyToggle
-	----------------
-	Section:DependencyToggle(Options, function(dep) ... end)
-	Same as above, but the builder is the second argument instead of chained.
-]]
 inputsLeft:DependencyToggle({ Text = "dependency toggle", Flag = "cmp_dep", Default = false }, function(dep)
 	dep:Input({ Text = "dep input", Flag = "cmp_dep_input", Placeholder = "only visible when on" })
 end)
-
---[[
-	MultiDropdown
-	-------------
-	Same options as Dropdown with Multi = true; the value is a table.
-]]
 inputsLeft:MultiDropdown({
 	Text = "multi dropdown",
 	Flag = "cmp_multi",
 	Options = { "alpha", "beta", "gamma", "delta" },
 	Default = { "alpha", "beta" },
 })
-
---[[
-	Dropdown with Search = true adds the filter box inside the popup.
-]]
 inputsLeft:Dropdown({
 	Text = "searchable dropdown",
 	Flag = "cmp_search_dropdown",
@@ -664,56 +724,32 @@ inputsLeft:Dropdown({
 })
 
 local inputsRight = cInputs:Section("more inputs", 2)
-
---[[
-	TextArea / CopyField
-	--------------------
-	TextArea takes Text, Placeholder, Default and Flag.
-	CopyField takes Value and ButtonText and copies to the clipboard.
-]]
-inputsRight:TextArea({ Text = "text area", Placeholder = "multi line input", Default = "line one\nline two", Flag = "cmp_textarea" })
-inputsRight:CopyField({ Value = "orasense.win", ButtonText = "copy" })
-
---[[
-	Search
-	------
-	Section:Search({ Label, Placeholder, Live, Callback })
-	Live = true fires the callback on every keystroke.
-]]
-inputsRight:Search({ Label = "search", Placeholder = "filter...", Live = true })
-
---[[
-	Input
-	-----
-	Section:Input({ Text, Flag, Default, Placeholder, Callback })
-]]
+inputsRight:Slider({ Text = "slider", Flag = "cmp_slider", Min = 0, Max = 100, Suffix = "%", Default = 40 })
+local alwaysBind = inputsRight:Keybind({ Text = "always keybind", Flag = "cmp_always", Default = "Z", Mode = "always" })
+local holdBind = inputsRight:Keybind({ Text = "hold keybind", Flag = "cmp_hold", Default = "Q", Mode = "hold" })
+local toggleBind = inputsRight:Keybind({ Text = "toggle keybind", Flag = "cmp_toggle_key", Default = "T", Mode = "toggle" })
+-- In game: one right click on a key pill removes its key, a double right click
+-- opens the always / hold / toggle picker. The same editing works from code:
+inputsRight:ButtonRow({
+	{ Text = "edit modes", Callback = function()
+		toggleBind:SetMode("hold")
+		holdBind:SetMode("toggle")
+		Library:Notify("keybinds", "modes swapped.", 2)
+	end },
+	{ Text = "remove keys", Callback = function()
+		alwaysBind:Clear()
+		Library:Notify("keybinds", "always key cleared.", 2)
+	end },
+})
 inputsRight:Input({ Text = "input", Flag = "cmp_input", Placeholder = "type something" })
-
---[[
-	ColorPicker / ColorSwatches
-	---------------------------
-	ColorPicker: Text, Flag, Default, DefaultAlpha, Callback(color, alpha)
-	ColorSwatches: Text, Default (index), Callback(color)
-]]
+inputsRight:Search({ Label = "search", Placeholder = "filter...", Live = true })
 inputsRight:ColorPicker({ Text = "color picker", Flag = "cmp_color", Default = Color3.fromRGB(120, 180, 255) })
-inputsRight:ColorSwatches({ Text = "swatches", Default = 2, Callback = function(color) Library:Notify("swatch", tostring(color), 2) end })
-
 inputsRight:Divider()
-
---[[
-	Button / ButtonRow / Link
-	-------------------------
-	Button: { Text, Callback }
-	ButtonRow: { { Text = ..., Callback = ... }, ... }
-	Link: { Text, Callback } -- underline on hover
-]]
 inputsRight:Button({ Text = "button", Callback = function() Library:Notify("button", "clicked.", 2) end })
 inputsRight:ButtonRow({
 	{ Text = "left", Callback = function() Library:Notify("row", "left pressed.", 2) end },
 	{ Text = "right", Callback = function() Library:Notify("row", "right pressed.", 2) end },
 })
-inputsRight:Link({ Text = "link component", Callback = function() Library:Notify("link", "link clicked.", 2) end })
-
 inputsRight:Paragraph({
 	Title = "paragraph",
 	Content = "labels, paragraphs, sliders, keybinds, inputs, search and dividers are all element types.",
@@ -721,8 +757,6 @@ inputsRight:Paragraph({
 	Icon = "check",
 })
 
-
--- Group boxes: anything works inside them, they are normal sections.
 local groupsLeft = cGroups:LeftTabBox({ Title = "left box", Icon = "sliders-horizontal" })
 groupsLeft:Toggle({ Text = "left toggle", Flag = "cmp_left_toggle", Default = true })
 groupsLeft:Slider({ Text = "left slider", Flag = "cmp_left_slider", Min = 0, Max = 10, Default = 3 })
@@ -733,28 +767,10 @@ groupsMiddle:Dropdown({ Text = "middle dropdown", Flag = "cmp_mid_dd", Options =
 
 local groupsRight = cGroups:RightTabBox({ Title = "right box", Icon = "wrench" })
 groupsRight:Button({ Text = "right button", Callback = function() Library:Success("right", "works.", 2) end })
-
---[[
-	Table
-	-----
-	Section:Table({ Columns, MaxRows, EmptyText }) then table:SetRows(rows)
-	Each row is a table of cells in column order.
-]]
 local cmpTable = groupsRight:Table({ Columns = { "name", "value" }, MaxRows = 3, EmptyText = "no rows" })
 cmpTable:SetRows({ { "one", "1" }, { "two", "2" } })
 
-
---[[
-	Modal / Confirm
-	---------------
-	Window:Modal({ Title, Width, Height, Dim, Blur }) returns an object with
-	.Content (every component), :SetOpen(state) and :Toggle().
-
-	Window:Confirm({ Title, Text, Confirm, Cancel, OnConfirm, OnCancel })
-	is the ready made yes / no dialog.
-]]
 local windowsDialogs = cWindows:Section("dialogs", 1)
-
 windowsDialogs:ButtonRow({
 	{ Text = "modal", Callback = function()
 		local modal = Window:Modal({ Title = "modal", Width = 320, Height = 220 })
@@ -776,75 +792,22 @@ windowsDialogs:ButtonRow({
 	end },
 })
 
---[[
-	Window:SetSize(width, height) / SetVisible / SetDpi / SetMenuTransparency
-	-----------------------------------------------------------------------
-	The window API itself, driven from buttons.
-]]
-local windowsWindow = cWindows:Section("window api", 2)
-
-windowsWindow:ButtonRow({
-	{ Text = "620 x 620", Callback = function() Window:SetSize(620, 620) end },
-	{ Text = "760 x 640", Callback = function() Window:SetSize(760, 640) end },
-})
-
-windowsWindow:Slider({
-	Text = "menu scale",
-	Min = 70,
-	Max = 130,
-	Suffix = "%",
-	Default = 100,
-	Callback = function(value) Window:SetUserScale(value / 100) end,
-})
-
-windowsWindow:Slider({
-	Text = "dpi",
-	Min = 60,
-	Max = 140,
-	Suffix = " dpi",
-	Default = 96,
-	Callback = function(value) Window:SetDpi(value) end,
-})
-
-windowsWindow:Slider({
-	Text = "transparency",
-	Min = 0,
-	Max = 90,
-	Suffix = "%",
-	Default = 0,
-	Callback = function(value) Window:SetMenuTransparency(value / 100) end,
-})
-
---[[
-	Library level versions
-	----------------------
-	Library:SetUserScale(1)          -- every window, 0.6 to 1.4
-	Library:SetDpi(96)               -- component size, 60 to 200
-	Library:SetMenuTransparency(0)   -- 0 to 0.9
-	Window:SetVisible(false)         -- hide it (the menu key brings it back)
-]]
-windowsWindow:ButtonRow({
-	{ Text = "reset view", Callback = function()
-		Library:SetUserScale(1)
-		Library:SetDpi(96)
-		Library:SetMenuTransparency(0)
-	end },
-	{ Text = "hide menu", Callback = function()
-		Window:SetVisible(false)
-		Library:Notify({ Title = "hidden", Text = "press the menu key to bring it back.", Duration = 4 })
-	end },
-})
+local windowsOverlays = cWindows:Section("overlays", 2)
+windowsOverlays:Button({ Text = "sub window", Callback = function() sub:SetVisible(true) end })
+windowsOverlays:Button({ Text = "mini window", Callback = function() float:SetVisible(true) end })
+windowsOverlays:Button({ Text = "server browser", Callback = function() servers:SetVisible(true) end })
+windowsOverlays:Button({ Text = "player panel", Callback = function()
+	hud:SetVisible(true)
+end })
+-- Glass is configured only in settings > themes.
 
 
---[[
-	Switches
-	--------
-	ToggleSwitch  -- sliding switch
-	BoxToggle     -- bordered card toggle
-	Checkbox      -- compact checkbox
-	RadioGroup    -- one of a list
-	Segmented     -- segmented control
-]]
+-- extra components: switches, sliders, display, cards
+local cSwitches = Components:SubTab("switches")
+local cSliders = Components:SubTab("sliders")
+local cDisplay = Components:SubTab("display")
+local cLayout = Components:SubTab("layout")
+
 local switchLeft = cSwitches:Section("toggles", 1)
 switchLeft:ToggleSwitch({ Text = "toggle switch", Flag = "cmp_switch", Default = true })
 switchLeft:BoxToggle({ Text = "box toggle", Hint = "card style toggle", Flag = "cmp_boxtoggle", Default = true })
@@ -857,14 +820,6 @@ switchRight:Segmented({ Text = "quality", Flag = "cmp_segmented", Options = { "l
 switchRight:Segmented({ Flag = "cmp_segmented2", Options = { "one", "two" }, Default = "one" })
 switchRight:RadioGroup({ Text = "mode", Flag = "cmp_radio2", Options = { "safe", "fast" }, Default = "safe" })
 
-
---[[
-	Sliders and bars
-	----------------
-	SliderButtons -- slider with - / + buttons (Step = increment)
-	Stepper       -- numeric row with - / + (Min, Max, Step)
-	ProgressBar   -- read only bar, :Set(value)
-]]
 local sliderLeft = cSliders:Section("sliders", 1)
 sliderLeft:SliderButtons({ Text = "slider + buttons", Flag = "cmp_sliderbuttons", Min = 0, Max = 100, Step = 5, Default = 50, Suffix = "%" })
 sliderLeft:SliderButtons({ Text = "volume", Flag = "cmp_volume", Min = 0, Max = 10, Step = 1, Default = 7 })
@@ -872,59 +827,27 @@ sliderLeft:Stepper({ Text = "stepper", Flag = "cmp_stepper", Min = 1, Max = 25, 
 
 local sliderRight = cSliders:Section("bars", 2)
 local progress = sliderRight:ProgressBar({ Text = "progress", Flag = "cmp_progress", Min = 0, Max = 100, Default = 42, Suffix = "%" })
-sliderRight:SliderButtons({ Text = "drives the bar", Min = 0, Max = 100, Default = 42, Callback = function(value) progress:Set(value) end })
+sliderRight:SliderButtons({ Text = "drives the bar", Min = 0, Max = 100, Default = 42, Callback = function(v) progress:Set(v) end })
 sliderRight:ProgressBar({ Text = "static bar", Default = 75, Style = "success" })
 
-
--- Display components
-local displayLeft = cDisplay:Section("stats", 1)
-
---[[
-	Stat / KeyValueGrid / BulletList / Badge
-	----------------------------------------
-	Stat: { Title, Value, Sub, Style }
-	KeyValueGrid: { Rows = { { key, value }, ... } }
-	BulletList: { Title, Items = { ... } }
-	Badge: { Text, Style }
-]]
+local displayLeft = cVisuals:Section("stats", 1)
 displayLeft:Stat({ Title = "players", Value = "12", Sub = "+3 today", Style = "accent" })
 displayLeft:KeyValueGrid({ Rows = { { "region", "eu" }, { "ping", "42 ms" }, { "uptime", "3h" }, { "build", "orasense.win" } } })
 displayLeft:BulletList({ Title = "features", Items = { "sub tabs", "full screen particles", "configs" } })
 displayLeft:Badge({ Text = "stable", Style = "success" })
 displayLeft:Badge({ Text = "beta", Style = "warning" })
+displayLeft:ColorSwatches({ Text = "swatches", Default = 2, Callback = function(c) Library:Notify("swatch", tostring(c), 2) end })
 
-local displayRight = cDisplay:Section("info", 2)
-
---[[
-	Banner / Avatar / Spinner / LabelDivider
-	----------------------------------------
-	Banner: { Title, Content, Icon, Style }
-	Avatar: { Name, Sub } -- round row, optional :SetPlayer(userId)
-	Spinner: { Text }    -- animated loading dots
-	LabelDivider(text)   -- small caption + hairline
-]]
+local displayRight = cVisuals:Section("info", 2)
 displayRight:Banner({ Title = "info banner", Content = "banners support an icon, a title and a body.", Icon = "info", Style = "accent" })
 displayRight:Banner({ Title = "warning", Content = "this one can be dismissed.", Icon = "alert-triangle", Style = "warning" })
-displayRight:Avatar({ Name = Players.LocalPlayer.Name, Sub = "level 12" })
+displayRight:Avatar({ Name = "player", Sub = "level 12" })
 displayRight:Spinner({ Text = "loading something" })
+displayRight:Link({ Text = "link component", Callback = function() Library:Notify("link", "link clicked.", 2) end })
+displayRight:CopyField({ Value = "orasense.win", ButtonText = "copy" })
+displayRight:TextArea({ Text = "text area", Placeholder = "multi line input", Default = "line one\nline two", Flag = "cmp_textarea" })
 displayRight:LabelDivider("layout below")
 
---[[
-	Image
-	-----
-	Section:Image({ Height, Corner }) then image:SetUser(userId) or
-	image:SetImage("rbxassetid://...") / :SetAsset(asset) / :Clear()
-]]
-local avatar = displayRight:Image({ Height = 96, Corner = 8 })
-avatar:SetUser(Players.LocalPlayer.UserId)
-
-
---[[
-	Layout
-	------
-	Card: { Title } returns a container with every component method.
-	Split inside a card works too; Divider separates groups.
-]]
 local card = cLayout:Card({ Title = "card container" })
 card:Label("cards group elements and keep long menus organized.", { Style = "dim" })
 card:Toggle({ Text = "card toggle", Flag = "cmp_card_toggle", Default = true })
@@ -936,242 +859,3 @@ local card2 = cLayout:Card("second card")
 card2:Avatar({ Name = "row one", Sub = "inside a card" })
 card2:Stat({ Title = "value", Value = "42", Sub = "stat inside a card", Style = "success" })
 card2:Badge({ Text = "inside", Style = "accent" })
-
-
---[[
-	Overlay windows
-	===============
-	Library:Watermark({ Title, Suffix, Position })
-	Library:Panel({ Title, Icon, Width, Position, Visible })
-	Library:MiniWindow({ Title, Width, Height, Position })
-	Window:SubWindow({ Title, Width, Height })
-	Library:ServerBrowser({ PlaceId, OnJoin })
-
-	All of them take every component, and :SetVisible(state) drives them.
-]]
-local watermark = Library:Watermark({
-	Title = "orasense",
-	Suffix = ".win",
-	Position = UDim2.fromOffset(18, 18),
-})
-
--- Floating player panel: hidden until the toggle below turns it on.
-local hud = Library:Panel({
-	Title = "player",
-	Icon = "user",
-	Width = 190,
-	Position = UDim2.fromOffset(18, 320),
-	Visible = false,
-})
-
-hud.Content:Label("name", { Style = "dim" })
-hud.Content:Label(Players.LocalPlayer.Name, { Style = "bright" })
-hud.Content:Divider()
-hud.Content:Label("health", { Style = "dim" })
-local healthLabel = hud.Content:Label("-", { Style = "success" })
-hud.Content:Label("players", { Style = "dim" })
-local playersLabel = hud.Content:Label(tostring(#Players:GetPlayers()), { Style = "bright" })
-hud:SetVisible(false)
-
-task.spawn(function()
-	while task.wait(0.5) do
-		local character = Players.LocalPlayer.Character
-		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-		healthLabel:Set(humanoid and string.format("%d / %d", humanoid.Health, humanoid.MaxHealth) or "-")
-		playersLabel:Set(tostring(#Players:GetPlayers()))
-	end
-end)
-
--- Mini window: a second, smaller window that floats outside the menu.
-local float = Library:MiniWindow({
-	Title = "mini window",
-	Width = 230,
-	Height = 250,
-	Position = UDim2.fromOffset(24, 120),
-})
-float.Content:Label("lives outside the menu, drag it anywhere.", { Style = "dim" })
-float.Content:Dropdown({ Text = "popup", Flag = false, Options = { "glass", "solid", "liquid" }, Default = "glass" })
-float.Content:Slider({ Text = "value", Flag = false, Min = 0, Max = 100, Suffix = "%", Default = 40 })
-float.Content:Button({
-	Text = "notify",
-	Callback = function() Library:Notify({ Title = "orasense", Text = "mini window works.", Style = "success", Duration = 2 }) end,
-})
-float.Content:Toggle({ Text = "stay open", Default = true })
-float:SetVisible(false)
-
--- Embedded sub window: it stays inside the main window instead.
-local sub = Window:SubWindow({ Title = "sub window", Width = 250, Height = 170 })
-sub.Content:Label("a window inside the window.", { Style = "dim" })
-sub.Content:Button({ Text = "ping", Callback = function() Library:Notify({ Title = "orasense", Text = "pong", Duration = 2 }) end })
-sub:SetVisible(false)
-
--- Server browser: lists the public servers of this place and joins them.
--- Pass PlaceId to target another place, OnJoin to route through a game's
--- own teleporter (some games reject a direct TeleportService call).
-local servers = Library:ServerBrowser()
-
-
---[[
-	Settings tab
-	============
-	options: interface (InterfaceManager) + configs (SaveManager) + effects
-	themes:  the theme editor (ThemeManager)
-	mobile:  only built on touch devices
-]]
-local overlay = settingsOptions:Section("overlay", 1)
-
-overlay:Toggle({
-	Text = "watermark",
-	Flag = "overlay_watermark",
-	Hint = "fps, ping, players and region",
-	Default = true,
-	Callback = function(state) watermark:SetVisible(state) end,
-})
-
-overlay:Toggle({
-	Text = "server browser",
-	Flag = "overlay_servers",
-	Hint = "lists the public servers of this game",
-	Default = false,
-	Callback = function(state) servers:SetVisible(state) end,
-})
-
-overlay:Toggle({
-	Text = "player panel",
-	Hint = "shows the floating player panel",
-	Default = false,
-	Callback = function(state) hud:SetVisible(state) end,
-})
-
-local windowsDemo = settingsOptions:Section("windows", 1)
-
-local floatToggle
-local floatDropdown
-
-local function setFloat(open)
-	open = open ~= false
-	if float.Visible == open then return end
-	float:SetVisible(open)
-	if floatToggle then pcall(function() floatToggle:Set(open, true) end) end
-	if floatDropdown then pcall(function() floatDropdown:Set(open and "open" or "closed", true) end) end
-end
-
-floatToggle = windowsDemo:Toggle({
-	Text = "mini window",
-	Default = false,
-	Hint = "the dropdown and the button below drive the same window",
-	Callback = function(state) setFloat(state) end,
-})
-
-floatDropdown = windowsDemo:Dropdown({
-	Text = "mini window state",
-	Options = { "closed", "open" },
-	Default = "closed",
-	Callback = function(value) setFloat(value == "open") end,
-})
-
-windowsDemo:Button({ Text = "toggle mini window", Callback = function() setFloat(not float.Visible) end })
-windowsDemo:Toggle({ Text = "sub window", Flag = "demo_subwindow", Callback = function(state) sub:SetVisible(state) end })
-
-
---[[
-	Mobile
-	------
-	Only on touch devices. Library.MobileConfig() returns the current
-	button settings; Library:SetMobileButtonOptions{ ... } writes them.
-	Options: Transparency, Width, Height, IconSize, Mode ("tap" |
-	"tap_twice" | "hold"), HoldDuration, Invisible, Locked.
-]]
-if Library.IsMobile then
-	local mobileTab = Settings:SubTab("mobile")
-	local mobileButton = mobileTab:Section("menu button", 1)
-	local cfg = Library.MobileConfig()
-	local function apply(options) Library:SetMobileButtonOptions(options) end
-
-	mobileButton:Slider({ Text = "transparency", Min = 0, Max = 1, Decimals = 2, Default = cfg.Transparency or 0, Callback = function(v) apply({ Transparency = v }) end })
-	mobileButton:Slider({ Text = "width", Min = 28, Max = 96, Default = cfg.Width or 44, Callback = function(v) apply({ Width = v }) end })
-	mobileButton:Slider({ Text = "height", Min = 28, Max = 96, Default = cfg.Height or 44, Callback = function(v) apply({ Height = v }) end })
-	mobileButton:Slider({ Text = "icon size", Min = 8, Max = 36, Default = cfg.IconSize or 18, Callback = function(v) apply({ IconSize = v }) end })
-
-	local holdSlider
-	mobileButton:Dropdown({
-		Text = "toggle mode",
-		Options = { "tap", "tap twice", "hold" },
-		Default = cfg.Mode == "tap_twice" and "tap twice" or (cfg.Mode or "tap"),
-		Callback = function(choice)
-			local mode = (choice == "tap twice") and "tap_twice" or choice
-			apply({ Mode = mode })
-			if holdSlider then holdSlider.Instance.Visible = (mode == "hold") end
-		end,
-	})
-	holdSlider = mobileButton:Slider({ Text = "hold duration", Min = 0.2, Max = 2, Decimals = 2, Suffix = " s", Default = cfg.HoldDuration or 0.6, Callback = function(v) apply({ HoldDuration = v }) end })
-	if holdSlider then holdSlider.Instance.Visible = (cfg.Mode == "hold") end
-
-	local behaviour = mobileTab:Section("behaviour", 1)
-	behaviour:Toggle({ Text = "invisible button", Hint = "hides the button, tapping it still works", Default = cfg.Invisible == true, Callback = function(state) apply({ Invisible = state }) end })
-	behaviour:Toggle({ Text = "lock the button", Hint = "keeps it in place", Default = cfg.Locked == true, Callback = function(state) apply({ Locked = state }) end })
-	behaviour:Toggle({ Text = "show the button", Default = true, Callback = function(state) Library:SetMobileButtonVisible(state) end })
-end
-
-
---[[
-	Addons wiring
-	=============
-	SaveManager:IgnoreThemeSettings() keeps the theme + interface flags out
-	of configs. SaveManager:SetIgnoreIndexes{ "flag" } adds more.
-]]
-SaveManager:SetLibrary(Library)
-InterfaceManager:SetLibrary(Library)
-InterfaceManager:SetWindow(Window)
-ThemeManager:SetLibrary(Library)
-
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes({})
-
-InterfaceManager:SetFolder("Orasense")
-ThemeManager:SetFolder("Orasense")
-SaveManager:SetFolder("Orasense/game")
-
-InterfaceManager:BuildInterfaceSection(settingsOptions, 1)
-SaveManager:BuildConfigSection(settingsOptions, 2)
-if Library.BuildEffectsSection then
-	-- particles + custom background live in settings > options
-	pcall(function() Library:BuildEffectsSection(settingsOptions, 1) end)
-end
-ThemeManager:Mount(Window, settingsThemes:Section("theme", "full"))
-
-
---[[
-	Footer
-	------
-	Window:Action(text, callback) is the bottom right action.
-	Window:IconAction(icon, callback, order) adds footer icons.
-]]
-Window:IconAction("info", function() Library:Notify("footer", "icon action from the footer.", 3) end, 1)
-Window:IconAction("check", function() Library:Success("footer", "second icon action.", 3) end, 2)
-Window:Action("Connect", function() Library:Notify({ Title = "connected", Text = "session started.", Duration = 3 }) end)
-
-
---[[
-	Start up
-	========
-	Open a tab, greet, then load the autoload config and the saved theme.
-]]
-Window:SetTab(Main)
-
-Library:Notify({ Title = "Orasense", Text = "script loaded.", Duration = 5 })
-
-SaveManager:LoadAutoloadConfig()
-ThemeManager:Load()
-
--- The theme and the config load after the window is built, so the look has
--- to be applied once more or the window stays flat until a hide/show.
-if Window.ApplyGlass then Window:ApplyGlass() end
-
---[[
-	Unloading
-	---------
-	Library:Destroy() disconnects everything, removes the ScreenGuis and the
-	shared BlurEffect. The "unload" button in settings > options calls it for
-	you (behind a confirm), or run Library:Destroy() yourself.
-]]
