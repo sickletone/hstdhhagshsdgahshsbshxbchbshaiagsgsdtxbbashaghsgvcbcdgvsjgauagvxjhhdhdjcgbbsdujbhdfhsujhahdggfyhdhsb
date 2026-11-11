@@ -51,7 +51,7 @@ configs, theme, server browser, player panel).
   settings > options, and it is off by default.
 - **Keybind modes** — a keybind runs in `always` (no key needed), `hold`
   (active while held) or `toggle` (press to flip). Double right click its key
-  pill in game to pick the mode; one right click clears the key.
+  pill in game to pick the mode; a single right click leaves the key alone.
   `keybind:SetMode("toggle")`, `:GetMode()` and `:Clear()` do the same from
   code, and `OnModeChanged(mode)` reports the change. With a `Flag`, both the
   key and the mode are saved in configs (`<flag>` and `<flag>_mode`).

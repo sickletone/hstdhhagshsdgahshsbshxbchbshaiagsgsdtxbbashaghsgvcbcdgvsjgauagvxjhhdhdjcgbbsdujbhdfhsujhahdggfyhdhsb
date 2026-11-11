@@ -2082,7 +2082,6 @@ function Elements:Keybind(opts)
 	local mode = NormalizeKeyMode(opts.Mode)
 	local modeMenu
 	local lastRight = 0
-	local pendingClear
 
 	local function refresh()
 		if listening then
@@ -2128,28 +2127,16 @@ function Elements:Keybind(opts)
 		refresh()
 		Tween(pill, { BackgroundColor3 = Theme.FieldHover }, EASE_FAST)
 	end))
-	-- One right click removes the key, a double right click picks the mode.
+	-- A right click on its own does nothing (it used to wipe the key and leave
+	-- "NONE"); a double right click opens the mode picker instead.
 	Track(pill.MouseButton2Click:Connect(function()
 		local now = os.clock()
 		if now - lastRight <= 0.4 then
 			lastRight = 0
-			if pendingClear then
-				task.cancel(pendingClear)
-				pendingClear = nil
-			end
 			openModes()
 			return
 		end
 		lastRight = now
-		if pendingClear then task.cancel(pendingClear) end
-		pendingClear = task.delay(0.4, function()
-			pendingClear = nil
-			key = nil
-			listening = false
-			Library.Binding = false
-			refresh()
-			apply()
-		end)
 	end))
 	Track(UserInputService.InputBegan:Connect(function(input, gpe)
 		local n = KeyName(input)
