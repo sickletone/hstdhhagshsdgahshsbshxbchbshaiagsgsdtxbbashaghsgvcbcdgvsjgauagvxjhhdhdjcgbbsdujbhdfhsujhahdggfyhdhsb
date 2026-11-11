@@ -1,25 +1,3 @@
---[[
-	Orasense UI | full example
-	==================================================================
-
-	This file is the reference for everything the library exposes:
-	the window options, every tab / section helper, every component,
-	the overlay windows (watermark, panel, mini window, sub window,
-	server browser), the look controls (glass, liquid glass, menu blur,
-	particles, custom background) and the three addons (SaveManager,
-	InterfaceManager, ThemeManager).
-
-	The comments follow the old Linoria example style:
-	the block comment above a call documents its arguments, the inline
-	comments explain each option.
-
-	Loading
-	-------
-	main.luau is the library itself; the addons live in addons/ and are
-	loaded through Library:LoadAddon (they are also preloaded, so the
-	short Library.SaveManager form works as well).
-]]
-
 local BASE = "https://raw.githubusercontent.com/sickletone/hstdhhagshsdgahshsbshxbchbshaiagsgsdtxbbashaghsgvcbcdgvsjgauagvxjhhdhdjcgbbsdujbhdfhsujhahdggfyhdhsb/refs/heads/main/"
 
 local source = game:HttpGet(BASE .. "main.luau")
