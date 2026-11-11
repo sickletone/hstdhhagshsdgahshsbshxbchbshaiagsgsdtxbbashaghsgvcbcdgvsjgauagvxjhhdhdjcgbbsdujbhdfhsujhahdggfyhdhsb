@@ -418,6 +418,60 @@ effects:Toggle({ Text = "blur", Flag = "fx_blur" })
 	end)
 effects:Slider({ Text = "saturation", Flag = "fx_saturation", Min = -1, Max = 1, Decimals = 2, Default = 0 })
 
+-- Look controls: glass, liquid glass and the menu blur. The same settings
+-- also live in settings > themes and settings > options.
+local look = Visuals:Section("look", 2)
+
+look:Toggle({
+	Text = "glass",
+	Default = Library.Glass == true,
+	Hint = "see-through window fill",
+	Callback = function(state) Library:SetGlass(state) end,
+})
+
+look:Slider({
+	Text = "glass strength",
+	Min = 0,
+	Max = 150,
+	Suffix = "%",
+	Default = 100,
+	Callback = function(value) Library:SetGlassStrength(value / 100) end,
+})
+
+look:Toggle({
+	Text = "liquid glass",
+	Default = Library.LiquidGlass == true,
+	Hint = "sheen travelling over the glass",
+	Callback = function(state) Library:SetLiquidGlass(state) end,
+})
+
+look:Toggle({
+	Text = "menu blur",
+	Default = Library.MenuBlur == true,
+	Hint = "blurs the game behind the menu",
+	Callback = function(state) Library:SetMenuBlur(state) end,
+})
+
+look:Slider({
+	Text = "blur strength",
+	Min = 0,
+	Max = 30,
+	Default = Library.MenuBlurStrength or 12,
+	Callback = function(value) Library:SetMenuBlurStrength(value) end,
+})
+
+-- Min / Max / Default / Rounding on one slider. Click the value to type a
+-- number: it is clamped to Min..Max and rounded to Rounding decimal places.
+look:Slider({
+	Text = "rounding demo",
+	Flag = "look_rounding",
+	Min = -50,
+	Max = 50,
+	Default = 10,
+	Rounding = 2,
+	Suffix = " u",
+})
+
 local objects = Misc:Section("filters", 1)
 
 objects:Toggle({ Text = "static objects", Flag = "static_objects" })
@@ -514,6 +568,7 @@ if Library.BuildEffectsSection and settingsOptions then
 	-- the glass controls are in settings > themes, not here
 	pcall(function() Library:BuildEffectsSection(settingsOptions, 1) end)
 end
+ThemeManager:BuildThemeConfigSection(settingsThemes, "full")
 ThemeManager:Mount(Window, settingsThemes:Section("theme", "full"))
 
 Window:SetTab(Main)
@@ -824,6 +879,23 @@ local sliderLeft = cSliders:Section("sliders", 1)
 sliderLeft:SliderButtons({ Text = "slider + buttons", Flag = "cmp_sliderbuttons", Min = 0, Max = 100, Step = 5, Default = 50, Suffix = "%" })
 sliderLeft:SliderButtons({ Text = "volume", Flag = "cmp_volume", Min = 0, Max = 10, Step = 1, Default = 7 })
 sliderLeft:Stepper({ Text = "stepper", Flag = "cmp_stepper", Min = 1, Max = 25, Step = 1, Default = 5 })
+sliderLeft:Slider({
+	Text = "min / max / default",
+	Flag = "cmp_slider_range",
+	Min = 5,
+	Max = 25,
+	Default = 12,
+	Suffix = " s",
+})
+sliderLeft:Slider({
+	Text = "rounding 1",
+	Flag = "cmp_slider_rounding",
+	Min = 0,
+	Max = 10,
+	Default = 5,
+	Rounding = 1,
+	Suffix = " x",
+})
 
 local sliderRight = cSliders:Section("bars", 2)
 local progress = sliderRight:ProgressBar({ Text = "progress", Flag = "cmp_progress", Min = 0, Max = 100, Default = 42, Suffix = "%" })

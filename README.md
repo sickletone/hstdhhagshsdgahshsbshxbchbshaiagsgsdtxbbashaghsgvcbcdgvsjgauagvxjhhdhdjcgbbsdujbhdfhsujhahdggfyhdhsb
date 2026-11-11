@@ -82,7 +82,11 @@ configs, theme, server browser, player panel).
   as autoload, remove autoload, copy to clipboard, import from clipboard,
   reset defaults (`SaveManager:BuildConfigSection`).
 - **Addons** — `SaveManager`, `InterfaceManager`, `ThemeManager`
-  (15 presets + liquid + custom colors), and exports a theme to `Orasense/themes/<name>.json` and the clipboard. Settings tab is wired in `Example`.
+  (15 presets + liquid + custom colors). `ThemeManager:BuildThemeConfigSection(tab)`
+  adds named theme configs: create, overwrite, load, delete, refresh list, set
+  or remove the autoload, and import/export through the clipboard. Themes are
+  files in `Orasense/themes/<name>.json`, separate from menu configs. Settings
+  tab is wired in `Example`.
 
 ## Repo
 
@@ -125,7 +129,7 @@ Every component is available on tabs, sub tabs and sections.
 | `SubToggle` / `DependencyToggle` | indented / dependent toggles |
 | `RadioGroup` | single choice radio list |
 | `Segmented` | segmented control (aliases `Tabs`, `Segment`) |
-| `Slider` | drag slider |
+| `Slider` | drag slider, or click the value to type one (`Rounding` / `Decimals`) |
 | `SliderButtons` | slider with minus / plus buttons and a step |
 | `Stepper` | numeric stepper (alias `Counter`) |
 | `ProgressBar` | filled value bar |

@@ -174,6 +174,22 @@ return function(Library)
 		return true
 	end
 
+	local function applyData(data)
+		if type(data) ~= "table" then return false end
+		if data.Preset then self:Apply(data.Preset) end
+		for key, hex in pairs(data.Colors or {}) do
+			local color, alpha = fromHex(hex)
+			if color and Theme[key] ~= nil then
+				self.Library:SetColor(key, color, alpha)
+			end
+		end
+		if self.Library.SetLiquidGlass and data.LiquidGlass ~= nil then
+			self.Library:SetLiquidGlass(data.LiquidGlass == true)
+		end
+		self.Library:Repaint()
+		return true
+	end
+
 	function ThemeManager:Save()
 		local alphas = self.Library.ThemeAlpha or {}
 		local colors = {}
@@ -193,21 +209,15 @@ return function(Library)
 	end
 
 	function ThemeManager:Load()
-		local raw = self.Library.FileSystem:Read(self:Path())
-		if not raw then return false end
+		local autoload = self:GetAutoload()
+		local path = autoload and self:ThemePath(autoload) or self:Path()
+		local raw = path and self.Library.FileSystem:Read(path)
+		if not raw or raw == "" then return false end
 		local ok, data = pcall(function() return HttpService:JSONDecode(raw) end)
 		if not ok or type(data) ~= "table" then return false end
-
-		if data.Preset then self:Apply(data.Preset) end
 		-- Old theme files may still carry glass keys. They are ignored on
 		-- purpose so glass cannot come back on at launch.
-		for key, hex in pairs(data.Colors or {}) do
-			local color, alpha = fromHex(hex)
-			if color and Theme[key] ~= nil then
-				self.Library:SetColor(key, color, alpha)
-			end
-		end
-		return true
+		return applyData(data)
 	end
 
 	function ThemeManager:Encode()
@@ -244,6 +254,245 @@ return function(Library)
 			copied = pcall(setclipboard, encoded)
 		end
 		return true, path .. (copied and " (copied)" or "")
+	end
+
+	--[[
+		Named theme configs
+		-------------------
+		Separate from the menu configs: every theme is a file in
+		<Folder>/themes and can be created, overwritten, loaded, deleted,
+		marked as the autoload or moved through the clipboard.
+	]]
+	function ThemeManager:ThemeFolder()
+		return self.Folder .. "/themes"
+	end
+
+	function ThemeManager:ThemePath(file)
+		if type(file) ~= "string" or file == "" then return nil end
+		if not string.match(file, "%.%w+$") then file = file .. ".json" end
+		return self:ThemeFolder() .. "/" .. file
+	end
+
+	function ThemeManager:List()
+		self.Library.FileSystem:MakeFolder(self:ThemeFolder())
+		return self.Library.FileSystem:List(self:ThemeFolder())
+	end
+
+	function ThemeManager:SaveAs(name)
+		if type(name) ~= "string" or string.gsub(name, "%s", "") == "" then
+			return false, "empty name"
+		end
+		local encoded = self:Encode()
+		if not encoded then return false, "encode failed" end
+		local path = self:ThemePath(name)
+		if not path then return false, "bad name" end
+		self.Library.FileSystem:MakeFolder(self:ThemeFolder())
+		if not self.Library.FileSystem:Write(path, encoded) then return false, "write failed" end
+		return true, tostring(string.match(path, "[^/]+$"))
+	end
+	ThemeManager.Create = ThemeManager.SaveAs
+	ThemeManager.Overwrite = ThemeManager.SaveAs
+
+	function ThemeManager:LoadAs(file)
+		local path = self:ThemePath(file)
+		if not path then return false, "no theme" end
+		local raw = self.Library.FileSystem:Read(path)
+		if not raw or raw == "" then return false, "not found" end
+		local ok, data = pcall(function() return HttpService:JSONDecode(raw) end)
+		if not ok or type(data) ~= "table" then return false, "corrupted file" end
+		if not applyData(data) then return false, "corrupted file" end
+		return true, tostring(file)
+	end
+
+	function ThemeManager:DeleteTheme(file)
+		local path = self:ThemePath(file)
+		if not path then return false, "no theme" end
+		self.Library.FileSystem:Delete(path)
+		if self:GetAutoload() == file then self:ClearAutoload() end
+		return true, tostring(file)
+	end
+
+	function ThemeManager:AutoloadPath()
+		return self.Folder .. "/settings/theme_autoload.txt"
+	end
+
+	function ThemeManager:GetAutoload()
+		local name = self.Library.FileSystem:Read(self:AutoloadPath())
+		if not name or name == "" then return nil end
+		return name
+	end
+
+	function ThemeManager:SetAutoload(file)
+		if type(file) ~= "string" or file == "" then return false end
+		self.Library:BuildFolders(self.Folder .. "/settings")
+		return self.Library.FileSystem:Write(self:AutoloadPath(), file)
+	end
+
+	function ThemeManager:ClearAutoload()
+		self.Library.FileSystem:Delete(self:AutoloadPath())
+	end
+
+	function ThemeManager:CopyToClipboard()
+		local encoded = self:Encode()
+		if not encoded then return false, "encode failed" end
+		if typeof(setclipboard) ~= "function" then return false, "clipboard unavailable" end
+		setclipboard(encoded)
+		return true, "copied"
+	end
+
+	function ThemeManager:ImportFromClipboard()
+		local reader = typeof(getclipboard) == "function" and getclipboard or nil
+		if not reader then return false, "clipboard unavailable" end
+		local ok, data = pcall(function() return HttpService:JSONDecode(reader()) end)
+		if not ok or type(data) ~= "table" then return false, "invalid clipboard" end
+		if not applyData(data) then return false, "invalid clipboard" end
+		return true, "imported"
+	end
+
+	function ThemeManager:BuildThemeConfigSection(tab, column)
+		local section = tab:Section("theme configs", column or 1)
+		local nameBox = section:Input({ Text = "name", Flag = false, Default = "default", Placeholder = "theme name" })
+		local savedBox = section:Dropdown({ Text = "saved", Flag = false, Options = self:List(), Empty = "none", Search = true })
+		local autoloadLabel
+
+		local function refreshList(select)
+			savedBox:SetOptions(self:List())
+			if select then savedBox:Set(select, true) end
+		end
+
+		local function selected()
+			local file = savedBox:Get()
+			if type(file) ~= "string" or file == "" then return nil end
+			return file
+		end
+
+		local function notify(ok, result, action)
+			self.Library:Notify({
+				Title = ok and ("theme " .. action) or "theme error",
+				Text = tostring(result),
+				Duration = 3,
+			})
+		end
+
+		section:ButtonRow({
+			{
+				Text = "create",
+				Callback = function()
+					local name = nameBox:Get()
+					if name == "" then return notify(false, "enter a name", "") end
+					local ok, result = self:SaveAs(name)
+					if ok then refreshList(result) end
+					notify(ok, result, "created")
+				end,
+			},
+			{
+				Text = "overwrite",
+				Callback = function()
+					local file = selected() or nameBox:Get()
+					if not file or file == "" then return notify(false, "no theme", "") end
+					local ok, result = self:SaveAs(file)
+					if ok then refreshList(result) end
+					notify(ok, result, "overwritten")
+				end,
+			},
+		})
+
+		section:ButtonRow({
+			{
+				Text = "load",
+				Callback = function()
+					local ok, result = self:LoadAs(selected())
+					notify(ok, result, "loaded")
+				end,
+			},
+			{
+				Text = "refresh list",
+				Callback = function()
+					refreshList()
+					notify(true, "theme list refreshed", "refreshed")
+				end,
+			},
+		})
+
+		section:ButtonRow({
+			{
+				Text = "delete",
+				Callback = function()
+					local file = selected()
+					if not file then return notify(false, "no theme", "") end
+
+					local function remove()
+						local ok, result = self:DeleteTheme(file)
+						if ok then
+							refreshList()
+							if autoloadLabel then autoloadLabel:Set("autoload: " .. (self:GetAutoload() or "none")) end
+						end
+						notify(ok, result, "deleted")
+					end
+
+					local window = self.Library.Windows[1]
+					if not window then return remove() end
+					window:Confirm({
+						Title = "delete theme",
+						Text = "Delete " .. file .. " permanently?",
+						Confirm = "delete",
+						Cancel = "cancel",
+						OnConfirm = remove,
+					})
+				end,
+			},
+			{
+				Text = "set autoload",
+				Callback = function()
+					local file = selected()
+					if not file then return notify(false, "no theme", "") end
+					self:SetAutoload(file)
+					if autoloadLabel then autoloadLabel:Set("autoload: " .. file) end
+					notify(true, file, "autoload set")
+				end,
+			},
+		})
+
+		section:ButtonRow({
+			{
+				Text = "remove autoload",
+				Callback = function()
+					self:ClearAutoload()
+					if autoloadLabel then autoloadLabel:Set("autoload: none") end
+					notify(true, "autoload cleared", "autoload removed")
+				end,
+			},
+			{
+				Text = "export to clipboard",
+				Callback = function()
+					local ok, result = self:CopyToClipboard()
+					notify(ok, result, "copied")
+				end,
+			},
+		})
+
+		section:ButtonRow({
+			{
+				Text = "import from clipboard",
+				Callback = function()
+					local ok, result = self:ImportFromClipboard()
+					notify(ok, result, "imported")
+				end,
+			},
+			{
+				Text = "export file",
+				Callback = function()
+					local ok, result = self:Export(selected() or nameBox:Get())
+					if ok then refreshList(result) end
+					notify(ok, result, "exported")
+				end,
+			},
+		})
+
+		autoloadLabel = section:Label("autoload: " .. (self:GetAutoload() or "none"))
+
+		self.ConfigSection = section
+		return section
 	end
 
 	function ThemeManager:Mount(window, container)

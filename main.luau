@@ -416,7 +416,7 @@ local function MakeEditableValue(label, commit)
 			editing = false
 			local raw = box.Text
 			box:Destroy()
-			local entered = tonumber(string.gsub(raw, "[^%d%.%-]", ""))
+			local entered = tonumber((string.gsub(raw, "[^%d%.%-]", "")))
 			if entered then commit(entered) end
 		end
 		Track(box.FocusLost:Connect(finish))
@@ -1547,7 +1547,7 @@ function Elements:Slider(opts)
 	local flag = FlagOf(opts)
 	local min = opts.Min or 0
 	local max = opts.Max or 100
-	local decimals = opts.Decimals or 0
+	local decimals = opts.Decimals or opts.Rounding or 0
 	local value = math.clamp(opts.Default or min, min, max)
 
 	local block = New("Frame", {
@@ -6831,7 +6831,7 @@ end
 
 do
 	local function FormatNumber(value, opts)
-		local decimals = opts.Decimals or 0
+		local decimals = opts.Decimals or opts.Rounding or 0
 		local shown = decimals > 0 and string.format("%." .. decimals .. "f", value) or tostring(math.floor(value + 0.5))
 		return shown .. (opts.Suffix or "")
 	end
