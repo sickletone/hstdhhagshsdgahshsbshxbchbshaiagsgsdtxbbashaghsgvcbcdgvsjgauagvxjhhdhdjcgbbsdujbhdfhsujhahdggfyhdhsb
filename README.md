@@ -56,8 +56,8 @@ configs, theme, server browser, player panel).
   code, and `OnModeChanged(mode)` reports the change. With a `Flag`, both the
   key and the mode are saved in configs (`<flag>` and `<flag>_mode`).
 - **Sub tabs** — `tab:SubTab("name")` adds a nested tab strip inside a tab:
-  a row of pills with an accent underline on the active one (plus the
-  parent tab's icon at the left). A pill can carry its own icon:
+  a row of pills with an accent underline on the active one. A pill can carry
+  its own icon:
   `tab:SubTab({ Title = "themes", Icon = "palette" })`. Each sub tab is a full tab (`:Section`,
   `:Groupbox`, `:Full`, …), and anything added to the parent tab afterwards
   lands in the active sub tab.

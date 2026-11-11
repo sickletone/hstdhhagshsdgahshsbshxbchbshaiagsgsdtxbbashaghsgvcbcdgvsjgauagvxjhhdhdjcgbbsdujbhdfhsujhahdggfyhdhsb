@@ -2653,7 +2653,8 @@ function Window:Tab(name, icon)
 	local rowList = List(row, 7, Enum.FillDirection.Horizontal)
 	rowList.VerticalAlignment = Enum.VerticalAlignment.Center
 
-	local icon = AttachIcon(row, opts.Icon, Theme.TextDim, 15)
+	local iconSize = MSize(17, 20)
+	local icon = AttachIcon(row, opts.Icon, Theme.TextDim, iconSize)
 	if icon then
 		icon.Position = UDim2.fromOffset(0, 0)
 		icon.LayoutOrder = 1
@@ -2670,14 +2671,14 @@ function Window:Tab(name, icon)
 	local iconOnly = icon ~= nil and opts.IconOnly ~= false
 	if iconOnly then
 		label.Visible = false
-		if not side then Pad(row, 0, MSize(8, 10), 0, MSize(8, 10)) end
+		if not side then Pad(row, 0, MSize(10, 13), 0, MSize(10, 13)) end
 	end
 
 	tab.Button = button
 	tab.Label = label
 	tab.Icon = icon
 	tab.LabelBase = Theme.TextSize + MSize(1, 3) + (MOBILE and 2 or 0)
-	tab.IconBase = 15
+	tab.IconBase = iconSize
 	tab.IsSide = side
 	tab.IconOnly = iconOnly
 
@@ -3288,7 +3289,7 @@ function Library:Window(opts)
 			ElasticBehavior = Enum.ElasticBehavior.Never,
 			Parent = bottomTabs and main or topBar,
 		})
-		local tabList = List(tabBar, 18, Enum.FillDirection.Horizontal)
+		local tabList = List(tabBar, MSize(10, 6), Enum.FillDirection.Horizontal)
 		tabList.VerticalAlignment = Enum.VerticalAlignment.Center
 		tabList.HorizontalAlignment = horizontal
 
@@ -5560,40 +5561,52 @@ do
 		end
 	end
 
-local function CreatePill(tab, sub, title, iconName)
+	local function CreatePill(tab, sub, title, iconName)
 		local button = New("TextButton", {
 			Size = UDim2.new(0, 0, 0, math.floor(MSize(24, 32) * SUB_SCALE + 0.5)),
 			AutomaticSize = Enum.AutomaticSize.X,
 			BackgroundTransparency = 1,
 			AutoButtonColor = false,
-			Text = title,
-			TextColor3 = Theme.TextDim,
-			TextSize = math.floor(Theme.TextSize * SUB_SCALE + 0.5),
-			Font = Theme.FontMedium,
+			Text = "",
 			LayoutOrder = #tab.SubTabs + 1,
 			Parent = tab.SubBar,
 		})
+
+		local inset = math.floor(MSize(8, 10) * SUB_SCALE + 0.5)
+
+		-- The icon and the title share a row, so they can never overlap and the
+		-- gap between them is the list padding.
+		local row = New("Frame", {
+			Size = UDim2.new(0, 0, 1, 0),
+			BackgroundTransparency = 1,
+			Parent = button,
+		})
+		row.AutomaticSize = Enum.AutomaticSize.X
+		Pad(row, 0, inset, 0, inset)
+		local rowList = List(row, math.floor(6 * SUB_SCALE + 0.5), Enum.FillDirection.Horizontal)
+		rowList.VerticalAlignment = Enum.VerticalAlignment.Center
+
 		local resolved = ResolveIcon(iconName)
 		local iconLabel
 		if resolved then
-			button.TextXAlignment = Enum.TextXAlignment.Left
-			local inset = math.floor(8 * SUB_SCALE + 0.5)
-			local side = math.floor(14 * SUB_SCALE + 0.5)
-			Pad(button, 0, inset, 0, inset + side + math.floor(4 * SUB_SCALE + 0.5))
+			local side = math.floor(MSize(13, 16) * SUB_SCALE + 0.5)
 			iconLabel = New("ImageLabel", {
 				Size = UDim2.fromOffset(side, side),
-				Position = UDim2.new(0, inset, 0.5, 0),
-				AnchorPoint = Vector2.new(0, 0.5),
 				BackgroundTransparency = 1,
 				Image = resolved.Image,
 				ImageColor3 = Theme.TextDim,
-				Parent = button,
+				LayoutOrder = 1,
+				Parent = row,
 			})
 			if resolved.RectOffset then iconLabel.ImageRectOffset = resolved.RectOffset end
 			if resolved.RectSize then iconLabel.ImageRectSize = resolved.RectSize end
-		else
-			Pad(button, 0, math.floor(8 * SUB_SCALE + 0.5))
 		end
+
+		local label = Label(row, title, Theme.TextDim, math.floor(Theme.TextSize * SUB_SCALE + 0.5))
+		label.Size = UDim2.new(0, 0, 1, 0)
+		label.AutomaticSize = Enum.AutomaticSize.X
+		label.LayoutOrder = 2
+
 		local underline = New("Frame", {
 			Size = UDim2.new(1, 0, 0, 2),
 			Position = UDim2.new(0, 0, 1, -2),
@@ -5605,22 +5618,23 @@ local function CreatePill(tab, sub, title, iconName)
 		Corner(underline, 1)
 		sub.Pill = button
 		sub.PillIcon = iconLabel
+		sub.PillLabel = label
 		sub.Underline = underline
 		function sub:SetActive(active, animate)
 			local info = animate == false and TweenInfo.new(0) or EASE_FAST
 			local color = active and Theme.TextBright or Theme.TextDim
-			Tween(button, { TextColor3 = color }, info)
+			Tween(label, { TextColor3 = color }, info)
 			Tween(underline, { BackgroundTransparency = active and 0 or 1 }, info)
 			if iconLabel then Tween(iconLabel, { ImageColor3 = color }, info) end
 		end
 		Track(button.MouseEnter:Connect(function()
 			if tab.ActiveSub == sub then return end
-			Tween(button, { TextColor3 = Theme.Text }, EASE_FAST)
+			Tween(label, { TextColor3 = Theme.Text }, EASE_FAST)
 			if iconLabel then Tween(iconLabel, { ImageColor3 = Theme.Text }, EASE_FAST) end
 		end))
 		Track(button.MouseLeave:Connect(function()
 			if tab.ActiveSub == sub then return end
-			Tween(button, { TextColor3 = Theme.TextDim }, EASE_FAST)
+			Tween(label, { TextColor3 = Theme.TextDim }, EASE_FAST)
 			if iconLabel then Tween(iconLabel, { ImageColor3 = Theme.TextDim }, EASE_FAST) end
 		end))
 		Track(button.Activated:Connect(function() tab:SetSubTab(sub) end))
@@ -5642,18 +5656,8 @@ local function CreatePill(tab, sub, title, iconName)
 			})
 			local barList = List(bar, 14, Enum.FillDirection.Horizontal)
 			barList.VerticalAlignment = Enum.VerticalAlignment.Center
-			if self.Icon and self.Icon.Image ~= "" then
-				New("ImageLabel", {
-					Size = UDim2.fromOffset(16, 16),
-					BackgroundTransparency = 1,
-					Image = self.Icon.Image,
-					ImageRectOffset = self.Icon.ImageRectOffset,
-					ImageRectSize = self.Icon.ImageRectSize,
-					ImageColor3 = Theme.Accent,
-					LayoutOrder = 0,
-					Parent = bar,
-				})
-			end
+			-- Each pill draws its own icon, so the parent tab's icon is not
+			-- repeated at the left of the strip.
 			self.SubBar = bar
 			self.SubTabs = {}
 			self.Page.Position = UDim2.fromOffset(0, SUBBAR_HEIGHT)
