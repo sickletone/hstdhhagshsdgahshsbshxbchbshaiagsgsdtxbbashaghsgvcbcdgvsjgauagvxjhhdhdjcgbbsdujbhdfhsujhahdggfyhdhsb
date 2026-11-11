@@ -8692,7 +8692,8 @@ do
 			Parent = frame,
 		})
 		List(inner, 8)
-		local content = NewContainer(container.Window, inner, container.Float)
+		local win = container.Window or (Library.Windows and Library.Windows[1])
+		local content = NewContainer(win, inner, container.Float)
 		content._TabRef = container._TabRef
 		content.Instance = frame
 
