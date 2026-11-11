@@ -1309,6 +1309,7 @@ function Elements:Toggle(opts)
 				Label = opts.Text or "toggle",
 				Key = key,
 				Active = state,
+				Mode = bindOpts.Mode or "toggle",
 				Visible = key ~= nil,
 			}
 		end)
@@ -2388,6 +2389,7 @@ function Elements:Keybind(opts)
 			Label = opts.Text or "keybind",
 			Key = mode == "always" and nil or key,
 			Active = mode == "always" or (mode == "toggle" and active) or held,
+			Mode = mode,
 			Visible = mode == "always" or key ~= nil,
 		}
 	end)
@@ -4314,27 +4316,40 @@ function Library:CreateHotkeyPanel(opts)
 	opts = opts or {}
 
 	local gui = New("ScreenGui", {
-		Name = "OrasenseHotkeys",
+		Name = "OrasenseKeybinds",
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		AutoLocalize = false,
-		DisplayOrder = 998,
+		DisplayOrder = opts.DisplayOrder or 1001,
 		Enabled = false,
 	})
 	ParentGui(gui)
 
 	local panel = New("Frame", {
-		Size = UDim2.fromOffset(opts.Width or 180, 0),
+		Size = UDim2.fromOffset(opts.Width or MSize(214, 236), 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
-		Position = opts.Position or UDim2.fromOffset(18, 90),
+		Position = opts.Position or UDim2.fromOffset(18, 96),
 		BackgroundColor3 = Theme.Section,
 		BorderSizePixel = 0,
 		Active = true,
+		ClipsDescendants = true,
 		Parent = gui,
 	})
 	Corner(panel, 8)
 	Stroke(panel, Theme.SectionBorder)
+
+	-- accent rail over the top edge, the same one the notifications use
+	New("Frame", {
+		Size = UDim2.new(1, -16, 0, 2),
+		Position = UDim2.fromOffset(8, 0),
+		BackgroundColor3 = Theme.Accent,
+		BackgroundTransparency = 0.15,
+		BorderSizePixel = 0,
+		ZIndex = 2,
+		Parent = panel,
+	})
+
 	local inner = New("Frame", {
 		Size = UDim2.new(1, 0, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
@@ -4344,20 +4359,29 @@ function Library:CreateHotkeyPanel(opts)
 	List(inner, 0)
 
 	local header = New("Frame", {
-		Size = UDim2.new(1, 0, 0, 32),
+		Size = UDim2.new(1, 0, 0, 34),
 		BackgroundTransparency = 1,
 		Parent = inner,
 	})
 	Pad(header, 0, 11, 0, 11)
-	local icon = AttachIcon(header, opts.Icon, Theme.TextBright, 14)
-	local inset = icon and 20 or 0
+
+	local icon = AttachIcon(header, opts.Icon or "keyboard", Theme.Accent, 14)
+	local inset = 0
 	if icon then
 		icon.AnchorPoint = Vector2.new(0, 0.5)
 		icon.Position = UDim2.new(0, 0, 0.5, 0)
+		inset = 21
 	end
-	local title = Label(header, opts.Title or "hotkeys", Theme.TextBright, Theme.TextSize, Theme.FontMedium)
+	local title = Label(header, opts.Title or "keybinds", Theme.TextBright, Theme.TextSize, Theme.FontMedium)
 	title.Position = UDim2.fromOffset(inset, 0)
-	title.Size = UDim2.new(1, -inset, 1, 0)
+	title.Size = UDim2.new(1, -inset - 30, 1, 0)
+	title.TextTruncate = Enum.TextTruncate.AtEnd
+
+	local count = Label(header, "", Theme.TextDim, Theme.TextSize - 1)
+	count.AnchorPoint = Vector2.new(1, 0.5)
+	count.Position = UDim2.new(1, 0, 0.5, 0)
+	count.Size = UDim2.fromOffset(28, 18)
+	count.TextXAlignment = Enum.TextXAlignment.Right
 
 	New("Frame", {
 		Size = UDim2.new(1, 0, 0, 1),
@@ -4367,14 +4391,25 @@ function Library:CreateHotkeyPanel(opts)
 		Parent = inner,
 	})
 
-	local body = New("Frame", {
+	local body = New("ScrollingFrame", {
 		Size = UDim2.new(1, 0, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ScrollingDirection = Enum.ScrollingDirection.Y,
+		ScrollBarThickness = 2,
+		ScrollBarImageColor3 = Theme.AccentDim,
 		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ClipsDescendants = true,
 		LayoutOrder = 3,
 		Parent = inner,
 	})
-	Pad(body, 8, 11, 9, 11)
+	Pad(body, 7, 9, 8, 9)
+	New("UISizeConstraint", {
+		MaxSize = Vector2.new(1e4, opts.MaxHeight or 264),
+		Parent = body,
+	})
 
 	local rows = New("Frame", {
 		Size = UDim2.new(1, 0, 0, 0),
@@ -4408,46 +4443,116 @@ function Library:CreateHotkeyPanel(opts)
 	self.HotkeyGui = gui
 	self.HotkeyPanel = panel
 	self.HotkeyRows = rows
+	self.HotkeyCount = count
+	self.HotkeyBody = body
+	self.HotkeyTitle = title
 	return panel
 end
 
 function Library:RefreshHotkeys()
-	if not self.HotkeyGui or not self.HotkeysEnabled then return end
+	if not self.HotkeyGui or not self.HotkeyRows or not self.HotkeyPanel then return end
 
 	local rows = self.HotkeyRows
 	for _, child in ipairs(rows:GetChildren()) do
 		if child:IsA("Frame") then child:Destroy() end
 	end
 
-	local shown = 0
+	-- the same key can register twice (a toggle and its keybind), so rows are
+	-- merged on the key and the named entry wins over the generic one
+	local entries, seen = {}, {}
 	for index = #self.HotkeyEntries, 1, -1 do
 		local ok, data = pcall(self.HotkeyEntries[index])
 		if not ok then
 			table.remove(self.HotkeyEntries, index)
 		elseif type(data) == "table" and data.Visible and data.Key and data.Key ~= "" then
-			shown = shown + 1
-			local color = data.Active and Theme.Accent or Theme.TextDim
-
-			local row = New("Frame", {
-				Size = UDim2.new(1, 0, 0, 16),
-				BackgroundTransparency = 1,
-				LayoutOrder = shown,
-				Parent = rows,
-			})
-
-			local label = Label(row, data.Label or "action", color, Theme.TextSize - 1)
-			label.Size = UDim2.new(1, -52, 1, 0)
-			label.TextTruncate = Enum.TextTruncate.AtEnd
-
-			local key = Label(row, data.Key, color, Theme.TextSize - 1)
-			key.AnchorPoint = Vector2.new(1, 0)
-			key.Position = UDim2.fromScale(1, 0)
-			key.Size = UDim2.fromOffset(50, 16)
-			key.TextXAlignment = Enum.TextXAlignment.Right
+			local generic = data.Label == nil or data.Label == "keybind" or data.Label == "toggle"
+			local id = tostring(data.Key)
+			local entry = seen[id]
+			if entry then
+				if entry.Generic and not generic then
+					entry.Label = data.Label
+					entry.Generic = generic
+				end
+				if entry.Active ~= true and data.Active == true then entry.Active = true end
+			else
+				entry = {
+					Label = data.Label,
+					Key = data.Key,
+					Active = data.Active,
+					Generic = generic,
+				}
+				seen[id] = entry
+				table.insert(entries, 1, entry)
+			end
 		end
 	end
 
-	self.HotkeyPanel.Visible = shown > 0
+	local mode = string.lower(tostring(self.KeybindMode or "all"))
+	local shown = 0
+
+	for _, entry in ipairs(entries) do
+		if mode ~= "active" or entry.Active == true then
+			shown = shown + 1
+
+			local row = New("Frame", {
+				Size = UDim2.new(1, 0, 0, MSize(22, 30)),
+				BackgroundColor3 = Theme.Field,
+				BackgroundTransparency = entry.Active and 0.15 or 1,
+				BorderSizePixel = 0,
+				LayoutOrder = shown,
+				Parent = rows,
+			})
+			Corner(row, 5)
+			Pad(row, 0, 7, 0, 7)
+
+			local dot = New("Frame", {
+				Size = UDim2.fromOffset(5, 5),
+				AnchorPoint = Vector2.new(0, 0.5),
+				Position = UDim2.new(0, 0, 0.5, 0),
+				BackgroundColor3 = entry.Active and Theme.Accent or Theme.Border,
+				BorderSizePixel = 0,
+				Parent = row,
+			})
+			Corner(dot, 3)
+
+			local name = Label(row, tostring(entry.Label or "action"),
+				entry.Active and Theme.TextBright or Theme.Text, Theme.TextSize - 1)
+			name.Position = UDim2.fromOffset(13, 0)
+			name.Size = UDim2.new(1, -60, 1, 0)
+			name.TextTruncate = Enum.TextTruncate.AtEnd
+
+			local pill = New("Frame", {
+				Size = UDim2.new(0, 0, 0, MSize(16, 20)),
+				AutomaticSize = Enum.AutomaticSize.X,
+				AnchorPoint = Vector2.new(1, 0.5),
+				Position = UDim2.new(1, 0, 0.5, 0),
+				BackgroundColor3 = entry.Active and Theme.Accent or Theme.Field,
+				BackgroundTransparency = entry.Active and 0.84 or 0.2,
+				BorderSizePixel = 0,
+				Parent = row,
+			})
+			Corner(pill, 4)
+			Stroke(pill, entry.Active and Theme.AccentDim or Theme.BorderSoft, 1, 0.4)
+			Pad(pill, 0, 6)
+
+			local keyLabel = Label(pill, tostring(entry.Key),
+				entry.Active and Theme.Accent or Theme.TextDim, 11, Theme.FontMedium)
+			keyLabel.Size = UDim2.new(0, 0, 1, 0)
+			keyLabel.AutomaticSize = Enum.AutomaticSize.X
+		end
+	end
+
+	if shown == 0 then
+		local empty = Label(rows, mode == "active" and "nothing is active right now." or "no keybinds set.",
+			Theme.TextDim, Theme.TextSize - 1)
+		empty.Size = UDim2.new(1, 0, 0, 20)
+		empty.TextXAlignment = Enum.TextXAlignment.Left
+	end
+
+	if self.HotkeyCount then
+		self.HotkeyCount.Text = shown > 0 and tostring(shown) or ""
+	end
+	self.HotkeyPanel.Visible = self.HotkeysEnabled ~= false
 end
 
 function Library:SetHotkeysVisible(state)
@@ -4457,6 +4562,25 @@ function Library:SetHotkeysVisible(state)
 	self:RefreshHotkeys()
 	return self.HotkeysEnabled
 end
+
+Library.KeybindMode = Library.KeybindMode or "all"
+
+-- "all" lists every keybind, "active" only the ones held or switched on now.
+function Library:SetKeybindListMode(mode)
+	mode = string.lower(tostring(mode or "all"))
+	if mode ~= "active" and mode ~= "toggled" then mode = "all" end
+	self.KeybindMode = mode
+	self:RefreshHotkeys()
+	return mode
+end
+
+function Library:ToggleKeybindList(state)
+	if state == nil then state = not self.HotkeysEnabled end
+	return self:SetHotkeysVisible(state)
+end
+
+Library.CreateKeybindList = Library.CreateHotkeyPanel
+Library.RefreshKeybindList = Library.RefreshHotkeys
 
 Library.CursorEnabled = false
 

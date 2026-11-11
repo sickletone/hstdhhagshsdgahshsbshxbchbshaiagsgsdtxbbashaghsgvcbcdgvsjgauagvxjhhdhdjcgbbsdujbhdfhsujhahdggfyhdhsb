@@ -691,6 +691,10 @@ local watermark = Library:Watermark({
 	Position = UDim2.fromOffset(18, 18),
 })
 
+-- The keybind list is always on by default: it shows up once the menu has
+-- keybinds, and the overlay toggle above turns it off.
+Library:SetHotkeysVisible(true)
+
 local overlay = settingsOptions:Section("overlay", 1)
 
 overlay:Toggle({
@@ -700,6 +704,14 @@ overlay:Toggle({
 	Default = true,
 	Callback = function(state)
 		watermark:SetVisible(state)
+	end,
+})
+
+overlay:Button({
+	Text = "rename watermark",
+	Tooltip = "the watermark title is editable while the menu runs",
+	Callback = function()
+		watermark:SetTitle("orasense " .. tostring(math.random(100, 999)) .. ".win")
 	end,
 })
 
@@ -719,6 +731,26 @@ overlay:Toggle({
 	Default = false,
 	Callback = function(state)
 		hud:SetVisible(state)
+	end,
+})
+
+overlay:Toggle({
+	Text = "keybind list",
+	Flag = "overlay_keybinds",
+	Hint = "floating list of every keybind in the menu, dragged like a panel",
+	Default = true,
+	Callback = function(state)
+		Library:SetHotkeysVisible(state)
+	end,
+})
+
+overlay:Dropdown({
+	Text = "keybind list mode",
+	Flag = "overlay_keybind_mode",
+	Options = { "all", "active" },
+	Default = "all",
+	Callback = function(value)
+		Library:SetKeybindListMode(value)
 	end,
 })
 
