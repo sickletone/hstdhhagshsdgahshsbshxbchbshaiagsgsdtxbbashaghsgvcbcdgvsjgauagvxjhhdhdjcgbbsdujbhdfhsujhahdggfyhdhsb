@@ -350,7 +350,7 @@ return function(Library)
 	end
 
 	function ThemeManager:BuildThemeConfigSection(tab, column)
-		local section = tab:Section("theme configs", column or 1)
+		local section = tab:Section("configs", column or 1)
 		local nameBox = section:Input({ Text = "name", Flag = false, Default = "default", Placeholder = "theme name" })
 		local savedBox = section:Dropdown({ Text = "saved", Flag = false, Options = self:List(), Empty = "none", Search = true })
 		local autoloadLabel
@@ -472,7 +472,7 @@ return function(Library)
 				end,
 			},
 			{
-				Text = "export to clipboard",
+				Text = "copy to clipboard",
 				Callback = function()
 					local ok, result = self:CopyToClipboard()
 					notify(ok, result, "copied")
@@ -518,21 +518,12 @@ return function(Library)
 		-- sub tab; without one it stays a modal opened from the footer.
 		local modal
 		local content
-		-- Two columns: the switches on the left, the colour list on the right.
-		-- Mounted in a single column the editor only filled half the settings
-		-- page and the rest of the window stayed empty.
+		-- One column: the settings page puts the theme configs in the column
+		-- beside this one, so the editor does not split itself in two.
 		local controls, colors
 		if container then
 			content = container
 			controls, colors = content, content
-			if content.Split then
-				local left, right
-				content:Split({
-					function(column) left = column end,
-					function(column) right = column end,
-				})
-				controls, colors = left or content, right or content
-			end
 		else
 			-- no scrim: the interface behind has to stay readable while its
 			-- colours are being edited
@@ -630,6 +621,38 @@ return function(Library)
 
 		controls:Divider()
 
+		-- Actions sit above the colour list: it is the long part of the page,
+		-- so reset and export stay reachable without scrolling past it.
+		controls:ButtonRow({
+			{
+				Text = "reset colors",
+				Callback = function()
+					for key, color in pairs(defaults) do
+						Theme[key] = color
+						alphas[key] = 1
+					end
+					self.Current = "orasense"
+					self.Library:Repaint()
+					syncPickers()
+					if presetBox then presetBox:Set("orasense", true) end
+					dirty = true
+				end,
+			},
+			{
+				Text = "export theme",
+				Callback = function()
+					local ok, result = self:Export()
+					self.Library:Notify({
+						Title = ok and "theme exported" or "theme error",
+						Text = tostring(result),
+						Duration = 4,
+					})
+				end,
+			},
+		})
+
+		controls:Divider()
+
 		for _, entry in ipairs(self.Keys) do
 			local key, label = entry[1], entry[2]
 			pickers[key] = colors:ColorPicker({
@@ -650,35 +673,6 @@ return function(Library)
 				end,
 			})
 		end
-
-		controls:Divider()
-
-		controls:Button({
-			Text = "reset colors",
-			Callback = function()
-				for key, color in pairs(defaults) do
-					Theme[key] = color
-					alphas[key] = 1
-				end
-				self.Current = "orasense"
-				self.Library:Repaint()
-				syncPickers()
-				if presetBox then presetBox:Set("orasense", true) end
-				dirty = true
-			end,
-		})
-
-		controls:Button({
-			Text = "export theme",
-			Callback = function()
-				local ok, result = self:Export()
-				self.Library:Notify({
-					Title = ok and "theme exported" or "theme error",
-					Text = tostring(result),
-					Duration = 4,
-				})
-			end,
-		})
 
 		if modal then
 			modal.OnClose = function()
