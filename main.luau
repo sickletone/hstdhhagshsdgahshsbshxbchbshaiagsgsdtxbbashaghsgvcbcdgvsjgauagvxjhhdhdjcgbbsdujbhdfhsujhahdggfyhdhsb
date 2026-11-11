@@ -576,14 +576,29 @@ local function ResolveIcon(icon)
 
 	local molto = GetMolto()
 	if molto then
-		local ok, asset = pcall(molto.GetAsset, name)
-		if ok and type(asset) == "table" and asset.Url then
-			return {
-				Image = asset.Url,
-				RectSize = asset.ImageRectSize,
-				RectOffset = asset.ImageRectOffset,
-			}
+		local function try(iconName)
+			local ok, asset = pcall(molto.GetAsset, iconName)
+			if ok and type(asset) == "table" and asset.Url then
+				return {
+					Image = asset.Url,
+					RectSize = asset.ImageRectSize,
+					RectOffset = asset.ImageRectOffset,
+				}
+			end
+			return nil
 		end
+
+		-- Names borrowed from older icon sets: "settings-2" falls back to
+		-- "settings", "user-star" to "user-round-star" and then "user".
+		local found = try(name)
+		if not found and string.match(name, "%-2$") then
+			found = try((string.gsub(name, "%-2$", "")))
+		end
+		local userRest = string.match(name, "^user%-(.+)$")
+		if not found and userRest then
+			found = try("user-round-" .. userRest) or try("user")
+		end
+		if found then return found end
 	end
 
 	local lib = Library:PreloadIcons()
@@ -2650,12 +2665,21 @@ function Window:Tab(name, icon)
 	label.TextTruncate = Enum.TextTruncate.AtEnd
 	label.LayoutOrder = 2
 
+	-- Icon-only tabs: the name stays hidden until the tab is hovered or active,
+	-- which keeps the tab strip compact. IconOnly = false always shows it.
+	local iconOnly = icon ~= nil and opts.IconOnly ~= false
+	if iconOnly then
+		label.Visible = false
+		if not side then Pad(row, 0, MSize(8, 10), 0, MSize(8, 10)) end
+	end
+
 	tab.Button = button
 	tab.Label = label
 	tab.Icon = icon
 	tab.LabelBase = Theme.TextSize + MSize(1, 3) + (MOBILE and 2 or 0)
 	tab.IconBase = 15
 	tab.IsSide = side
+	tab.IconOnly = iconOnly
 
 	function tab:SetActive(active, animate)
 		local info = animate and EASE_FAST or TweenInfo.new(0)
@@ -2665,6 +2689,8 @@ function Window:Tab(name, icon)
 		if side then
 			Tween(button, { BackgroundTransparency = active and 0 or 1 }, info)
 		end
+		tab.Active = active
+		if iconOnly then label.Visible = active or tab.Hovered == true end
 	end
 
 	table.insert(self.Tabs, tab)
@@ -2677,12 +2703,16 @@ function Window:Tab(name, icon)
 		self:SetTab(tab)
 	end))
 	Track(button.MouseEnter:Connect(function()
+		tab.Hovered = true
+		if iconOnly then label.Visible = true end
 		if self.ActiveTab == tab then return end
 		Tween(label, { TextColor3 = Theme.Text }, EASE_FAST)
 		if icon then Tween(icon, { ImageColor3 = Theme.Text }, EASE_FAST) end
 		if side then Tween(button, { BackgroundTransparency = 0.55 }, EASE_FAST) end
 	end))
 	Track(button.MouseLeave:Connect(function()
+		tab.Hovered = false
+		if iconOnly then label.Visible = self.ActiveTab == tab end
 		if self.ActiveTab == tab then return end
 		Tween(label, { TextColor3 = Theme.TextDim }, EASE_FAST)
 		if icon then Tween(icon, { ImageColor3 = Theme.TextDim }, EASE_FAST) end
@@ -5530,7 +5560,7 @@ do
 		end
 	end
 
-	local function CreatePill(tab, sub, title)
+local function CreatePill(tab, sub, title, iconName)
 		local button = New("TextButton", {
 			Size = UDim2.new(0, 0, 0, math.floor(MSize(24, 32) * SUB_SCALE + 0.5)),
 			AutomaticSize = Enum.AutomaticSize.X,
@@ -5543,7 +5573,27 @@ do
 			LayoutOrder = #tab.SubTabs + 1,
 			Parent = tab.SubBar,
 		})
-		Pad(button, 0, math.floor(8 * SUB_SCALE + 0.5))
+		local resolved = ResolveIcon(iconName)
+		local iconLabel
+		if resolved then
+			button.TextXAlignment = Enum.TextXAlignment.Left
+			local inset = math.floor(8 * SUB_SCALE + 0.5)
+			local side = math.floor(14 * SUB_SCALE + 0.5)
+			Pad(button, 0, inset, 0, inset + side + math.floor(4 * SUB_SCALE + 0.5))
+			iconLabel = New("ImageLabel", {
+				Size = UDim2.fromOffset(side, side),
+				Position = UDim2.new(0, inset, 0.5, 0),
+				AnchorPoint = Vector2.new(0, 0.5),
+				BackgroundTransparency = 1,
+				Image = resolved.Image,
+				ImageColor3 = Theme.TextDim,
+				Parent = button,
+			})
+			if resolved.RectOffset then iconLabel.ImageRectOffset = resolved.RectOffset end
+			if resolved.RectSize then iconLabel.ImageRectSize = resolved.RectSize end
+		else
+			Pad(button, 0, math.floor(8 * SUB_SCALE + 0.5))
+		end
 		local underline = New("Frame", {
 			Size = UDim2.new(1, 0, 0, 2),
 			Position = UDim2.new(0, 0, 1, -2),
@@ -5554,19 +5604,24 @@ do
 		})
 		Corner(underline, 1)
 		sub.Pill = button
+		sub.PillIcon = iconLabel
 		sub.Underline = underline
 		function sub:SetActive(active, animate)
 			local info = animate == false and TweenInfo.new(0) or EASE_FAST
-			Tween(button, { TextColor3 = active and Theme.TextBright or Theme.TextDim }, info)
+			local color = active and Theme.TextBright or Theme.TextDim
+			Tween(button, { TextColor3 = color }, info)
 			Tween(underline, { BackgroundTransparency = active and 0 or 1 }, info)
+			if iconLabel then Tween(iconLabel, { ImageColor3 = color }, info) end
 		end
 		Track(button.MouseEnter:Connect(function()
 			if tab.ActiveSub == sub then return end
 			Tween(button, { TextColor3 = Theme.Text }, EASE_FAST)
+			if iconLabel then Tween(iconLabel, { ImageColor3 = Theme.Text }, EASE_FAST) end
 		end))
 		Track(button.MouseLeave:Connect(function()
 			if tab.ActiveSub == sub then return end
 			Tween(button, { TextColor3 = Theme.TextDim }, EASE_FAST)
+			if iconLabel then Tween(iconLabel, { ImageColor3 = Theme.TextDim }, EASE_FAST) end
 		end))
 		Track(button.Activated:Connect(function() tab:SetSubTab(sub) end))
 		return button
@@ -5638,7 +5693,7 @@ do
 			self.Page.Visible = false
 		end
 
-		CreatePill(self, sub, title)
+CreatePill(self, sub, title, opts.Icon)
 		table.insert(self.SubTabs, sub)
 		sub:SetActive(false, false)
 

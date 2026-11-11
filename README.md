@@ -56,8 +56,9 @@ configs, theme, server browser, player panel).
   code, and `OnModeChanged(mode)` reports the change. With a `Flag`, both the
   key and the mode are saved in configs (`<flag>` and `<flag>_mode`).
 - **Sub tabs** — `tab:SubTab("name")` adds a nested tab strip inside a tab:
-  a row of text tabs with an accent underline on the active one (plus the
-  parent tab's icon at the left). Each sub tab is a full tab (`:Section`,
+  a row of pills with an accent underline on the active one (plus the
+  parent tab's icon at the left). A pill can carry its own icon:
+  `tab:SubTab({ Title = "themes", Icon = "palette" })`. Each sub tab is a full tab (`:Section`,
   `:Groupbox`, `:Full`, …), and anything added to the parent tab afterwards
   lands in the active sub tab.
 - **Menu particles** — `Library:SetParticles("snow" | "blizzard" |
@@ -105,7 +106,13 @@ icon, and the sheet URL plus rect are cached by Molto itself.
 local Orasense = loadstring(game:HttpGet("..."))()
 -- Icon names are Molto names: "sliders-horizontal", "settings", "wrench", ...
 window:Tab("misc", "wrench")
+window:Tab({ Title = "settings", Icon = "settings" })
 ```
+
+Tabs with an icon are icon-only: the name is hidden until the tab is hovered or
+active, so the strip reads as a row of glyphs. Pass `IconOnly = false` to keep
+the name always visible. Sub tab pills take an icon the same way:
+`tab:SubTab({ Title = "options", Icon = "wand-sparkles" })`.
 
 Set `Orasense.IconProvider` before the first window is built to switch provider:
 `lucide` (default), `tabler`, `heroicons`, `solar` or `phosphor`. Any `Icon =`

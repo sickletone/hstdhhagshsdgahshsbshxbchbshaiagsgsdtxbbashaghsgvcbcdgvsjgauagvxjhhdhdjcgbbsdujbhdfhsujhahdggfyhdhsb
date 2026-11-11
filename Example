@@ -12,6 +12,9 @@ assert(type(Library) == "table", "main.luau returned nothing; the file is incomp
 
 Library.BaseUrl = BASE
 
+-- Tab, sub tab and control icons come from the Molto lucide provider.
+Library.IconProvider = "lucide"
+
 -- Glass is opt-in: the only controls for it live in settings > themes.
 Library.Glass = false
 Library.LiquidGlass = false
@@ -62,19 +65,24 @@ local Window = Library:Window({
 	-- },
 })
 
-local Main     = Window:Tab("main")
-local Combat   = Window:Tab("combat")
-local Visuals  = Window:Tab("visuals")
-local Misc     = Window:Tab("misc")
-local Settings = Window:Tab("settings")
+-- Tab order: main, visuals, world, misc, skins, spoofers, settings.
+-- Icons are Molto lucide names and the tab name only shows on hover or while
+-- the tab is active, so the strip stays icon-only.
+local Main     = Window:Tab({ Title = "main", Icon = "house" })
+local Visuals  = Window:Tab({ Title = "visuals", Icon = "eye" })
+local World    = Window:Tab({ Title = "world", Icon = "globe" })
+local Misc     = Window:Tab({ Title = "misc", Icon = "settings-2" })
+local Skins    = Window:Tab({ Title = "skins", Icon = "star" })
+local Spoofers = Window:Tab({ Title = "spoofers", Icon = "user-star" })
+local Settings = Window:Tab({ Title = "settings", Icon = "settings" })
 
-local settingsOptions = Settings:SubTab("options")
-local settingsThemes = Settings:SubTab("themes")
+local settingsOptions = Settings:SubTab({ Title = "options", Icon = "wand-sparkles" })
+local settingsThemes = Settings:SubTab({ Title = "themes", Icon = "palette" })
 
 -- The touch toggle only exists on mobile, so this sub tab is mobile-only.
 -- Every control carries a Flag, so the whole panel is written to a config file.
 if Library.IsMobile then
-	local mobileTab = Settings:SubTab("mobile")
+local mobileTab = Settings:SubTab({ Title = "mobile", Icon = "smartphone" })
 	local mobileButton = mobileTab:Section("menu button", 1)
 	local cfg = Library.MobileConfig and Library:MobileConfig() or {}
 	local function apply(options) Library:SetMobileButtonOptions(options) end
@@ -383,7 +391,18 @@ midBox:Dropdown({ Text = "searchable", Flag = "demo_search", Options = { "alpha"
 local rightBox = demoTab:RightGroupbox("right box")
 rightBox:Dropdown({ Text = "multi select", Flag = "demo_multi", Options = { "a", "b", "c", "d" }, Multi = true, Default = { "a" } })
 
-local aim = Combat:Section("aim", 1)
+local skinList = Skins:Section("skins", 1)
+
+skinList:Dropdown({ Text = "skin", Flag = "skin_name", Options = { "default", "shadow", "frost", "neon", "gold" }, Default = "default" })
+skinList:Toggle({ Text = "apply to all", Flag = "skin_apply_all", Default = false })
+
+local spooferList = Spoofers:Section("spoofers", 1)
+
+spooferList:Toggle({ Text = "spoof device", Flag = "spoof_device", Default = false })
+spooferList:Dropdown({ Text = "platform", Flag = "spoof_platform", Options = { "windows", "mac", "ios", "android", "console" }, Default = "windows" })
+spooferList:Toggle({ Text = "spoof hwid", Flag = "spoof_hwid", Default = false })
+
+local aim = World:Section("aim", 1)
 
 aim:Toggle({ Text = "enabled", Flag = "aim_enabled", Default = true })
 	:Keybind({ Default = "Q", Flag = "aim_key" })
@@ -391,7 +410,7 @@ aim:Slider({ Text = "field of view", Flag = "aim_fov", Min = 1, Max = 180, Suffi
 aim:Slider({ Text = "smoothness", Flag = "aim_smooth", Min = 0, Max = 100, Default = 20 })
 aim:Segmented({ Text = "mode", Flag = "aim_mode", Options = { "hold", "toggle" }, Default = "hold" })
 
-local targeting = Combat:Section("targeting", 2)
+local targeting = World:Section("targeting", 2)
 
 targeting:Dropdown({ Text = "hitbox", Flag = "aim_hitbox", Options = { "head", "torso", "nearest" }, Default = "head" })
 targeting:MultiDropdown({
