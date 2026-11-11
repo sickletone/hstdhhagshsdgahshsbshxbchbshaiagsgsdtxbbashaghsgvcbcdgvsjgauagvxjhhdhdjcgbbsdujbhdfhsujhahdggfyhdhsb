@@ -1626,9 +1626,17 @@ function Elements:Slider(opts)
 	end
 
 	function api:Set(v, silent)
+		v = tonumber(v) or min
 		v = math.clamp(v, min, max)
 		if opts.Step then v = min + math.floor((v - min) / opts.Step + 0.5) * opts.Step end
-		if decimals == 0 then v = math.floor(v + 0.5) end
+		-- Rounding/Decimals decide how many places are kept, both while
+		-- dragging and when a typed value comes in.
+		if decimals <= 0 then
+			v = math.floor(v + 0.5)
+		else
+			local scale = 10 ^ decimals
+			v = math.floor(v * scale + 0.5) / scale
+		end
 		value = v
 		api.Value = v
 		if flag then

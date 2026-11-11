@@ -431,6 +431,7 @@ look:Toggle({
 
 look:Slider({
 	Text = "glass strength",
+	Flag = false,
 	Min = 0,
 	Max = 150,
 	Suffix = "%",
@@ -454,6 +455,7 @@ look:Toggle({
 
 look:Slider({
 	Text = "blur strength",
+	Flag = false,
 	Min = 0,
 	Max = 30,
 	Default = Library.MenuBlurStrength or 12,

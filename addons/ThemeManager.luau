@@ -366,6 +366,13 @@ return function(Library)
 			return file
 		end
 
+		local function exists(file)
+			for _, name in ipairs(self:List()) do
+				if name == file or name == file .. ".json" then return true end
+			end
+			return false
+		end
+
 		local function notify(ok, result, action)
 			self.Library:Notify({
 				Title = ok and ("theme " .. action) or "theme error",
@@ -380,6 +387,8 @@ return function(Library)
 				Callback = function()
 					local name = nameBox:Get()
 					if name == "" then return notify(false, "enter a name", "") end
+					local file = name .. (string.match(name, "%.%w+$") and "" or ".json")
+					if exists(file) then return notify(false, file .. " already exists, use overwrite", "") end
 					local ok, result = self:SaveAs(name)
 					if ok then refreshList(result) end
 					notify(ok, result, "created")
