@@ -4316,7 +4316,7 @@ function Library:CreateHotkeyPanel(opts)
 	opts = opts or {}
 
 	local gui = New("ScreenGui", {
-		Name = "OrasenseKeybinds",
+		Name = "OrasenseKeybindList",
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
@@ -4327,7 +4327,7 @@ function Library:CreateHotkeyPanel(opts)
 	ParentGui(gui)
 
 	local panel = New("Frame", {
-		Size = UDim2.fromOffset(opts.Width or MSize(214, 236), 0),
+		Size = UDim2.fromOffset(opts.Width or 210, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		Position = opts.Position or UDim2.fromOffset(18, 96),
 		BackgroundColor3 = Theme.Section,
@@ -4336,60 +4336,35 @@ function Library:CreateHotkeyPanel(opts)
 		ClipsDescendants = true,
 		Parent = gui,
 	})
-	Corner(panel, 8)
+	Corner(panel, 6)
 	Stroke(panel, Theme.SectionBorder)
 
-	-- accent rail over the top edge, the same one the notifications use
+	-- the accent rail the other panels use, drawn over the top edge
 	New("Frame", {
-		Size = UDim2.new(1, -16, 0, 2),
-		Position = UDim2.fromOffset(8, 0),
+		Size = UDim2.new(1, 0, 0, 2),
 		BackgroundColor3 = Theme.Accent,
-		BackgroundTransparency = 0.15,
+		BackgroundTransparency = 0.1,
 		BorderSizePixel = 0,
 		ZIndex = 2,
 		Parent = panel,
 	})
 
-	local inner = New("Frame", {
+	local stack = New("Frame", {
 		Size = UDim2.new(1, 0, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
 		Parent = panel,
 	})
-	List(inner, 0)
+	List(stack, 0)
 
 	local header = New("Frame", {
-		Size = UDim2.new(1, 0, 0, 34),
+		Size = UDim2.new(1, 0, 0, 22),
 		BackgroundTransparency = 1,
-		Parent = inner,
+		Parent = stack,
 	})
-	Pad(header, 0, 11, 0, 11)
-
-	local icon = AttachIcon(header, opts.Icon or "keyboard", Theme.Accent, 14)
-	local inset = 0
-	if icon then
-		icon.AnchorPoint = Vector2.new(0, 0.5)
-		icon.Position = UDim2.new(0, 0, 0.5, 0)
-		inset = 21
-	end
 	local title = Label(header, opts.Title or "keybinds", Theme.TextBright, Theme.TextSize, Theme.FontMedium)
-	title.Position = UDim2.fromOffset(inset, 0)
-	title.Size = UDim2.new(1, -inset - 30, 1, 0)
-	title.TextTruncate = Enum.TextTruncate.AtEnd
-
-	local count = Label(header, "", Theme.TextDim, Theme.TextSize - 1)
-	count.AnchorPoint = Vector2.new(1, 0.5)
-	count.Position = UDim2.new(1, 0, 0.5, 0)
-	count.Size = UDim2.fromOffset(28, 18)
-	count.TextXAlignment = Enum.TextXAlignment.Right
-
-	New("Frame", {
-		Size = UDim2.new(1, 0, 0, 1),
-		BackgroundColor3 = Theme.BorderSoft,
-		BorderSizePixel = 0,
-		LayoutOrder = 2,
-		Parent = inner,
-	})
+	title.Position = UDim2.fromOffset(6, 2)
+	title.Size = UDim2.new(1, -12, 1, 0)
 
 	local body = New("ScrollingFrame", {
 		Size = UDim2.new(1, 0, 0, 0),
@@ -4402,12 +4377,11 @@ function Library:CreateHotkeyPanel(opts)
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ClipsDescendants = true,
-		LayoutOrder = 3,
-		Parent = inner,
+		Parent = stack,
 	})
-	Pad(body, 7, 9, 8, 9)
+	Pad(body, 1, 6, 6, 6)
 	New("UISizeConstraint", {
-		MaxSize = Vector2.new(1e4, opts.MaxHeight or 264),
+		MaxSize = Vector2.new(1e4, opts.MaxHeight or 320),
 		Parent = body,
 	})
 
@@ -4417,7 +4391,7 @@ function Library:CreateHotkeyPanel(opts)
 		BackgroundTransparency = 1,
 		Parent = body,
 	})
-	List(rows, 4)
+	List(rows, 0)
 
 	local origin, startPos, moveConn, endConn
 	Track(panel.InputBegan:Connect(function(input)
@@ -4443,7 +4417,6 @@ function Library:CreateHotkeyPanel(opts)
 	self.HotkeyGui = gui
 	self.HotkeyPanel = panel
 	self.HotkeyRows = rows
-	self.HotkeyCount = count
 	self.HotkeyBody = body
 	self.HotkeyTitle = title
 	return panel
@@ -4454,11 +4427,11 @@ function Library:RefreshHotkeys()
 
 	local rows = self.HotkeyRows
 	for _, child in ipairs(rows:GetChildren()) do
-		if child:IsA("Frame") then child:Destroy() end
+		if child:IsA("TextLabel") then child:Destroy() end
 	end
 
-	-- the same key can register twice (a toggle and its keybind), so rows are
-	-- merged on the key and the named entry wins over the generic one
+	-- the same key registers twice (the toggle and its keybind), so rows merge
+	-- on the key and the named entry wins over the generic one
 	local entries, seen = {}, {}
 	for index = #self.HotkeyEntries, 1, -1 do
 		local ok, data = pcall(self.HotkeyEntries[index])
@@ -4474,11 +4447,13 @@ function Library:RefreshHotkeys()
 					entry.Generic = generic
 				end
 				if entry.Active ~= true and data.Active == true then entry.Active = true end
+				if entry.Mode == nil and data.Mode ~= nil then entry.Mode = data.Mode end
 			else
 				entry = {
 					Label = data.Label,
 					Key = data.Key,
 					Active = data.Active,
+					Mode = data.Mode,
 					Generic = generic,
 				}
 				seen[id] = entry
@@ -4489,69 +4464,37 @@ function Library:RefreshHotkeys()
 
 	local mode = string.lower(tostring(self.KeybindMode or "all"))
 	local shown = 0
+	local widest = 210
 
+	-- the reference row format: [KEY] feature (mode), accent while it is active
 	for _, entry in ipairs(entries) do
 		if mode ~= "active" or entry.Active == true then
 			shown = shown + 1
+			local text = string.format("[%s] %s (%s)",
+				tostring(entry.Key),
+				tostring(entry.Label or "action"),
+				tostring(entry.Mode or "toggle"))
 
-			local row = New("Frame", {
-				Size = UDim2.new(1, 0, 0, MSize(22, 30)),
-				BackgroundColor3 = Theme.Field,
-				BackgroundTransparency = entry.Active and 0.15 or 1,
-				BorderSizePixel = 0,
-				LayoutOrder = shown,
-				Parent = rows,
-			})
-			Corner(row, 5)
-			Pad(row, 0, 7, 0, 7)
+			local line = Label(rows, text, entry.Active and Theme.Accent or Theme.Text, Theme.TextSize - 1)
+			line.Size = UDim2.new(0, 0, 0, MSize(16, 22))
+			line.AutomaticSize = Enum.AutomaticSize.X
+			line.TextTruncate = Enum.TextTruncate.AtEnd
+			line.LayoutOrder = shown
 
-			local dot = New("Frame", {
-				Size = UDim2.fromOffset(5, 5),
-				AnchorPoint = Vector2.new(0, 0.5),
-				Position = UDim2.new(0, 0, 0.5, 0),
-				BackgroundColor3 = entry.Active and Theme.Accent or Theme.Border,
-				BorderSizePixel = 0,
-				Parent = row,
-			})
-			Corner(dot, 3)
-
-			local name = Label(row, tostring(entry.Label or "action"),
-				entry.Active and Theme.TextBright or Theme.Text, Theme.TextSize - 1)
-			name.Position = UDim2.fromOffset(13, 0)
-			name.Size = UDim2.new(1, -60, 1, 0)
-			name.TextTruncate = Enum.TextTruncate.AtEnd
-
-			local pill = New("Frame", {
-				Size = UDim2.new(0, 0, 0, MSize(16, 20)),
-				AutomaticSize = Enum.AutomaticSize.X,
-				AnchorPoint = Vector2.new(1, 0.5),
-				Position = UDim2.new(1, 0, 0.5, 0),
-				BackgroundColor3 = entry.Active and Theme.Accent or Theme.Field,
-				BackgroundTransparency = entry.Active and 0.84 or 0.2,
-				BorderSizePixel = 0,
-				Parent = row,
-			})
-			Corner(pill, 4)
-			Stroke(pill, entry.Active and Theme.AccentDim or Theme.BorderSoft, 1, 0.4)
-			Pad(pill, 0, 6)
-
-			local keyLabel = Label(pill, tostring(entry.Key),
-				entry.Active and Theme.Accent or Theme.TextDim, 11, Theme.FontMedium)
-			keyLabel.Size = UDim2.new(0, 0, 1, 0)
-			keyLabel.AutomaticSize = Enum.AutomaticSize.X
+			local bounds = line.TextBounds.X
+			if bounds + 22 > widest then widest = bounds + 22 end
 		end
 	end
 
 	if shown == 0 then
 		local empty = Label(rows, mode == "active" and "nothing is active right now." or "no keybinds set.",
 			Theme.TextDim, Theme.TextSize - 1)
-		empty.Size = UDim2.new(1, 0, 0, 20)
-		empty.TextXAlignment = Enum.TextXAlignment.Left
+		empty.Size = UDim2.new(0, 0, 0, 20)
+		empty.AutomaticSize = Enum.AutomaticSize.X
+		empty.LayoutOrder = 1
 	end
 
-	if self.HotkeyCount then
-		self.HotkeyCount.Text = shown > 0 and tostring(shown) or ""
-	end
+	self.HotkeyPanel.Size = UDim2.fromOffset(math.clamp(math.floor(widest + 0.5), 200, 360), 0)
 	self.HotkeyPanel.Visible = self.HotkeysEnabled ~= false
 end
 
@@ -4579,8 +4522,10 @@ function Library:ToggleKeybindList(state)
 	return self:SetHotkeysVisible(state)
 end
 
+-- keybind names are the public ones, the hotkey names stay as aliases
 Library.CreateKeybindList = Library.CreateHotkeyPanel
 Library.RefreshKeybindList = Library.RefreshHotkeys
+Library.SetKeybindListVisible = Library.SetHotkeysVisible
 
 Library.CursorEnabled = false
 
@@ -7062,7 +7007,9 @@ do
 		local frame = New("Frame", {
 			Size = UDim2.fromOffset(0, 22),
 			AutomaticSize = Enum.AutomaticSize.X,
-			Position = opts.Position or UDim2.fromOffset(18, 18),
+			-- 18,18 lands under the Roblox topbar buttons on desktop and mobile,
+			-- so the default clears them
+			Position = opts.Position or UDim2.fromOffset(18, 96),
 			BackgroundColor3 = Theme.Section,
 			BorderSizePixel = 0,
 			Active = true,

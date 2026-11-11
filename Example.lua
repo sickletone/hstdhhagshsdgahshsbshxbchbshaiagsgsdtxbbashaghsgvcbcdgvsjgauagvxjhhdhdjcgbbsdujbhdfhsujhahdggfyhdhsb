@@ -688,24 +688,30 @@ local servers = Library:ServerBrowser()
 local watermark = Library:Watermark({
 	Title = "orasense",
 	Suffix = ".win",
-	Position = UDim2.fromOffset(18, 18),
+	-- below the Roblox topbar buttons, which sit at the very top left
+	Position = UDim2.fromOffset(18, 96),
 })
 
--- The keybind list is always on by default: it shows up once the menu has
--- keybinds, and the overlay toggle above turns it off.
-Library:SetHotkeysVisible(true)
+-- The keybind list is on from the start: it fills itself as soon as keybinds
+-- exist, and the overlay toggle below turns it off.
+Library:SetKeybindListVisible(true)
 
 local overlay = settingsOptions:Section("overlay", 1)
 
-overlay:Toggle({
-	Text = "watermark",
+local watermarkToggle
+watermarkToggle = overlay:Toggle({
+	Text = "hide watermark",
 	Flag = "overlay_watermark",
 	Hint = "fps, ping, players and region",
 	Default = true,
 	Callback = function(state)
 		watermark:SetVisible(state)
+		if watermarkToggle then
+			watermarkToggle:SetText(state and "hide watermark" or "show watermark")
+		end
 	end,
 })
+watermark:SetVisible(true)
 
 overlay:Button({
 	Text = "rename watermark",
@@ -740,7 +746,7 @@ overlay:Toggle({
 	Hint = "floating list of every keybind in the menu, dragged like a panel",
 	Default = true,
 	Callback = function(state)
-		Library:SetHotkeysVisible(state)
+		Library:SetKeybindListVisible(state)
 	end,
 })
 
