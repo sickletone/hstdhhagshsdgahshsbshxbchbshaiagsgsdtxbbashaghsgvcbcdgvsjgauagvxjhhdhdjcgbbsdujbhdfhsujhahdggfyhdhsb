@@ -20,8 +20,9 @@ configs, theme, server browser, player panel).
 ## What's included
 
 - **Window** — draggable, resizable, top or side tabs, footer actions,
-  modals, confirms, touch-only mobile button, cursor, hotkey panel, notifications, watermark
-  (normal / warning / danger / success).
+  modals, confirms, touch-only mobile button, cursor, keybind list, notifications,
+  watermark (normal / warning / danger / success), and the watermark title is
+  editable while running with `watermark:SetTitle("orasense 123.win")`.
 - **Controls** — label, paragraph, button, button row (with `Tooltip` and
   `SubButtons`), toggle (+ keybind,
   color pickers, gear popups), slider, dropdown (single, multi-select,
@@ -45,6 +46,16 @@ configs, theme, server browser, player panel).
   `toggle:Dependency(function(dep) ... end)` reveals extra options only
   while the toggle is on; `elements:SubToggle(opts)` creates an indented
   child toggle.
+- **Keybind list** — `Library:SetHotkeysVisible(true)` (or
+  `Library:ToggleKeybindList()`) shows a floating, draggable list of every
+  keybind in the menu theme: a count in the header, one row per key with an
+  accent dot and a key pill that fills while the key is held or switched on, an
+  empty state, and a scroll cap so it never runs off screen. Keys that are
+  registered twice (a toggle and its own keybind) collapse into one row.
+  `Library:SetKeybindListMode("all" | "active")` filters it to what is active
+  right now, and `Library:RefreshHotkeys()` rebuilds it after changing keybinds
+  from code. `Example.lua` turns it on at load and exposes both controls under
+  settings > options > overlay.
 - **Menu search** — `Window:EnableMenuSearch()` (or `MenuSearch = true`
   in `Library:Window`) adds a search box that finds any feature by name
   and jumps to it. Dropdowns support `Search = true` too.
