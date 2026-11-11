@@ -261,13 +261,27 @@ return function(Library)
 		-- sub tab; without one it stays a modal opened from the footer.
 		local modal
 		local content
+		-- Two columns: the switches on the left, the colour list on the right.
+		-- Mounted in a single column the editor only filled half the settings
+		-- page and the rest of the window stayed empty.
+		local controls, colors
 		if container then
 			content = container
+			controls, colors = content, content
+			if content.Split then
+				local left, right
+				content:Split({
+					function(column) left = column end,
+					function(column) right = column end,
+				})
+				controls, colors = left or content, right or content
+			end
 		else
 			-- no scrim: the interface behind has to stay readable while its
 			-- colours are being edited
 			modal = window:Modal({ Title = "theme", Width = 300, Height = 0.82, Dim = 0, Blur = 0 })
 			content = modal.Content
+			controls, colors = content, content
 		end
 		local pickers = {}
 		local presetBox
@@ -303,7 +317,7 @@ return function(Library)
 			dirty = false
 		end
 
-		presetBox = content:Dropdown({
+		presetBox = controls:Dropdown({
 			Text = "preset",
 			Flag = "theme_preset",
 			Options = self:Names(),
@@ -319,7 +333,7 @@ return function(Library)
 
 		local glassToggle, blurToggle, strengthSlider, liquidToggle
 		if self.Library.SetGlass then
-			glassToggle = content:Toggle({
+			glassToggle = controls:Toggle({
 				Text = "glass",
 				Flag = false,
 				Default = self.Library.Glass == true,
@@ -330,7 +344,7 @@ return function(Library)
 					if self.AutoSave then self:Save() end
 				end,
 			})
-			blurToggle = content:Toggle({
+			blurToggle = controls:Toggle({
 				Text = "glass blur",
 				Flag = false,
 				Default = self.Library.GlassBlur ~= false,
@@ -341,7 +355,7 @@ return function(Library)
 					if self.AutoSave then self:Save() end
 				end,
 			})
-			liquidToggle = content:Toggle({
+			liquidToggle = controls:Toggle({
 				Text = "liquid glass",
 				Flag = false,
 			Default = self.Library.LiquidGlass == true,
@@ -352,7 +366,7 @@ return function(Library)
 					if self.AutoSave then self:Save() end
 				end,
 			})
-			strengthSlider = content:Slider({
+			strengthSlider = controls:Slider({
 				Text = "glass strength",
 				Flag = false,
 				Min = 0,
@@ -368,11 +382,11 @@ return function(Library)
 		end
 		self.GlassToggle, self.BlurToggle, self.StrengthSlider, self.LiquidToggle = glassToggle, blurToggle, strengthSlider, liquidToggle
 
-		content:Divider()
+		controls:Divider()
 
 		for _, entry in ipairs(self.Keys) do
 			local key, label = entry[1], entry[2]
-			pickers[key] = content:ColorPicker({
+			pickers[key] = colors:ColorPicker({
 				Text = label,
 				Flag = false,
 				Default = Theme[key],
@@ -391,9 +405,9 @@ return function(Library)
 			})
 		end
 
-		content:Divider()
+		controls:Divider()
 
-		content:Button({
+		controls:Button({
 			Text = "reset colors",
 			Callback = function()
 				for key, color in pairs(defaults) do
@@ -408,7 +422,7 @@ return function(Library)
 			end,
 		})
 
-		content:Button({
+		controls:Button({
 			Text = "export theme",
 			Callback = function()
 				local ok, result = self:Export()

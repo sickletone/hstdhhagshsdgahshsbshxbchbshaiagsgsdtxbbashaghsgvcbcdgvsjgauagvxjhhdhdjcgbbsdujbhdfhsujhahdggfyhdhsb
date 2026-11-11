@@ -527,7 +527,7 @@ if Library.BuildEffectsSection and settingsOptions then
 	-- the glass controls are in settings > themes, not here
 	pcall(function() Library:BuildEffectsSection(settingsOptions, 1) end)
 end
-ThemeManager:Mount(Window, settingsThemes:Section("theme", 1))
+ThemeManager:Mount(Window, settingsThemes:Section("theme", "full"))
 
 Window:SetTab(Main)
 

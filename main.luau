@@ -2882,25 +2882,10 @@ function Window:Modal(opts)
 		Open = false,
 	}
 
+	local blurKey = {}
 	local function setBlur(state)
-		if state then
-			if api.Blur then return end
-			pcall(function()
-				local blur = Instance.new("BlurEffect")
-				blur.Name = "OrasenseModalBlur"
-				blur.Size = 0
-				blur.Parent = Lighting
-				api.Blur = blur
-				Tween(blur, { Size = opts.Blur or 16 })
-			end)
-		elseif api.Blur then
-			local blur = api.Blur
-			api.Blur = nil
-			pcall(function()
-				Tween(blur, { Size = 0 }).Completed:Once(function()
-					blur:Destroy()
-				end)
-			end)
+		if Library.SetModalBlur then
+			Library:SetModalBlur(blurKey, state and (tonumber(opts.Blur) or 16) or nil)
 		end
 	end
 
@@ -5736,6 +5721,70 @@ do
 	Library.GlassStrength = Library.GlassStrength or 1
 	Library.LiquidGlass = Library.LiquidGlass or false
 
+	-- Roblox can only blur the whole 3D view, never one region of the screen, so
+	-- the glass blur is a single shared BlurEffect in Lighting that every window
+	-- and modal feeds into. Two BlurEffects in Lighting fight over the screen,
+	-- which is why opening a modal with Blur = 0 used to cancel the glass blur
+	-- completely and the toggle looked dead.
+	local sharedBlur
+	local modalBlurs = {}
+	local modalBlur = 0
+
+	local function BlurInstance()
+		if sharedBlur and sharedBlur.Parent then return sharedBlur end
+		sharedBlur = nil
+		pcall(function()
+			local effect = Instance.new("BlurEffect")
+			effect.Name = "OrasenseBlur"
+			effect.Size = 0
+			effect.Parent = Lighting
+			sharedBlur = effect
+		end)
+		return sharedBlur
+	end
+
+	local function GlassBlurSize()
+		if Library.GlassBlur ~= true then return 0 end
+		if Library.Glass ~= true and Library.LiquidGlass ~= true then return 0 end
+		local shown = false
+		for _, w in ipairs(Library.Windows or {}) do
+			if w.Visible ~= false and w.Main and w.Main.Visible ~= false then
+				shown = true
+				break
+			end
+		end
+		if not shown then return 0 end
+		local strength = math.clamp(tonumber(Library.GlassStrength) or 1, 0, 1.5)
+		return 4 + strength * 20
+	end
+
+	function Library:SyncGlassBlur()
+		local target = math.max(GlassBlurSize(), modalBlur)
+		local effect = BlurInstance()
+		if not effect then return 0 end
+		if target <= 0.05 then
+			if effect.Size > 0.05 then Tween(effect, { Size = 0 }) else effect.Size = 0 end
+			return 0
+		end
+		Tween(effect, { Size = target })
+		return target
+	end
+
+	function Library:SetModalBlur(key, size)
+		if key == nil then return modalBlur end
+		size = tonumber(size) or 0
+		if size > 0 then
+			modalBlurs[key] = size
+		else
+			modalBlurs[key] = nil
+		end
+		modalBlur = 0
+		for _, value in pairs(modalBlurs) do
+			if value > modalBlur then modalBlur = value end
+		end
+		return self:SyncGlassBlur()
+	end
+
 	local function EnsureFrost(window)
 		if window.GlassFrost and window.GlassFrost.Parent then return window.GlassFrost end
 		local frost = New("Frame", {
@@ -5744,6 +5793,7 @@ do
 			BackgroundColor3 = Theme.Group,
 			BackgroundTransparency = 0.6,
 			BorderSizePixel = 0,
+			ClipsDescendants = true,
 			ZIndex = 0,
 			Parent = window.Main,
 		})
@@ -5859,16 +5909,17 @@ do
 		if useGlass and shown and Library.GlassBlur == true then
 			local frost = EnsureFrost(self)
 			frost.Visible = true
-			frost.BackgroundTransparency = math.clamp(0.88 - strength * 0.30, 0.35, 0.88)
+			frost.BackgroundTransparency = math.clamp(0.92 - strength * 0.24, 0.38, 0.92)
 		elseif self.GlassFrost then
 			self.GlassFrost.Visible = false
 		end
-		if Library.LiquidGlass == true then
+		if Library.LiquidGlass == true and shown then
 			local fx = EnsureLiquidFX(self)
 			fx.Visible = true
 		elseif self.LiquidFX then
 			self.LiquidFX.Visible = false
 		end
+		Library:SyncGlassBlur()
 	end
 
 
@@ -6517,8 +6568,10 @@ do
 			if w.ParticleGui then pcall(function() w.ParticleGui:Destroy() end) end
 		end
 		pcall(function()
-			local blur = Lighting:FindFirstChild("OrasenseLiquidBlur")
-			if blur then blur:Destroy() end
+			for _, name in ipairs({ "OrasenseBlur", "OrasenseLiquidBlur" }) do
+				local blur = Lighting:FindFirstChild(name)
+				if blur then blur:Destroy() end
+			end
 		end)
 		table.clear(self.SearchIndex)
 		OrigDestroy(self)

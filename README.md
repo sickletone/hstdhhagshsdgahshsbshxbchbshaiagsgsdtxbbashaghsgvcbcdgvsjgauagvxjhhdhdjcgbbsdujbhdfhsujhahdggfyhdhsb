@@ -42,10 +42,12 @@ configs, theme, server browser, player panel).
 - **Liquid glass** — a real liquid look (tinted translucency + frost,
   specular wash, travelling sheen), not plain glassmorphism:
   `Library:SetLiquidGlass(true)`, plus `SetGlass`,
-  `SetGlassBlur`, `SetGlassStrength`. Glass blur is a frost layer inside the
-  window rather than a full-screen `BlurEffect` (Roblox cannot blur a screen
-  region), and it is off by default. All glass controls live in settings >
-  themes. Preset `liquid` in the theme manager.
+  `SetGlassBlur`, `SetGlassStrength`. Glass blur blurs the world behind the
+  menu plus a soft frost layer inside the window: Roblox can only blur the
+  whole 3D view, so the windows and the modals share one `BlurEffect` in
+  Lighting instead of each adding their own. It is off by default. All glass
+  controls live in settings > themes, next to the colour list. Preset `liquid`
+  in the theme manager.
 - **Sub tabs** — `tab:SubTab("name")` adds a nested tab strip inside a tab:
   a row of text tabs with an accent underline on the active one (plus the
   parent tab's icon at the left). Each sub tab is a full tab (`:Section`,
