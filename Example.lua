@@ -1,14 +1,14 @@
 local BASE = "https://raw.githubusercontent.com/sickletone/hstdhhagshsdgahshsbshxbchbshaiagsgsdtxbbashaghsgvcbcdgvsjgauagvxjhhdhdjcgbbsdujbhdfhsujhahdggfyhdhsb/refs/heads/main/"
 
-local source = game:HttpGet(BASE .. "main.luau")
+local source = game:HttpGet(BASE .. "Library.lua")
 assert(#source > 1000 and not string.find(source, "404", 1, true),
-	"main.luau not found at this URL, check the repo and branch")
+	"Library.lua not found at this URL, check the repo and branch")
 
 local chunk, err = loadstring(source)
-assert(chunk, "main.luau does not compile: " .. tostring(err))
+assert(chunk, "Library.lua does not compile: " .. tostring(err))
 
 local Library = chunk()
-assert(type(Library) == "table", "main.luau returned nothing; the file is incomplete or truncated")
+assert(type(Library) == "table", "Library.lua returned nothing; the file is incomplete or truncated")
 
 Library.BaseUrl = BASE
 

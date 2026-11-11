@@ -209,7 +209,7 @@ end
 
 function Library:Repaint()
 	if #Painted == 0 then
-		warn("Orasense | repaint registry is empty, main.luau is probably outdated")
+warn("Orasense | repaint registry is empty, Library.lua is probably outdated")
 	end
 	IndexTheme()
 	for i = #Painted, 1, -1 do
@@ -6970,6 +6970,10 @@ do
 
 		local api = { Gui = gui, Frame = frame, Visible = opts.Visible ~= false, Fps = 0, Region = nil }
 
+		function api:SetTitle(text)
+			brand.Text = tostring(text or opts.Title or "orasense")
+		end
+
 		local function refresh()
 			stats.Text = string.format("%d fps  \u{00B7}  %d ms  \u{00B7}  %d/%d players  \u{00B7}  %s",
 				math.floor(api.Fps + 0.5), readPing(), #WatermarkPlayers:GetPlayers(),
@@ -8595,6 +8599,240 @@ do
 	end
 end
 
+
+
+---------------------------------------------------------------------------
+-- Reference API
+--
+-- The names below mirror the other UI library's API (CreateWindow, AddTab,
+-- AddLeftGroupbox, AddToggle, AddSlider, ...), so a script written against it
+-- runs here unchanged. Every one is a thin adapter over this library's own
+-- API, so both styles work and can be mixed in the same script.
+---------------------------------------------------------------------------
+do
+	local function Named(name, opts)
+		opts = opts or {}
+		if name ~= nil and opts.Text == nil and opts.Title == nil then
+			opts.Text = tostring(name)
+		end
+		return opts
+	end
+
+	local function WithValues(opts)
+		if opts.Values ~= nil and opts.Options == nil then
+			opts.Options = opts.Values
+		end
+		opts.Values = nil
+		return opts
+	end
+
+	function Elements:AddToggle(name, opts)
+		return self:Toggle(Named(name, opts))
+	end
+
+	function Elements:AddSlider(name, opts)
+		return self:Slider(Named(name, opts))
+	end
+
+	function Elements:AddDropdown(name, opts)
+		opts = WithValues(Named(name, opts))
+		if opts.Multi then return self:MultiDropdown(opts) end
+		return self:Dropdown(opts)
+	end
+
+	function Elements:AddMultiDropdown(name, opts)
+		opts = WithValues(Named(name, opts))
+		if type(opts.Default) == "string" then opts.Default = { opts.Default } end
+		return self:MultiDropdown(opts)
+	end
+
+	function Elements:AddKeyPicker(name, opts)
+		return self:Keybind(Named(name, opts))
+	end
+
+	function Elements:AddColorPicker(name, opts)
+		return self:ColorPicker(Named(name, opts))
+	end
+
+	function Elements:AddInput(name, opts)
+		return self:Input(Named(name, opts))
+	end
+
+	function Elements:AddButton(opts)
+		if type(opts) ~= "table" then opts = { Text = tostring(opts) } end
+		if opts.Func ~= nil and opts.Callback == nil then opts.Callback = opts.Func end
+		return self:Button(opts)
+	end
+
+	function Elements:AddLabel(text, wrap)
+		if type(wrap) == "table" then return self:Label(text, wrap) end
+		return self:Label(text, { KeepSpace = wrap == true })
+	end
+
+	function Elements:AddDivider()
+		return self:Divider()
+	end
+
+	-- a dependency box is a group of controls that only shows while the toggles
+	-- it depends on match the values it asks for
+	local function MakeDependencyBox(container)
+		local outer = container.Container or container
+		local frame = New("Frame", {
+			Size = UDim2.new(1, 0, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1,
+			Visible = false,
+			Parent = outer,
+		})
+		local inner = New("Frame", {
+			Size = UDim2.new(1, -14, 0, 0),
+			Position = UDim2.fromOffset(14, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1,
+			Parent = frame,
+		})
+		List(inner, 8)
+		local content = NewContainer(container.Window, inner, container.Float)
+		content._TabRef = container._TabRef
+		content.Instance = frame
+
+		local conditions = {}
+		local watching = false
+
+		function content:SetupDependencies(list)
+			conditions = {}
+			for _, entry in ipairs(list or {}) do
+				local flag = entry.Toggle or entry.Flag
+				if flag then
+					conditions[#conditions + 1] = { Flag = flag, Value = entry.Value }
+				end
+			end
+			if not watching then
+				watching = true
+				task.spawn(function()
+					while frame.Parent do
+						local show = #conditions > 0
+						for _, condition in ipairs(conditions) do
+							local value = Library.Flags[condition.Flag]
+							if condition.Value == nil then
+								if not value then show = false break end
+							elseif value ~= condition.Value then
+								show = false
+								break
+							end
+						end
+						frame.Visible = show
+						task.wait(0.1)
+					end
+				end)
+			end
+			return self
+		end
+
+		return content
+	end
+
+	function Elements:AddDependencyBox()
+		return MakeDependencyBox(self)
+	end
+
+	-- the other library's tab box: each added tab is its own bordered box in the
+	-- same column, so the controls keep their placement and stay reachable
+	local function MakeTabbox(tab, title, side)
+		local api = { Tabs = {} }
+		function api:AddTab(name)
+			local section = tab:Groupbox(name or title or "tab", side)
+			api.Tabs[tostring(name or "")] = section
+			return section
+		end
+		return api
+	end
+
+	function Tab:AddGroupbox(title, side)
+		return self:Groupbox(title, side)
+	end
+
+	function Tab:AddLeftGroupbox(title)
+		return self:Groupbox(title, 1)
+	end
+
+	function Tab:AddRightGroupbox(title)
+		return self:Groupbox(title, 3)
+	end
+
+	function Tab:AddTabbox(title)
+		return MakeTabbox(self, title, 1)
+	end
+
+	function Tab:AddLeftTabbox(title)
+		return MakeTabbox(self, title, 1)
+	end
+
+	function Tab:AddRightTabbox(title)
+		return MakeTabbox(self, title, 3)
+	end
+
+	function Window:AddTab(name)
+		local tab = self:Tab(name)
+		local key = type(name) == "table" and (name.Name or name.Title or name.Text) or name
+		if key ~= nil then self.Tabs[tostring(key)] = tab end
+		return tab
+	end
+
+	function Library:CreateWindow(opts)
+		return self:Window(opts)
+	end
+
+	if Library.Toggle == nil then
+		function Library:Toggle(state)
+			return self:ToggleUI(state)
+		end
+	end
+
+	if Library.Unload == nil then
+		function Library:Unload()
+			return self:Destroy()
+		end
+	end
+
+	function Library:SetWatermark(text)
+		local mark = self._ReferenceWatermark
+		if not mark then
+			mark = self:Watermark({ Title = text or "orasense", Visible = true })
+			self._ReferenceWatermark = mark
+		end
+		if mark.SetVisible then mark:SetVisible(true) end
+		for _, method in ipairs({ "SetTitle", "SetText", "SetName" }) do
+			if type(mark[method]) == "function" then
+				mark[method](mark, text)
+				break
+			end
+		end
+		return mark
+	end
+
+	function Library:SetWatermarkVisibility(state)
+		if not self._ReferenceWatermark then
+			if state == false then return nil end
+			return self:SetWatermark(nil)
+		end
+		if self._ReferenceWatermark.SetVisible then
+			self._ReferenceWatermark:SetVisible(state ~= false)
+		end
+		return self._ReferenceWatermark
+	end
+
+	-- Notify(text, time) is the other shape: a message and a lifetime. This keeps
+	-- Notify(title, body, time) working at the same time.
+	local BaseNotify = Library.Notify
+	function Library:Notify(a, b, c)
+		if type(a) == "table" then return BaseNotify(self, a) end
+		if type(b) == "number" and c == nil then
+			return BaseNotify(self, { Title = tostring(a), Duration = b })
+		end
+		return BaseNotify(self, a, b, c)
+	end
+end
 
 
 return Library

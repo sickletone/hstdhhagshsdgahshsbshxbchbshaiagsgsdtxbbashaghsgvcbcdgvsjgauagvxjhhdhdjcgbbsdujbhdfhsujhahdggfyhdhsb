@@ -10,11 +10,11 @@ multi-select dropdowns.
 
 ```luau
 local BASE = "https://raw.githubusercontent.com/sickletone/hstdhhagshsdgahshsbshxbchbshaiagsgsdtxbbashaghsgvcbcdgvsjgauagvxjhhdhdjcgbbsdujbhdfhsujhahdggfyhdhsb/refs/heads/main/"
-local Library = loadstring(game:HttpGet(BASE .. "main.luau"))()
+local Library = loadstring(game:HttpGet(BASE .. "Library.lua"))()
 Library.BaseUrl = BASE
 ```
 
-See `Example` for a complete working setup (window, tabs, settings,
+See `Example.lua` for a complete working setup (window, tabs, settings,
 configs, theme, server browser, player panel).
 
 ## What's included
@@ -96,13 +96,44 @@ configs, theme, server browser, player panel).
   adds named theme configs: create, overwrite, load, delete, refresh list, set
   or remove the autoload, and import/export through the clipboard. Themes are
   files in `Orasense/themes/<name>.json`, separate from menu configs. Settings
-  tab is wired in `Example`.
+  tab is wired in `Example.lua`.
+
+## Reference API
+
+`Library.lua` and `Example.lua` are the two entry points: `Library.lua` is the
+library itself, `Example.lua` loads it over HTTP and builds a full menu.
+
+The other library's API is available as thin adapters, so a script written for
+it runs here unchanged. Both styles can be mixed in one script.
+
+| their API | same call here |
+| --- | --- |
+| `Library:CreateWindow(opts)` | `Library:Window(opts)` |
+| `Window:AddTab("main")` | `Window:Tab({ Title = "main" })`, also fills `Window.Tabs` |
+| `Tab:AddLeftGroupbox("x")` | `Tab:Section("x", 1)` |
+| `Tab:AddRightGroupbox("x")` | `Tab:Section("x", 2)` |
+| `Tab:AddGroupbox("x", side)` | `Tab:Section("x", side)` |
+| `Tab:AddLeftTabbox()` + `Tabbox:AddTab("y")` | stacked boxes in the left column |
+| `box:AddToggle("name", opts)` | `box:Toggle({ Text = "name", ... })` |
+| `box:AddSlider("name", opts)` | `box:Slider({ Text = "name", ... })` |
+| `box:AddDropdown("name", { Values = { ... } })` | `box:Dropdown({ Text = "name", Options = { ... } })` |
+| `box:AddKeyPicker("name", opts)` | `box:Keybind({ Text = "name", ... })` |
+| `box:AddColorPicker("name", opts)` | `box:ColorPicker({ Text = "name", ... })` |
+| `box:AddInput("name", opts)` | `box:Input({ Text = "name", ... })` |
+| `box:AddButton({ Text = "x", Func = fn })` | `box:Button({ Text = "x", Callback = fn })` |
+| `box:AddLabel("text", true)` | `box:Label("text")` |
+| `box:AddDivider()` | `box:Divider()` |
+| `box:AddDependencyBox()` + `:SetupDependencies({ { Toggle = "x", Value = true } })` | hides until the flag matches |
+| `Library:SetWatermark("text")` | `Library:Watermark(opts)` |
+| `Library:Notify("text", 5)` | `Library:Notify("text", 5)`, `Notify(title, body, 5)` still works |
+| `Library:Toggle(state)` | `Library:ToggleUI(state)` |
+| `Library:Unload()` | `Library:Destroy()` |
 
 ## Repo
 
 Source lives at
 `sickletone/hstdhhagshsdgahshsbshxbchbshaiagsgsdtxbbashaghsgvcbcdgvsjgauagvxjhhdhdjcgbbsdujbhdfhsujhahdggfyhdhsb`
-(`main.luau` + `addons/`). `getgenv().Orasense` is set on load
+(`Library.lua` + `addons/`). `getgenv().Orasense` is set on load
 (`OrasenseUI` alias; legacy `Facility` alias kept for compatibility).
 
 ## Icons (Molto)
@@ -224,7 +255,7 @@ open. Set `Library.DefaultWidth` / `Library.DefaultHeight` before
 `Width` / `Height` options.
 
 The mobile sub tab exposes both values as sliders (saved as
-`menu_default_width` and `menu_default_height`), and the Example calls
+`menu_default_width` and `menu_default_height`), and `Example.lua` calls
 `Library:SetDefaultSize(620, 620)` before creating its window.
 
 `menu transparency` sits next to them and defaults to `0%` (fully opaque).
