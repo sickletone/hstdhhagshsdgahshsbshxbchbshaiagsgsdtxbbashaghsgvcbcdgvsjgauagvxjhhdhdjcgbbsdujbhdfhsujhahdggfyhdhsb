@@ -1981,6 +1981,70 @@ function Elements:ColorPicker(opts)
 	return api
 end
 
+local KEY_MODES = { "always", "hold", "toggle" }
+local KEY_MODE_ALIASES = { press = "hold", held = "hold", down = "hold", on = "always" }
+
+local function NormalizeKeyMode(value)
+	local mode = string.lower(tostring(value or "hold"))
+	mode = KEY_MODE_ALIASES[mode] or mode
+	if mode ~= "always" and mode ~= "hold" and mode ~= "toggle" then
+		return "hold"
+	end
+	return mode
+end
+
+local function KeyModeHex(color)
+	return string.format("#%02X%02X%02X",
+		math.floor(color.R * 255 + 0.5),
+		math.floor(color.G * 255 + 0.5),
+		math.floor(color.B * 255 + 0.5))
+end
+
+-- Double right click opens a small mode picker under the key pill.
+local function KeyModeMenu(window, float, current, onPick)
+	local panel = window:CreateFloating(120, true, float)
+	local list = panel.Content:FindFirstChildOfClass("UIListLayout")
+	if list then list.Padding = UDim.new(0, 2) end
+	local labels = {}
+	for index, mode in ipairs(KEY_MODES) do
+		local row = New("TextButton", {
+			Size = UDim2.new(1, 0, 0, 22),
+			BackgroundColor3 = Theme.FieldHover,
+			BackgroundTransparency = 1,
+			AutoButtonColor = false,
+			Text = "",
+			BorderSizePixel = 0,
+			LayoutOrder = index,
+			ZIndex = panel.Frame.ZIndex,
+			Parent = panel.Content,
+		})
+		Corner(row, 4)
+		local label = Label(row, mode, Theme.Text, 13, Theme.Font)
+		label.Position = UDim2.fromOffset(8, 0)
+		label.Size = UDim2.new(1, -16, 1, 0)
+		label.ZIndex = panel.Frame.ZIndex
+		labels[mode] = label
+		Track(row.MouseEnter:Connect(function()
+			Tween(row, { BackgroundTransparency = 0.4 }, EASE_FAST)
+		end))
+		Track(row.MouseLeave:Connect(function()
+			Tween(row, { BackgroundTransparency = 1 }, EASE_FAST)
+		end))
+		Track(row.Activated:Connect(function()
+			window:CloseFloating()
+			onPick(mode)
+		end))
+	end
+	local api = { Panel = panel }
+	function api:Paint(mode)
+		for name, label in pairs(labels) do
+			label.TextColor3 = (name == mode) and Theme.AccentSoft or Theme.Text
+		end
+	end
+	api:Paint(current)
+	return api
+end
+
 function Elements:Keybind(opts)
 	opts = opts or {}
 	local flag = FlagOf(opts)
@@ -2015,17 +2079,18 @@ function Elements:Keybind(opts)
 	local listening = false
 	local held = false
 	local active = opts.Default == true
-	local mode = string.lower(opts.Mode or "press")
-	local isToggle = mode == "toggle"
+	local mode = NormalizeKeyMode(opts.Mode)
+	local modeMenu
+	local lastRight = 0
+	local pendingClear
 
 	local function refresh()
 		if listening then
 			pl.Text = 'key: <font color="' .. AccentHex() .. '">...</font>'
-		elseif key then
-			pl.Text = 'key: <font color="' .. AccentHex() .. '">' .. key .. "</font>"
-		else
-			pl.Text = "key: NONE"
+			return
 		end
+		local shown = key and ('<font color="' .. AccentHex() .. '">' .. key .. "</font>") or "NONE"
+		pl.Text = "key: " .. shown .. ' <font color="' .. KeyModeHex(Theme.TextDim) .. '">' .. mode .. "</font>"
 	end
 	refresh()
 
@@ -2038,6 +2103,24 @@ function Elements:Keybind(opts)
 		Library:SafeCallback(opts.Text or "keybind", opts.OnChanged, key)
 	end
 
+	local function setActive(state)
+		active = state
+		if api then api.Active = active end
+		Library:RefreshHotkeys()
+		Library:SafeCallback(opts.Text or "keybind", opts.Callback, active)
+	end
+
+	local function openModes()
+		if not modeMenu then
+			modeMenu = KeyModeMenu(self.Window, self.Float, mode, function(picked)
+				if api and api.SetMode then api:SetMode(picked) end
+			end)
+		else
+			modeMenu:Paint(mode)
+		end
+		self.Window:ToggleFloating(modeMenu.Panel, pill, true)
+	end
+
 	Track(pill.Activated:Connect(function()
 		if api and api.Enabled == false then return end
 		listening = true
@@ -2045,12 +2128,28 @@ function Elements:Keybind(opts)
 		refresh()
 		Tween(pill, { BackgroundColor3 = Theme.FieldHover }, EASE_FAST)
 	end))
+	-- One right click removes the key, a double right click picks the mode.
 	Track(pill.MouseButton2Click:Connect(function()
-		key = nil
-		listening = false
-		Library.Binding = false
-		refresh()
-		apply()
+		local now = os.clock()
+		if now - lastRight <= 0.4 then
+			lastRight = 0
+			if pendingClear then
+				task.cancel(pendingClear)
+				pendingClear = nil
+			end
+			openModes()
+			return
+		end
+		lastRight = now
+		if pendingClear then task.cancel(pendingClear) end
+		pendingClear = task.delay(0.4, function()
+			pendingClear = nil
+			key = nil
+			listening = false
+			Library.Binding = false
+			refresh()
+			apply()
+		end)
 	end))
 	Track(UserInputService.InputBegan:Connect(function(input, gpe)
 		local n = KeyName(input)
@@ -2078,11 +2177,9 @@ function Elements:Keybind(opts)
 		end
 		if gpe or not key or n ~= key then return end
 		if api and api.Enabled == false then return end
-		if isToggle then
-			active = not active
-			if api then api.Active = active end
-			Library:RefreshHotkeys()
-			Library:SafeCallback(opts.Text or "keybind", opts.Callback, active)
+		if mode == "always" then return end
+		if mode == "toggle" then
+			setActive(not active)
 		else
 			held = true
 			Library:RefreshHotkeys()
@@ -2090,7 +2187,7 @@ function Elements:Keybind(opts)
 		end
 	end))
 	Track(UserInputService.InputEnded:Connect(function(input)
-		if isToggle or not held then return end
+		if mode ~= "hold" or not held then return end
 		if key and KeyName(input) == key then
 			held = false
 			Library:RefreshHotkeys()
@@ -2108,15 +2205,41 @@ function Elements:Keybind(opts)
 			apply()
 		end,
 	}
+	function api:GetMode()
+		return mode
+	end
+	function api:SetMode(next)
+		next = NormalizeKeyMode(next)
+		if next == mode then return mode end
+		mode = next
+		if mode == "always" then
+			held = false
+			if not active then setActive(true) end
+		elseif mode == "hold" then
+			if active then setActive(false) end
+		end
+		refresh()
+		if modeMenu then modeMenu:Paint(mode) end
+		Library:SafeCallback(opts.Text or "keybind", opts.OnModeChanged, mode)
+		return mode
+	end
+	function api:Clear()
+		key = nil
+		listening = false
+		Library.Binding = false
+		refresh()
+		apply()
+		return api
+	end
 
 	Disableable(api, { name, pl }, opts)
 
 	Library:RegisterHotkey(function()
 		return {
 			Label = opts.Text or "keybind",
-			Key = key,
-			Active = isToggle and active or held,
-			Visible = key ~= nil and (isToggle or held),
+			Key = mode == "always" and nil or key,
+			Active = mode == "always" or (mode == "toggle" and active) or held,
+			Visible = mode == "always" or key ~= nil,
 		}
 	end)
 
@@ -5717,15 +5840,15 @@ end
 
 do
 	Library.Glass = Library.Glass or false
-	if Library.GlassBlur == nil then Library.GlassBlur = false end
 	Library.GlassStrength = Library.GlassStrength or 1
 	Library.LiquidGlass = Library.LiquidGlass or false
+	Library.MenuBlur = Library.MenuBlur == true
+	Library.MenuBlurStrength = math.clamp(tonumber(Library.MenuBlurStrength) or 12, 0, 30)
 
 	-- Roblox can only blur the whole 3D view, never one region of the screen, so
-	-- the glass blur is a single shared BlurEffect in Lighting that every window
-	-- and modal feeds into. Two BlurEffects in Lighting fight over the screen,
-	-- which is why opening a modal with Blur = 0 used to cancel the glass blur
-	-- completely and the toggle looked dead.
+	-- the menu blur is a single shared BlurEffect in Lighting that the windows and
+	-- the modals all feed into. Two BlurEffects in Lighting fight over the screen,
+	-- which is why a modal opened with Blur = 0 used to cancel a blur outright.
 	local sharedBlur
 	local modalBlurs = {}
 	local modalBlur = 0
@@ -5743,9 +5866,8 @@ do
 		return sharedBlur
 	end
 
-	local function GlassBlurSize()
-		if Library.GlassBlur ~= true then return 0 end
-		if Library.Glass ~= true and Library.LiquidGlass ~= true then return 0 end
+	local function MenuBlurSize()
+		if Library.MenuBlur ~= true then return 0 end
 		local shown = false
 		for _, w in ipairs(Library.Windows or {}) do
 			if w.Visible ~= false and w.Main and w.Main.Visible ~= false then
@@ -5754,12 +5876,11 @@ do
 			end
 		end
 		if not shown then return 0 end
-		local strength = math.clamp(tonumber(Library.GlassStrength) or 1, 0, 1.5)
-		return 4 + strength * 20
+		return math.clamp(tonumber(Library.MenuBlurStrength) or 12, 0, 30)
 	end
 
-	function Library:SyncGlassBlur()
-		local target = math.max(GlassBlurSize(), modalBlur)
+	function Library:SyncMenuBlur()
+		local target = math.max(MenuBlurSize(), modalBlur)
 		local effect = BlurInstance()
 		if not effect then return 0 end
 		if target <= 0.05 then
@@ -5782,55 +5903,20 @@ do
 		for _, value in pairs(modalBlurs) do
 			if value > modalBlur then modalBlur = value end
 		end
-		return self:SyncGlassBlur()
+		return self:SyncMenuBlur()
 	end
 
-	local function EnsureFrost(window)
-		if window.GlassFrost and window.GlassFrost.Parent then return window.GlassFrost end
-		local frost = New("Frame", {
-			Name = "OrasenseGlassFrost",
-			Size = UDim2.fromScale(1, 1),
-			BackgroundColor3 = Theme.Group,
-			BackgroundTransparency = 0.6,
-			BorderSizePixel = 0,
-			ClipsDescendants = true,
-			ZIndex = 0,
-			Parent = window.Main,
-		})
-		Corner(frost, 10)
-		New("UIGradient", {
-			Rotation = 90,
-			Transparency = NumberSequence.new({
-				NumberSequenceKeypoint.new(0, 0.35),
-				NumberSequenceKeypoint.new(0.55, 0.65),
-				NumberSequenceKeypoint.new(1, 0.45),
-			}),
-			Parent = frost,
-		})
-		local sheen = New("Frame", {
-			Size = UDim2.new(0.7, 0, 1.6, 0),
-			Position = UDim2.new(-0.25, 0, -0.3, 0),
-			Rotation = 18,
-			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-			BackgroundTransparency = 0.92,
-			BorderSizePixel = 0,
-			ZIndex = 0,
-			Parent = frost,
-		})
-		New("UIGradient", {
-			Rotation = 90,
-			Transparency = NumberSequence.new({
-				NumberSequenceKeypoint.new(0, 1),
-				NumberSequenceKeypoint.new(0.5, 0),
-				NumberSequenceKeypoint.new(1, 1),
-			}),
-			Parent = sheen,
-		})
-		window.GlassFrost = frost
-		return frost
+	function Library:SetMenuBlur(state)
+		self.MenuBlur = state ~= false
+		return self:SyncMenuBlur()
 	end
 
+	function Library:SetMenuBlurStrength(value)
+		self.MenuBlurStrength = math.clamp(tonumber(value) or 12, 0, 30)
+		return self:SyncMenuBlur()
+	end
 
+	local function EnsureLiquidFX(window)
 	local function EnsureLiquidFX(window)
 		if window.LiquidFX and window.LiquidFX.Parent then return window.LiquidFX end
 		local fx = New("Frame", {
@@ -5906,22 +5992,14 @@ do
 		else
 			self.Main.BackgroundTransparency = 1 - (self.Opacity or (1 - Theme.WindowAlpha))
 		end
-		if useGlass and shown and Library.GlassBlur == true then
-			local frost = EnsureFrost(self)
-			frost.Visible = true
-			frost.BackgroundTransparency = math.clamp(0.92 - strength * 0.24, 0.38, 0.92)
-		elseif self.GlassFrost then
-			self.GlassFrost.Visible = false
-		end
 		if Library.LiquidGlass == true and shown then
 			local fx = EnsureLiquidFX(self)
 			fx.Visible = true
 		elseif self.LiquidFX then
 			self.LiquidFX.Visible = false
 		end
-		Library:SyncGlassBlur()
+		Library:SyncMenuBlur()
 	end
-
 
 	function Library:SetGlass(state)
 		self.Glass = state ~= false
@@ -5929,14 +6007,6 @@ do
 			if w.ApplyGlass then w:ApplyGlass() end
 		end
 		return self.Glass
-	end
-
-	function Library:SetGlassBlur(state)
-		self.GlassBlur = state ~= false
-		for _, w in ipairs(self.Windows) do
-			if w.ApplyGlass then w:ApplyGlass() end
-		end
-		return self.GlassBlur
 	end
 
 	function Library:SetGlassStrength(value)
@@ -5959,6 +6029,10 @@ do
 		return self.LiquidGlass
 	end
 
+	function Window:SetLiquidGlass(state, strength)
+		return Library:SetLiquidGlass(state, strength)
+	end
+end
 	function Window:SetLiquidGlass(state, strength)
 		return Library:SetLiquidGlass(state, strength)
 	end

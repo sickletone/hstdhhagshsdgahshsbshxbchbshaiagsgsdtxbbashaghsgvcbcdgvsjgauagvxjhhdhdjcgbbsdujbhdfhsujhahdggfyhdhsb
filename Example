@@ -15,7 +15,6 @@ Library.BaseUrl = BASE
 -- Glass is opt-in: the only controls for it live in settings > themes.
 Library.Glass = false
 Library.LiquidGlass = false
-Library.GlassBlur = false
 
 local Players = game:GetService("Players")
 
@@ -496,18 +495,6 @@ Window:Action("Connect", function()
 	Library:Notify({ Title = "connected", Text = "session started.", Duration = 3 })
 end)
 
-local notifications = settingsOptions:Section("notifications", 1)
-
-notifications:ButtonRow({
-	{ Text = "normal", Callback = function() Library:Notify("Orasense", "test notification.", 4) end },
-	{ Text = "warning", Callback = function() Library:Warn("attention", "this option is experimental.", 4) end },
-})
-notifications:ButtonRow({
-	{ Text = "danger", Callback = function() Library:Error("risky", "this action cannot be undone.", 4) end },
-	{ Text = "success", Callback = function() Library:Success("done", "config applied.", 4) end },
-})
-
-
 SaveManager:SetLibrary(Library)
 InterfaceManager:SetLibrary(Library)
 InterfaceManager:SetWindow(Window)
@@ -738,8 +725,22 @@ inputsLeft:Dropdown({
 
 local inputsRight = cInputs:Section("more inputs", 2)
 inputsRight:Slider({ Text = "slider", Flag = "cmp_slider", Min = 0, Max = 100, Suffix = "%", Default = 40 })
-inputsRight:Keybind({ Text = "hold keybind", Flag = "cmp_hold", Default = "Q", Mode = "hold" })
-inputsRight:Keybind({ Text = "toggle keybind", Flag = "cmp_toggle_key", Default = "T", Mode = "toggle" })
+local alwaysBind = inputsRight:Keybind({ Text = "always keybind", Flag = "cmp_always", Default = "Z", Mode = "always" })
+local holdBind = inputsRight:Keybind({ Text = "hold keybind", Flag = "cmp_hold", Default = "Q", Mode = "hold" })
+local toggleBind = inputsRight:Keybind({ Text = "toggle keybind", Flag = "cmp_toggle_key", Default = "T", Mode = "toggle" })
+-- In game: one right click on a key pill removes its key, a double right click
+-- opens the always / hold / toggle picker. The same editing works from code:
+inputsRight:ButtonRow({
+	{ Text = "edit modes", Callback = function()
+		toggleBind:SetMode("hold")
+		holdBind:SetMode("toggle")
+		Library:Notify("keybinds", "modes swapped.", 2)
+	end },
+	{ Text = "remove keys", Callback = function()
+		alwaysBind:Clear()
+		Library:Notify("keybinds", "always key cleared.", 2)
+	end },
+})
 inputsRight:Input({ Text = "input", Flag = "cmp_input", Placeholder = "type something" })
 inputsRight:Search({ Label = "search", Placeholder = "filter...", Live = true })
 inputsRight:ColorPicker({ Text = "color picker", Flag = "cmp_color", Default = Color3.fromRGB(120, 180, 255) })

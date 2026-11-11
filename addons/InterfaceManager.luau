@@ -5,7 +5,7 @@ return function(Library)
 	local InterfaceManager = {}
 	InterfaceManager.Library = Library
 	InterfaceManager.Folder = "Orasense"
-	InterfaceManager.Flags = { "interface_menu_key", "interface_scale", "interface_dpi", "interface_transparency", "interface_hotkeys", "orasense_particles", "orasense_particle_custom", "orasense_particle_rate", "orasense_particle_size", "orasense_particle_speed", "orasense_particle_start_speed", "orasense_particle_end_speed", "orasense_particle_spread", "orasense_background", "orasense_background_fade", "orasense_liquid", "orasense_glass_blur", "orasense_glass_strength" }
+	InterfaceManager.Flags = { "interface_menu_key", "interface_scale", "interface_dpi", "interface_transparency", "interface_hotkeys", "orasense_particles", "orasense_particle_custom", "orasense_particle_rate", "orasense_particle_size", "orasense_particle_speed", "orasense_particle_start_speed", "orasense_particle_end_speed", "orasense_particle_spread", "orasense_background", "orasense_background_fade", "orasense_liquid", "orasense_menu_blur", "orasense_menu_blur_strength" }
 
 	function InterfaceManager:SetLibrary(lib)
 		self.Library = lib or Library
@@ -82,6 +82,27 @@ return function(Library)
 			end,
 		})
 
+		local menuBlur = section:Toggle({
+			Text = "menu blur",
+			Flag = "orasense_menu_blur",
+			Hint = "blurs the game behind the menu",
+			Default = self.Library.MenuBlur == true,
+			Callback = function(state)
+				self.Library:SetMenuBlur(state)
+			end,
+		})
+
+		local menuBlurStrength = section:Slider({
+			Text = "blur strength",
+			Flag = "orasense_menu_blur_strength",
+			Min = 0,
+			Max = 30,
+			Default = self.Library.MenuBlurStrength or 12,
+			Callback = function(value)
+				self.Library:SetMenuBlurStrength(value)
+			end,
+		})
+
 local hotkeys = section:Toggle({
 			Text = "hotkeys panel",
 			Flag = "interface_hotkeys",
@@ -113,6 +134,8 @@ local hotkeys = section:Toggle({
 		dpi:Set(self.Settings.Dpi or 96, true)
 		transparency:Set(self.Settings.Transparency or 0, true)
 		hotkeys:Set(self.Settings.Hotkeys == true)
+		menuBlur:Set(self.Library.MenuBlur == true)
+		menuBlurStrength:Set(self.Library.MenuBlurStrength or 12, true)
 		do
 			local win = self:GetWindow()
 			if win and win.SetDpi then win:SetDpi(self.Settings.Dpi or 96) end

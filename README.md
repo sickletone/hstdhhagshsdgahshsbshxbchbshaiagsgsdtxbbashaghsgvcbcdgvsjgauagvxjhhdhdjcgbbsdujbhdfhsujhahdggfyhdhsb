@@ -39,15 +39,21 @@ configs, theme, server browser, player panel).
 - **Menu search** — `Window:EnableMenuSearch()` (or `MenuSearch = true`
   in `Library:Window`) adds a search box that finds any feature by name
   and jumps to it. Dropdowns support `Search = true` too.
-- **Liquid glass** — a real liquid look (tinted translucency + frost,
+- **Liquid glass** — a real liquid look (tinted translucency,
   specular wash, travelling sheen), not plain glassmorphism:
-  `Library:SetLiquidGlass(true)`, plus `SetGlass`,
-  `SetGlassBlur`, `SetGlassStrength`. Glass blur blurs the world behind the
-  menu plus a soft frost layer inside the window: Roblox can only blur the
-  whole 3D view, so the windows and the modals share one `BlurEffect` in
-  Lighting instead of each adding their own. It is off by default. All glass
-  controls live in settings > themes, next to the colour list. Preset `liquid`
-  in the theme manager.
+  `Library:SetLiquidGlass(true)`, plus `SetGlass` and `SetGlassStrength`. All
+  glass controls live in settings > themes, next to the colour list. Preset
+  `liquid` in the theme manager.
+- **Menu blur** — `Library:SetMenuBlur(true)` with
+  `SetMenuBlurStrength(0-30)` blurs the game behind the menu while it is open.
+  Roblox can only blur the whole 3D view, so the windows and the modals share
+  one `BlurEffect` in Lighting. The toggle and its strength slider live in
+  settings > options, and it is off by default.
+- **Keybind modes** — a keybind runs in `always` (no key needed), `hold`
+  (active while held) or `toggle` (press to flip). Double right click its key
+  pill in game to pick the mode; one right click clears the key.
+  `keybind:SetMode("toggle")`, `:GetMode()` and `:Clear()` do the same from
+  code, and `OnModeChanged(mode)` reports the change.
 - **Sub tabs** — `tab:SubTab("name")` adds a nested tab strip inside a tab:
   a row of text tabs with an accent underline on the active one (plus the
   parent tab's icon at the left). Each sub tab is a full tab (`:Section`,
@@ -125,7 +131,7 @@ Every component is available on tabs, sub tabs and sections.
 | `ColorPicker` / `ColorSwatches` | colour picker and preset swatches |
 | `Dropdown` / `MultiDropdown` | single and multi select |
 | `Search` / `Input` / `TextArea` / `CopyField` | text entry variants |
-| `Keybind` | hold or toggle keybind |
+| `Keybind` | always / hold / toggle keybind (double right click the key) |
 | `Button` / `ButtonRow` / `Link` | actions |
 
 **Display**

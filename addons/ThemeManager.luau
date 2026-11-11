@@ -199,8 +199,8 @@ return function(Library)
 		if not ok or type(data) ~= "table" then return false end
 
 		if data.Preset then self:Apply(data.Preset) end
-		-- Old theme files may still carry Glass / GlassBlur / GlassStrength.
-		-- They are ignored on purpose so glass cannot come back on at launch.
+		-- Old theme files may still carry glass keys. They are ignored on
+		-- purpose so glass cannot come back on at launch.
 		for key, hex in pairs(data.Colors or {}) do
 			local color, alpha = fromHex(hex)
 			if color and Theme[key] ~= nil then
@@ -221,7 +221,6 @@ return function(Library)
 				Preset = self.Current,
 				Colors = colors,
 				Glass = self.Library.Glass == true,
-				GlassBlur = self.Library.GlassBlur == true,
 				GlassStrength = self.Library.GlassStrength or 1,
 				LiquidGlass = self.Library.LiquidGlass == true,
 			})
@@ -331,7 +330,7 @@ return function(Library)
 			end,
 		})
 
-		local glassToggle, blurToggle, strengthSlider, liquidToggle
+		local glassToggle, strengthSlider, liquidToggle
 		if self.Library.SetGlass then
 			glassToggle = controls:Toggle({
 				Text = "glass",
@@ -340,17 +339,6 @@ return function(Library)
 				Hint = "see-through panels",
 				Callback = function(state)
 					self.Library:SetGlass(state)
-					dirty = true
-					if self.AutoSave then self:Save() end
-				end,
-			})
-			blurToggle = controls:Toggle({
-				Text = "glass blur",
-				Flag = false,
-				Default = self.Library.GlassBlur ~= false,
-				Hint = "frosts the menu glass instead of blurring the whole screen",
-				Callback = function(state)
-					self.Library:SetGlassBlur(state)
 					dirty = true
 					if self.AutoSave then self:Save() end
 				end,
@@ -380,7 +368,7 @@ return function(Library)
 				end,
 			})
 		end
-		self.GlassToggle, self.BlurToggle, self.StrengthSlider, self.LiquidToggle = glassToggle, blurToggle, strengthSlider, liquidToggle
+		self.GlassToggle, self.StrengthSlider, self.LiquidToggle = glassToggle, strengthSlider, liquidToggle
 
 		controls:Divider()
 
