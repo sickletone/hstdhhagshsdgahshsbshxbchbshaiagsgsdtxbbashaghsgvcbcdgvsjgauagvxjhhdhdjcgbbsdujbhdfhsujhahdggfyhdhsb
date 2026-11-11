@@ -22,7 +22,8 @@ configs, theme, server browser, player panel).
 - **Window** — draggable, resizable, top or side tabs, footer actions,
   modals, confirms, touch-only mobile button, cursor, hotkey panel, notifications, watermark
   (normal / warning / danger / success).
-- **Controls** — label, paragraph, button, button row, toggle (+ keybind,
+- **Controls** — label, paragraph, button, button row (with `Tooltip` and
+  `SubButtons`), toggle (+ keybind,
   color pickers, gear popups), slider, dropdown (single, multi-select,
   searchable), input, search, keybind, color picker, divider, split,
   table, image.
@@ -32,6 +33,14 @@ configs, theme, server browser, player panel).
   the full three-column layout automatically. The title can be a table,
   `{ Title = "arcade servers", Icon = "settings", Side = "left" }`, to get a
   header icon like the reference hubs.
+- **Tooltips** — any button, button row entry or label takes
+  `Tooltip = "text"`. Tooltips are drawn in their own always-on-top layer, so
+  they are never clipped by the section that owns the control and never change
+  its layout: `section:Button({ Text = "run", Tooltip = "runs it" })`.
+- **Sub buttons** — `section:Button({ Text = "main", SubButtons = { { Text =
+  "one", Callback = fn }, { Text = "two", Callback = fn } } })` keeps related
+  actions on one control: the row of child buttons opens while the button is
+  hovered and closes when the pointer leaves it.
 - **Dependency toggles & sub toggles** —
   `toggle:Dependency(function(dep) ... end)` reveals extra options only
   while the toggle is on; `elements:SubToggle(opts)` creates an indented
@@ -201,6 +210,23 @@ you drag it.
 `menu scale` still scales the whole window. Both are saved through the config
 system (`interface_dpi`, `interface_scale`).
 
+On touch devices the baseline is **104 dpi** instead of 96, on top of the mobile
+`1.12` boost, so mobile text and controls start bigger before anyone touches the
+sliders. `Library.Dpi` is set at load, so setting it before `Library:Window()`
+changes the starting point for every window.
+
+## Menu size
+
+`Library:SetDefaultSize(width, height)` sets the size every window is created
+with, on desktop and mobile alike, and resizes the windows that are already
+open. Set `Library.DefaultWidth` / `Library.DefaultHeight` before
+`Library:Window()` if no window exists yet. A window still wins with its own
+`Width` / `Height` options.
+
+The mobile sub tab exposes both values as sliders (saved as
+`menu_default_width` and `menu_default_height`), and the Example calls
+`Library:SetDefaultSize(620, 620)` before creating its window.
+
 `menu transparency` sits next to them and defaults to `0%` (fully opaque).
 
 ## Particles
@@ -219,7 +245,8 @@ mobile sizing automatically: every interactive row is taller
 (`Toggle` 22 -> 32, `Slider` 30 -> 40, inputs and buttons 26 -> 34, and the
 same treatment for the component pack), group headers and sub tab pills get
 bigger touch targets, tab labels get bigger text, the components start at
-112% dpi, and windows are created 560 px wide so the fit pass scales the
+104 dpi and a further 12% boost, and windows are created 560 px wide (or
+`Library.DefaultWidth` x `Library.DefaultHeight` once you set them) so the fit pass scales the
 whole menu up instead of down. `Library.Mobile` reports the detected mode,
 and any window can still opt out by passing its own `Width`.
 

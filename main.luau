@@ -678,6 +678,78 @@ local function NewContainer(window, frame, float)
 	return setmetatable({ Window = window, Container = frame, Float = float }, Elements)
 end
 
+-- Hover tooltips live in their own ScreenGui: a tooltip then can never be
+-- clipped by the frame that owns it, and it never takes layout space.
+local tooltipLayer
+local function TooltipLayer()
+	if tooltipLayer and tooltipLayer.Parent then return tooltipLayer end
+	local gui = New("ScreenGui", {
+		Name = "OrasenseTooltips",
+		ResetOnSpawn = false,
+		IgnoreGuiInset = true,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		AutoLocalize = false,
+		DisplayOrder = 1200,
+	})
+	ParentGui(gui)
+	tooltipLayer = New("Frame", {
+		Name = "Layer",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Parent = gui,
+	})
+	Library.TooltipGui = gui
+	return tooltipLayer
+end
+
+function Library:AttachTooltip(target, text)
+	if not target or text == nil then return nil end
+	text = tostring(text)
+	if text == "" then return nil end
+
+	local tip
+	local function hide()
+		if tip then tip:Destroy() tip = nil end
+	end
+
+	Track(target.MouseEnter:Connect(function()
+		hide()
+		local layer = TooltipLayer()
+		tip = New("Frame", {
+			BackgroundColor3 = Theme.PopupBg,
+			BorderSizePixel = 0,
+			AutomaticSize = Enum.AutomaticSize.XY,
+			ZIndex = 2,
+			Parent = layer,
+		})
+		Corner(tip, 5)
+		Stroke(tip, Theme.PopupBorder)
+		Pad(tip, 4, 8, 4, 8)
+		local l = Label(tip, text, Theme.TextBright, 12)
+		l.AutomaticSize = Enum.AutomaticSize.XY
+		l.TextWrapped = false
+		l.TextXAlignment = Enum.TextXAlignment.Left
+		l.ZIndex = 3
+
+		local pos, size = target.AbsolutePosition, target.AbsoluteSize
+		local origin = layer.AbsolutePosition
+		local x = math.clamp(pos.X - origin.X + size.X * 0.5, 40,
+			math.max(layer.AbsoluteSize.X - 40, 8))
+		local y = pos.Y - origin.Y
+		-- above the control, or below it when there is no room at the top
+		if y > 40 then
+			tip.AnchorPoint = Vector2.new(0.5, 1)
+			tip.Position = UDim2.fromOffset(x, y - 6)
+		else
+			tip.AnchorPoint = Vector2.new(0.5, 0)
+			tip.Position = UDim2.fromOffset(x, y + size.Y + 6)
+		end
+	end))
+	Track(target.MouseLeave:Connect(hide))
+
+	return { Destroy = hide }
+end
+
 function Elements:Divider()
 	local d = New("Frame", {
 		Size = UDim2.new(1, 0, 0, 1),
@@ -727,6 +799,7 @@ function Elements:Label(text, opts)
 	l.TextYAlignment = Enum.TextYAlignment.Top
 
 	local api = { Instance = row, Text = l, Icon = icon }
+	if opts.Tooltip then Library:AttachTooltip(row, opts.Tooltip) end
 
 	local function syncVisibility()
 		if opts.KeepSpace then return end
@@ -838,6 +911,7 @@ local function MakeButton(parent, opts, size, order)
 	Track(btn.MouseLeave:Connect(function()
 		Tween(btn, { BackgroundColor3 = Theme.Field, BackgroundTransparency = 0.35 }, EASE_FAST)
 	end))
+	if opts.Tooltip then Library:AttachTooltip(btn, opts.Tooltip) end
 	Track(btn.Activated:Connect(function()
 		if state.Enabled == false then return end
 		Library:SafeCallback(opts.Text or "button", opts.Callback)
@@ -847,11 +921,72 @@ end
 
 function Elements:Button(opts)
 	opts = opts or {}
-	local btn, state, text = MakeButton(self.Container, opts)
+
+	local subs = opts.SubButtons
+	if type(subs) ~= "table" or #subs == 0 then
+		local btn, state, text = MakeButton(self.Container, opts)
+		local api = Disableable({ Instance = btn }, { text })
+		local baseSetEnabled = api.SetEnabled
+		function api:SetEnabled(value)
+			state.Enabled = value ~= false
+			return baseSetEnabled(self, value)
+		end
+		if opts.Disabled then api:SetEnabled(false) end
+		return api
+	end
+
+	-- A button with sub buttons keeps them in a row underneath and opens that
+	-- row while the pointer is on the button, so related actions stay one
+	-- compact control instead of a wall of buttons.
+	local holder = New("Frame", {
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 1,
+		Parent = self.Container,
+	})
+	List(holder, 6)
+
+	local btn, state, text = MakeButton(holder, opts)
+	local row = New("Frame", {
+		Size = UDim2.new(1, 0, 0, MSize(22, 28)),
+		BackgroundTransparency = 1,
+		Visible = false,
+		LayoutOrder = 2,
+		Parent = holder,
+	})
+	List(row, 6, Enum.FillDirection.Horizontal)
+
+	local built = {}
+	for i, sub in ipairs(subs) do
+		local subBtn, subState = MakeButton(row, sub,
+			UDim2.new(1 / #subs, -(6 * (#subs - 1)) / #subs, 1, 0), i)
+		built[i] = { Instance = subBtn, State = subState }
+	end
+
+	-- a short grace period lets the pointer travel from the button into the row
+	local token = 0
+	local function open()
+		token = token + 1
+		row.Visible = true
+	end
+	local function closeLater()
+		token = token + 1
+		local mine = token
+		task.delay(0.12, function()
+			if mine == token and row.Parent then row.Visible = false end
+		end)
+	end
+	Track(btn.MouseEnter:Connect(open))
+	Track(btn.MouseLeave:Connect(closeLater))
+	Track(row.MouseEnter:Connect(open))
+	Track(row.MouseLeave:Connect(closeLater))
+
 	local api = Disableable({ Instance = btn }, { text })
+	api.SubButtons = built
 	local baseSetEnabled = api.SetEnabled
 	function api:SetEnabled(value)
 		state.Enabled = value ~= false
+		for _, sub in ipairs(built) do sub.State.Enabled = value ~= false end
 		return baseSetEnabled(self, value)
 	end
 	if opts.Disabled then api:SetEnabled(false) end
@@ -3164,12 +3299,15 @@ function Window:SetVisible(state)
 			if not self.Visible then self.Main.Visible = false end
 		end)
 	end
+	-- the shared menu blur belongs to the window being open, so it fades with the
+	-- close instead of staying on screen after the menu is gone
+	if Library.SyncMenuBlur then Library:SyncMenuBlur() end
 end
 
 function Library:Window(opts)
 	opts = opts or {}
-	local width = opts.Width or (MOBILE and 560 or 620)
-	local height = opts.Height or 560
+	local width = opts.Width or self.DefaultWidth or (MOBILE and 560 or 620)
+	local height = opts.Height or self.DefaultHeight or 560
 
 	local gui = New("ScreenGui", {
 		Name = opts.Name or "Orasense",
@@ -3643,10 +3781,10 @@ function Library:Window(opts)
 	window.TitleName = titleName
 	window.TitleSuffix = titleSuffix
 	window.TitleBaseSize = titleSize
-	window.BaseWidth = opts.Width or (MOBILE and 560 or 620)
+	window.BaseWidth = width
 
 	table.insert(Library.Windows, window)
-	window:SetDpi(Library.Dpi or 96)
+	window:SetDpi(Library.Dpi or (MOBILE and 104 or 96))
 	if (Library.MenuTransparency or 0) > 0 then
 		window:SetMenuTransparency(Library.MenuTransparency)
 	end
@@ -6540,12 +6678,29 @@ do
 	end
 end
 
-Library.Dpi = Library.Dpi or 96
+Library.Dpi = Library.Dpi or (MOBILE and 104 or 96)
 Library.IsMobile = MOBILE
+
+-- Default menu size: one call changes the menu size everywhere, mobile
+-- included, instead of passing Width and Height to every window. Set the fields
+-- before Library:Window(), or call SetDefaultSize later to also resize the
+-- windows that are already open.
+Library.DefaultWidth = Library.DefaultWidth or (MOBILE and 560 or 620)
+Library.DefaultHeight = Library.DefaultHeight or 560
+
+function Library:SetDefaultSize(width, height)
+	width = math.clamp(tonumber(width) or self.DefaultWidth or 620, 240, 2400)
+	height = math.clamp(tonumber(height) or self.DefaultHeight or 560, 160, 1600)
+	self.DefaultWidth, self.DefaultHeight = width, height
+	for _, w in ipairs(self.Windows or {}) do
+		if w.SetSize then pcall(function() w:SetSize(width, height) end) end
+	end
+	return width, height
+end
 Library.MenuTransparency = Library.MenuTransparency or 0
 
 function Library:SetDpi(dpi)
-	dpi = math.clamp(tonumber(dpi) or 96, 60, 200)
+	dpi = math.clamp(tonumber(dpi) or (MOBILE and 104 or 96), 60, 200)
 	self.Dpi = dpi
 	for _, w in ipairs(self.Windows) do
 		if w.SetDpi then w:SetDpi(dpi) end
