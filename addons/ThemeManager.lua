@@ -101,9 +101,14 @@ return function(Library)
 		self.Library = lib or Library
 	end
 
+	function ThemeManager:BuildFolderTree()
+		self.Library:BuildFolders(self.Folder)
+		self.Library.FileSystem:MakeFolder(self:ThemeFolder())
+	end
+
 	function ThemeManager:SetFolder(folder)
 		self.Folder = folder
-		self.Library:BuildFolders(folder)
+		self:BuildFolderTree()
 	end
 
 	function ThemeManager:Path()
@@ -123,6 +128,7 @@ return function(Library)
 		Theme.AccentSoft = tint(color, 0.78, 1.08)
 		Theme.AccentDim = tint(color, 0.72, 0.64)
 		self.Library:Repaint()
+		if self.SyncPickers then self.SyncPickers() end
 		if self.AutoSave then self:Save() end
 		return true
 	end
@@ -171,6 +177,7 @@ return function(Library)
 			self.Library:SetLiquidGlass(preset.Liquid == true)
 		end
 		self:SetAccent(preset.Accent)
+		if self.SyncPickers then self.SyncPickers() end
 		return true
 	end
 
@@ -187,6 +194,8 @@ return function(Library)
 			ThemeManager.Library:SetLiquidGlass(data.LiquidGlass == true)
 		end
 		ThemeManager.Library:Repaint()
+		if ThemeManager.SyncPickers then ThemeManager.SyncPickers() end
+		if ThemeManager.AutoSave then ThemeManager:Save() end
 		return true
 	end
 
@@ -541,6 +550,7 @@ return function(Library)
 				picker:Set(Theme[key], alphas[key] or 1, true)
 			end
 		end
+		self.SyncPickers = syncPickers
 
 		local function takeSnapshot()
 			snapshot, snapshotAlphas = {}, {}

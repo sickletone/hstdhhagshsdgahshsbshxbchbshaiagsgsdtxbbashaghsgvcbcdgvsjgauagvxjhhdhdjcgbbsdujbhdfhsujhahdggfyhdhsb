@@ -30,9 +30,14 @@ return function(Library)
 		end
 	end
 
+	function SaveManager:BuildFolderTree()
+		self.Library:BuildFolders(self.Folder)
+		self.Library.FileSystem:MakeFolder(self.Folder .. "/configs")
+	end
+
 	function SaveManager:SetFolder(folder)
 		self.Folder = folder
-		self.Library:BuildFolders(folder)
+		self:BuildFolderTree()
 	end
 
 	function SaveManager:Path(file)
@@ -40,11 +45,13 @@ return function(Library)
 	end
 
 	function SaveManager:List()
+		self:BuildFolderTree()
 		return FileSystem:List(self.Folder .. "/configs")
 	end
 
 	function SaveManager:Save(name)
 		if type(name) ~= "string" or string.gsub(name, "%s", "") == "" then return false, "empty name" end
+		self:BuildFolderTree()
 		local file = name
 		if not string.match(file, "%.%w+$") then file = file .. "." .. self.Format end
 		local ok, encoded = pcall(function()
@@ -58,11 +65,16 @@ return function(Library)
 
 	function SaveManager:Load(file)
 		if type(file) ~= "string" or file == "" then return false, "no config" end
+		self:BuildFolderTree()
 		local raw = FileSystem:Read(self:Path(file))
 		if not raw then return false, "not found" end
 		local ok, data = pcall(function() return HttpService:JSONDecode(raw) end)
 		if not ok then return false, "corrupted file" end
-		self.Library:LoadConfig(data, self.Ignore)
+		-- every value goes through LoadConfig, which pcall-guards each setter and
+		-- skips flags that no longer exist in this build
+		local applied, err = pcall(function() self.Library:LoadConfig(data, self.Ignore) end)
+		if not applied then return false, tostring(err) end
+		if self.Library.Repaint then self.Library:Repaint() end
 		return true, file
 	end
 
@@ -94,6 +106,7 @@ return function(Library)
 	end
 
 	function SaveManager:LoadAutoloadConfig()
+		self:BuildFolderTree()
 		local file = self:GetAutoload()
 		if not file then return false end
 		local ok, err = self:Load(file)
@@ -106,6 +119,7 @@ return function(Library)
 	end
 
 	function SaveManager:Overwrite(file, fallbackName)
+		self:BuildFolderTree()
 		if (type(file) ~= "string" or file == "") and type(fallbackName) == "string" then
 			file = fallbackName
 		end
