@@ -180,8 +180,15 @@ function Library:LoadAddon(name)
 			warn("Orasense | unknown addon '" .. tostring(name) .. "'")
 			return nil
 		end
-		local fetched, source = pcall(function() return game:HttpGet(self.BaseUrl .. path) end)
-		if fetched and type(source) == "string" and #source > 0 then
+		local cached = self.SourceCache and self.SourceCache[path]
+		local source = cached
+		if not source then
+			local fetched, body = pcall(function() return game:HttpGet(self.BaseUrl .. path) end)
+			if fetched and type(body) == "string" and #body > 0 then source = body end
+		end
+		if source and #source > 0 then
+			self.SourceCache = self.SourceCache or {}
+			self.SourceCache[path] = source
 			local built, chunk = pcall(loadstring, source)
 			if built and type(chunk) == "function" then
 				local ran, value = pcall(chunk)
@@ -212,6 +219,10 @@ function Library:SetColor(key, color, alpha)
 end
 
 function Library:Repaint()
+	if self.BatchRepaint then
+		self.RepaintQueued = true
+		return
+	end
 	if #Painted == 0 then
 warn("Orasense | repaint registry is empty, Library.lua is probably outdated")
 	end
@@ -285,6 +296,10 @@ function Library:GetConfig(ignore)
 end
 
 function Library:LoadConfig(data, ignore)
+	local previousInstant, previousBatch = self.InstantTweens, self.BatchRepaint
+	self.InstantTweens = true
+	self.BatchRepaint = true
+	self.RepaintQueued = false
 
 	local mobile = data and data.__orasense_mobile
 	if type(mobile) == "table" then
@@ -307,6 +322,12 @@ function Library:LoadConfig(data, ignore)
 	end
 	for flag, value in pairs(data or {}) do
 		if string.find(flag, "theme_color_", 1, true) == 1 then apply(flag, value) end
+	end
+	self.InstantTweens = previousInstant
+	self.BatchRepaint = previousBatch
+	if self.RepaintQueued then
+		self.RepaintQueued = false
+		self:Repaint()
 	end
 	self:ClearDirty()
 end
@@ -424,6 +445,9 @@ local function Label(parent, text, color, size, font)
 end
 
 local function Tween(inst, goal, info)
+	if Library.InstantTweens then
+		info = TweenInfo.new(0)
+	end
 	local t = TweenService:Create(inst, info or EASE, goal)
 	t:Play()
 	return t
@@ -4854,6 +4878,7 @@ function Library:CreateMobileButton(opts)
 		local thickness = math.max(1, math.floor(config.IconSize / 8 + 0.5))
 		for i, bar in ipairs(bars) do
 			bar.Visible = config.Invisible ~= true
+			bar.BackgroundTransparency = fillTransparency()
 			bar.Size = UDim2.fromOffset(config.IconSize, thickness)
 			bar.Position = UDim2.new(0.5, 0, 0.5, math.floor((i - 2) * (config.IconSize / 3) + 0.5))
 		end
@@ -5067,9 +5092,25 @@ if getgenv then
 	getgenv().Facility = Library
 end)
 end
-Library.SaveManager = Library:LoadAddon("SaveManager")
-Library.InterfaceManager = Library:LoadAddon("InterfaceManager")
-Library.ThemeManager = Library:LoadAddon("ThemeManager")
+function Library:LoadAddons(names)
+	local threads = {}
+	for _, name in ipairs(names) do
+		if self.Addons[name] == nil then
+			table.insert(threads, task.spawn(function() self:LoadAddon(name) end))
+		end
+	end
+	for _, thread in ipairs(threads) do
+		while coroutine.status(thread) ~= "dead" do
+			task.wait()
+		end
+	end
+	return self.Addons
+end
+
+Library:LoadAddons({ "Icons", "SaveManager", "InterfaceManager", "ThemeManager" })
+Library.SaveManager = Library.Addons.SaveManager
+Library.InterfaceManager = Library.Addons.InterfaceManager
+Library.ThemeManager = Library.Addons.ThemeManager
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
