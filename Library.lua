@@ -2650,6 +2650,26 @@ function Tab:Section(title, columnIndex)
 	return self:Column(columnIndex):Section(title)
 end
 
+function Tab:Card(title)
+	local opts = type(title) == "table" and title or (title ~= nil and { Title = tostring(title) } or {})
+	self.Order = self.Order + 1
+	local wrapper = New("Frame", {
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 1,
+		LayoutOrder = self.Order,
+		Parent = self.Page,
+	})
+	local host = setmetatable({
+		Window = self.Window,
+		Container = wrapper,
+		Float = self.Float,
+		_TabRef = self,
+		_Parent = self,
+	}, Elements)
+	return host:Card(opts)
+end
+
 local Window = {}
 Window.__index = Window
 
@@ -4258,7 +4278,7 @@ function Library:Panel(opts)
 				origin = input.Position
 				startPos = frame.Position
 				dragTouch = input.UserInputType == Enum.UserInputType.Touch and input or nil
-				self:CloseFloating()
+				api:CloseFloating()
 				moveConn = UserInputService.InputChanged:Connect(function(move)
 					if dragTouch then
 						if move ~= dragTouch then return end

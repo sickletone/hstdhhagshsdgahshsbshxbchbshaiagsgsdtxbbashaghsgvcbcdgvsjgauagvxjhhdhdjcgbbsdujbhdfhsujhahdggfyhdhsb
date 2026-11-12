@@ -736,51 +736,10 @@ toolbarSection:Toggle({
         end,
 })
 
-local overlay = settingsOptions:Section("Overlay", 1)
 
 
-overlay:Toggle({
-        Text = "Server Browser",
-        Flag = "overlay_servers",
-        Hint = "Lists the public servers of this game",
-        Default = false,
-        Callback = function(state)
-                servers:SetVisible(state)
-        end,
-})
 
-overlay:Toggle({
-        Text = "Player Panel",
-        Hint = "Shows the floating player panel, off on every launch",
-        Default = false,
-        Callback = function(state)
-                hud:SetVisible(state)
-        end,
-})
-
-overlay:Toggle({
-        Text = "Keybind Menu",
-        Flag = "overlay_keybinds",
-        Hint = "Floating list of every keybind in the menu, dragged like a panel",
-        Default = true,
-        Callback = function(state)
-                Library:SetKeybindListVisible(state)
-        end,
-})
-
-overlay:Dropdown({
-        Text = "Keybind Menu Mode",
-        Flag = "overlay_keybind_mode",
-        Options = { "all", "active" },
-        Default = "all",
-        Callback = function(value)
-                Library:SetKeybindListMode(value)
-        end,
-})
-
--- Mini window: a second, smaller window that floats outside the menu. It
--- keeps its own title bar, drag and corner grip, and its Content accepts every
--- component. A toggle, a dropdown and a button all drive the same window.
+-- Mini window and sub window demos, opened from the components tab.
 local float = Library:MiniWindow({
         Title = "Mini Window",
         Width = 230,
@@ -788,65 +747,18 @@ local float = Library:MiniWindow({
         Position = UDim2.fromOffset(24, 120),
 })
 float.Content:Label("lives outside the menu, drag it anywhere.", { Style = "dim" })
-float.Content:Dropdown({
-        Text = "Popup",
-        Flag = false,
-        Options = { "glass", "solid", "liquid" },
-        Default = "glass",
-})
-float.Content:Slider({
-        Text = "Value",
-        Flag = false,
-        Min = 0,
-        Max = 100,
-        Suffix = "%",
-        Default = 40,
-})
 float.Content:Button({
         Text = "Notify",
         Callback = function()
                 Library:Notify({ Title = "orasense", Text = "Mini Window Works.", Style = "success", Duration = 2 })
         end,
 })
-float.Content:Toggle({ Text = "Stay Open", Default = true })
 float:SetVisible(false)
 
-local demoToggles = settingsOptions:Section("Windows", 1)
-
-local floatToggle
-local floatDropdown
-
-local function setFloat(open)
-        open = open ~= false
-        if float.Visible == open then return end
-        float:SetVisible(open)
-        if floatToggle then pcall(function() floatToggle:Set(open, true) end) end
-        if floatDropdown then pcall(function() floatDropdown:Set(open and "open" or "closed", true) end) end
-end
-
-floatToggle = demoToggles:Toggle({
-        Text = "Mini Window",
-        Default = false,
-        Hint = "The dropdown and the button below drive the same window",
-        Callback = function(state) setFloat(state) end,
-})
-
-floatDropdown = demoToggles:Dropdown({
-        Text = "Mini Window State",
-        Options = { "closed", "open" },
-        Default = "closed",
-        Callback = function(value) setFloat(value == "open") end,
-})
-
-demoToggles:Button({ Text = "Toggle Mini Window", Callback = function() setFloat(not float.Visible) end })
-
--- Embedded sub window: it stays inside the main window instead.
 local sub = Window:SubWindow({ Title = "Sub Window", Width = 250, Height = 170 })
 sub.Content:Label("a window inside the window.", { Style = "dim" })
 sub.Content:Button({ Text = "Ping", Callback = function() Library:Notify({ Title = "orasense", Text = "Pong", Duration = 2 }) end })
 sub:SetVisible(false)
-demoToggles:Toggle({ Text = "Sub Window", Flag = "demo_subwindow", Callback = function(state) sub:SetVisible(state) end })
-
 
 -- Every component, grouped in sub tabs.
 local Components = Window:Tab("components")
