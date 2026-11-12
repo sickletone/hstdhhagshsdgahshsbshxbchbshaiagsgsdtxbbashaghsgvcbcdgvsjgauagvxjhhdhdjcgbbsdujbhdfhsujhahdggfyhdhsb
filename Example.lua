@@ -514,7 +514,13 @@ aim:Toggle({ Text = "Enabled", Flag = "aim_enabled", Default = true })
         :Keybind({ Default = "Q", Flag = "aim_key" })
 aim:Slider({ Text = "Field of View", Flag = "aim_fov", Min = 1, Max = 180, Suffix = "°", Default = 80 })
 aim:Slider({ Text = "Smoothness", Flag = "aim_smooth", Min = 0, Max = 100, Default = 20 })
-aim:Segmented({ Text = "Mode", Flag = "aim_mode", Options = { "hold", "toggle" }, Default = "hold" })
+aim:Dropdown({
+        Text = "Mode",
+        Flag = "aim_mode",
+        Options = { "hold", "toggle" },
+        Default = "hold",
+        Compact = true,
+})
 
 local targeting = World:Section("Targeting", 2)
 
@@ -949,7 +955,13 @@ switchRight:Button({
         Compact = true,
         Callback = function() Library:Notify({ Title = "orasense", Text = "FOV clicked.", Duration = 2 }) end,
 })
-switchRight:Segmented({ Text = "Quality", Flag = "cmp_segmented", Options = { "low", "mid", "high" }, Default = "mid" })
+switchRight:Dropdown({
+        Text = "Quality",
+        Flag = "cmp_segmented",
+        Options = { "low", "mid", "high" },
+        Default = "mid",
+        Compact = true,
+})
 switchRight:Segmented({ Flag = "cmp_segmented2", Options = { "one", "two" }, Default = "one" })
 switchRight:RadioGroup({ Text = "Mode", Flag = "cmp_radio2", Options = { "safe", "fast" }, Default = "safe" })
 

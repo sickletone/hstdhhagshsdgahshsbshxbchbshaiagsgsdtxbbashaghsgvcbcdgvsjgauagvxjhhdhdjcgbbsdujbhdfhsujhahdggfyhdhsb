@@ -4791,18 +4791,25 @@ function Library:CreateCursor(opts)
 			self.CursorDrawing = cursor
 			self.CursorOriginalMouseIcon = UserInputService.MouseIconEnabled
 
+			local cursorShown = false
 			Track(RunService.RenderStepped:Connect(function()
 				local fill, outline = cursor.Fill, cursor.Outline
 				if not (fill and outline) then return end
 				local active = self.CursorEnabled and self.Open and self.ShowCustomCursor ~= false and not MOBILE
 				if not active then
-					fill.Visible = false
-					outline.Visible = false
-					pcall(function() UserInputService.MouseIconEnabled = self.CursorOriginalMouseIcon ~= false end)
+					if cursorShown then
+						fill.Visible = false
+						outline.Visible = false
+						pcall(function() UserInputService.MouseIconEnabled = self.CursorOriginalMouseIcon ~= false end)
+						cursorShown = false
+					end
 					return
 				end
 
-				pcall(function() UserInputService.MouseIconEnabled = false end)
+				if not cursorShown then
+					pcall(function() UserInputService.MouseIconEnabled = false end)
+					cursorShown = true
+				end
 				local position = UserInputService:GetMouseLocation()
 				if not gui.IgnoreGuiInset then
 					position = position - GuiService:GetGuiInset()
