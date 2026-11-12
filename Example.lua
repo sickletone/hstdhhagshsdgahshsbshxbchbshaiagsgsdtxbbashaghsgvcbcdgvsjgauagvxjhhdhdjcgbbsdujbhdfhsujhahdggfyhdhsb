@@ -69,15 +69,13 @@ local Window = Library:Window({
         -- },
 })
 
--- Tab order: main, visuals, world, misc, skins, spoofers, settings.
+-- Tab order: main, visuals, world, misc, settings.
 -- Icons are Molto lucide names and the tab name only shows on hover or while
 -- the tab is active, so the strip stays icon-only.
 local Main     = Window:Tab({ Title = "main", Icon = "house" })
 local Visuals  = Window:Tab({ Title = "visuals", Icon = "eye" })
 local World    = Window:Tab({ Title = "world", Icon = "globe" })
 local Misc     = Window:Tab({ Title = "misc", Icon = "settings-2" })
-local Skins    = Window:Tab({ Title = "skins", Icon = "star" })
-local Spoofers = Window:Tab({ Title = "spoofers", Icon = "user-star" })
 local Settings = Window:Tab({ Title = "settings", Icon = "settings" })
 
 local settingsOptions = Settings:SubTab({ Title = "options", Icon = "wand-sparkles" })
@@ -88,15 +86,23 @@ local settingsThemes = Settings:SubTab({ Title = "themes", Icon = "palette" })
 local watermark = Library:Watermark({
         Title = "orasense",
         Suffix = ".win",
+        Width = 268,
+        Padding = 8,        -- thickness: lower this for a slimmer pill
+        RowHeight = 18,
+        StatsHeight = 15,
         -- below the Roblox topbar buttons, which sit at the very top left
         Position = UDim2.fromOffset(18, 96),
 })
 watermark:SetVisible(true)
 
--- Floating toolbar: an icon bar pinned just under the Roblox topbar. Each
--- button owns a window; the dot under an icon means that window is open.
+-- Floating toolbar: an icon bar pinned to the bottom center of the screen.
+-- Each button owns a window; the dot under an icon means that window is open.
 local toolbar = Library:FloatingToolbar({
-        Position = UDim2.new(0.5, 0, 0, 62),
+        -- bottom center, six pixels above the bottom edge of the screen
+        Height = 52,        -- thickness of the bar; lower these to slim it down
+        ButtonWidth = 34,
+        ButtonHeight = 40,
+        IconSize = 20,
         Items = {
                 { Title = "menu", Icon = "layout-dashboard", Window = Window },
                 {
@@ -456,17 +462,6 @@ midBox:SubToggle({ Text = "sub toggle", Flag = "demo_sub", Hint = "indented chil
 midBox:Dropdown({ Text = "searchable", Flag = "demo_search", Options = { "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota" }, Default = "alpha", Search = true })
 local rightBox = demoTab:RightGroupbox("right box")
 rightBox:Dropdown({ Text = "multi select", Flag = "demo_multi", Options = { "a", "b", "c", "d" }, Multi = true, Default = { "a" } })
-
-local skinList = Skins:Section("skins", 1)
-
-skinList:Dropdown({ Text = "skin", Flag = "skin_name", Options = { "default", "shadow", "frost", "neon", "gold" }, Default = "default" })
-skinList:Toggle({ Text = "apply to all", Flag = "skin_apply_all", Default = false })
-
-local spooferList = Spoofers:Section("spoofers", 1)
-
-spooferList:Toggle({ Text = "spoof device", Flag = "spoof_device", Default = false })
-spooferList:Dropdown({ Text = "platform", Flag = "spoof_platform", Options = { "windows", "mac", "ios", "android", "console" }, Default = "windows" })
-spooferList:Toggle({ Text = "spoof hwid", Flag = "spoof_hwid", Default = false })
 
 local aim = World:Section("aim", 1)
 

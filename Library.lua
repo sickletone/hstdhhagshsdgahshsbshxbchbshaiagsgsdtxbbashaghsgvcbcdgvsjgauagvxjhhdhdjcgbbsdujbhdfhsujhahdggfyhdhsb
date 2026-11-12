@@ -1,7 +1,6 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 
-
 local MOBILE = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 local function MSize(desktop, mobile)
 	return MOBILE and mobile or desktop
@@ -82,9 +81,9 @@ end
 
 local EASE      = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local EASE_FAST = TweenInfo.new(0.10, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
--- Slower, silkier transitions for anything the eye follows across the screen.
+
 local EASE_SMOOTH = TweenInfo.new(0.24, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
--- Overshoots a little on the way in, which gives the pop its weight.
+
 local EASE_SPRING = TweenInfo.new(0.38, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
 local Painted = {}
@@ -130,10 +129,10 @@ Library.NotificationLimit = 5
 Library.Dirty = false
 Library.BaseUrl = "https://raw.githubusercontent.com/sickletone/hstdhhagshsdgahshsbshxbchbshaiagsgsdtxbbashaghsgvcbcdgvsjgauagvxjhhdhdjcgbbsdujbhdfhsujhahdggfyhdhsb/refs/heads/main/"
 Library.AddonPaths = {
-	Icons = "addons/Icons.luau",
-	SaveManager = "addons/SaveManager.luau",
-	InterfaceManager = "addons/InterfaceManager.luau",
-	ThemeManager = "addons/ThemeManager.luau",
+	Icons = "addons/Icons.lua",
+	SaveManager = "addons/SaveManager.lua",
+	InterfaceManager = "addons/InterfaceManager.lua",
+	ThemeManager = "addons/ThemeManager.lua",
 }
 Library.Addons = {}
 Library.Painted = Painted
@@ -267,8 +266,7 @@ function Library:GetConfig(ignore)
 			if ok then data[flag] = value end
 		end
 	end
-	
-	
+
 	local mobile = {}
 	for key, value in pairs(self:MobileConfig()) do
 		mobile[key] = value
@@ -278,7 +276,7 @@ function Library:GetConfig(ignore)
 end
 
 function Library:LoadConfig(data, ignore)
-	
+
 	local mobile = data and data.__orasense_mobile
 	if type(mobile) == "table" then
 		pcall(function() self:SetMobileButtonOptions(mobile) end)
@@ -379,8 +377,6 @@ local function Tween(inst, goal, info)
 	t:Play()
 	return t
 end
-
-
 
 local function MakeEditableValue(label, commit)
 	if not label then return end
@@ -540,10 +536,6 @@ function Library:PreloadIcons()
 	return IconLib
 end
 
-
-
-
-
 local MOLTO_URL = "https://molto.pages.dev/source.lua"
 local MoltoLib, MoltoTried
 
@@ -560,7 +552,7 @@ local function GetMolto()
 	end
 	local provider = Library.IconProvider or "lucide"
 	if not pcall(result.SetProvider, provider) then return nil end
-	
+
 	local probe, asset = pcall(result.GetAsset, "settings")
 	if not probe or type(asset) ~= "table" then return nil end
 	MoltoLib = result
@@ -592,8 +584,6 @@ local function ResolveIcon(icon)
 			return nil
 		end
 
-		-- Names borrowed from older icon sets: "settings-2" falls back to
-		-- "settings", "user-star" to "user-round-star" and then "user".
 		local found = try(name)
 		if not found and string.match(name, "%-2$") then
 			found = try((string.gsub(name, "%-2$", "")))
@@ -682,8 +672,6 @@ local function NewContainer(window, frame, float)
 	return setmetatable({ Window = window, Container = frame, Float = float }, Elements)
 end
 
--- Hover tooltips live in their own ScreenGui: a tooltip then can never be
--- clipped by the frame that owns it, and it never takes layout space.
 local tooltipLayer
 local function TooltipLayer()
 	if tooltipLayer and tooltipLayer.Parent then return tooltipLayer end
@@ -740,7 +728,7 @@ function Library:AttachTooltip(target, text)
 		local x = math.clamp(pos.X - origin.X + size.X * 0.5, 40,
 			math.max(layer.AbsoluteSize.X - 40, 8))
 		local y = pos.Y - origin.Y
-		-- above the control, or below it when there is no room at the top
+
 		if y > 40 then
 			tip.AnchorPoint = Vector2.new(0.5, 1)
 			tip.Position = UDim2.fromOffset(x, y - 6)
@@ -903,7 +891,7 @@ local function MakeButton(parent, opts, size, order)
 		Parent = parent,
 	})
 	Corner(btn, 6)
-	
+
 	local text = Label(btn, opts.Text or "button", (LabelColor(opts, Theme.TextBright)), 13, Theme.FontMedium)
 	text.Size = UDim2.new(1, -16, 1, 0)
 	text.Position = UDim2.fromOffset(8, 0)
@@ -939,9 +927,6 @@ function Elements:Button(opts)
 		return api
 	end
 
-	-- A button with sub buttons keeps them in a row underneath and opens that
-	-- row while the pointer is on the button, so related actions stay one
-	-- compact control instead of a wall of buttons.
 	local holder = New("Frame", {
 		Size = UDim2.new(1, 0, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
@@ -967,7 +952,6 @@ function Elements:Button(opts)
 		built[i] = { Instance = subBtn, State = subState }
 	end
 
-	-- a short grace period lets the pointer travel from the button into the row
 	local token = 0
 	local function open()
 		token = token + 1
@@ -1247,7 +1231,7 @@ function Elements:Toggle(opts)
 	local function render(animate)
 		local info = animate and EASE_FAST or TweenInfo.new(0)
 		if animate then
-			-- the box pops as the check fills in
+
 			boxScale.Scale = 0.82
 			Tween(boxScale, { Scale = 1 }, EASE_SPRING)
 		end
@@ -1490,8 +1474,7 @@ function Elements:Dropdown(opts)
 		Parent = block,
 	})
 	Corner(button, 6)
-	
-	
+
 	local value = Label(button, "", Theme.TextBright, 13, Theme.Font)
 	value.Position = UDim2.fromOffset(11, 0)
 	value.Size = UDim2.new(1, -37, 1, 0)
@@ -1607,7 +1590,7 @@ function Elements:Dropdown(opts)
 				Parent = scroller,
 			})
 			Corner(item, 4)
-			
+
 			local il = Label(item, tostring(v), Theme.Text, 13, Theme.Font)
 			il.Position = UDim2.fromOffset(9, 0)
 			il.Size = UDim2.new(1, -18, 1, 0)
@@ -1794,8 +1777,7 @@ function Elements:Slider(opts)
 		v = tonumber(v) or min
 		v = math.clamp(v, min, max)
 		if opts.Step then v = min + math.floor((v - min) / opts.Step + 0.5) * opts.Step end
-		-- Rounding/Decimals decide how many places are kept, both while
-		-- dragging and when a typed value comes in.
+
 		if decimals <= 0 then
 			v = math.floor(v + 0.5)
 		else
@@ -2173,7 +2155,6 @@ local function KeyModeHex(color)
 		math.floor(color.B * 255 + 0.5))
 end
 
--- Double right click opens a small mode picker under the key pill.
 local function KeyModeMenu(window, float, current, onPick)
 	local panel = window:CreateFloating(120, true, float)
 	local list = panel.Content:FindFirstChildOfClass("UIListLayout")
@@ -2300,8 +2281,7 @@ function Elements:Keybind(opts)
 		refresh()
 		Tween(pill, { BackgroundColor3 = Theme.FieldHover }, EASE_FAST)
 	end))
-	-- A right click on its own does nothing (it used to wipe the key and leave
-	-- "NONE"); a double right click opens the mode picker instead.
+
 	Track(pill.MouseButton2Click:Connect(function()
 		local now = os.clock()
 		if now - lastRight <= 0.4 then
@@ -2418,8 +2398,7 @@ function Elements:Keybind(opts)
 			Get = function() return key or "" end,
 			Set = function(v) api:Set(v) end,
 		})
-		-- The mode is saved next to the key (<flag>_mode) so a toggle keybind is
-		-- still a toggle after a config load.
+
 		Library:Register(flag .. "_mode", {
 			Type = "KeybindMode",
 			Get = function() return mode end,
@@ -2662,8 +2641,6 @@ end
 local Window = {}
 Window.__index = Window
 
-
-
 function Window:GetFloatLayer()
 	if self.FloatLayer and self.FloatLayer.Parent then return self.FloatLayer end
 	local layer = New("Frame", {
@@ -2693,8 +2670,7 @@ function Window:CreateFloating(width, matchAnchor, parent)
 		Parent = self:GetFloatLayer(),
 	})
 	Corner(frame, 6)
-	
-	
+
 	Stroke(frame, Theme.PopupBorder, 1, 0.45)
 	Pad(frame, 6)
 	local content = New("Frame", {
@@ -2731,8 +2707,6 @@ function Window:ToggleFloating(panel, anchor, matchWidth)
 	end
 	self:CloseFloatingFrom(panel.Depth)
 
-	
-	
 	local ui = math.max((self.Scale.Scale or 1) * (self.ContentScaleValue or 1), 0.05)
 	local originX = (anchor.AbsolutePosition.X - self.Main.AbsolutePosition.X) / ui
 	local originY = (anchor.AbsolutePosition.Y - self.Main.AbsolutePosition.Y) / ui
@@ -2817,8 +2791,6 @@ function Window:Tab(name, icon)
 	label.TextTruncate = Enum.TextTruncate.AtEnd
 	label.LayoutOrder = 2
 
-	-- Icon-only tabs: the name stays hidden until the tab is hovered or active,
-	-- which keeps the tab strip compact. IconOnly = false always shows it.
 	local iconOnly = icon ~= nil and opts.IconOnly ~= false
 	if iconOnly then
 		label.Visible = false
@@ -2878,7 +2850,6 @@ function Window:Tab(name, icon)
 	if not self.ActiveTab then self:SetTab(tab) end
 	return tab
 end
-
 
 function Window:RefreshTabScale()
 	local factor = self.ContentScaleValue or 1
@@ -2953,7 +2924,7 @@ function Window:SetTab(tab)
 	end
 	self.ActiveTab = tab
 	tab.Page.Visible = true
-	-- the new page rises into place instead of appearing
+
 	tab.Page.Position = UDim2.fromOffset(0, 12)
 	Tween(tab.Page, { Position = UDim2.fromOffset(0, 0) }, EASE_SMOOTH)
 	tab:SetActive(true, true)
@@ -2989,7 +2960,6 @@ function Window:SetUserScale(value)
 	return self.UserScale
 end
 
-
 function Window:SetContentScale(value)
 	if self.ApplyContentScale then
 		self.ApplyContentScale(value)
@@ -2997,14 +2967,12 @@ function Window:SetContentScale(value)
 	if self.RefreshTabScale then
 		self:RefreshTabScale()
 	end
-	
+
 	if self.RefreshTitleScale then
 		self:RefreshTitleScale()
 	end
 	return self.ContentScaleValue or 1
 end
-
-
 
 function Window:RefreshTitleScale()
 	local name = self.TitleName
@@ -3024,7 +2992,6 @@ function Window:SetDpi(dpi)
 	self.Dpi = math.clamp(tonumber(dpi) or 96, 60, 200)
 	return self:SetContentScale((self.Dpi / 96) * (self.MobileBoost or 1))
 end
-
 
 function Window:UI()
 	local base = self.Scale and self.Scale.Scale or 1
@@ -3304,10 +3271,9 @@ function Window:SetVisible(state)
 	self.Visible = state
 	if state then
 		self.Main.Visible = true
-		
-		
+
 		if self.ApplyGlass then self:ApplyGlass() end
-		-- the window springs open, slightly undersized, and overshoots back
+
 		self.Scale.Scale = self.BaseScale * 0.92
 		Tween(self.Scale, { Scale = self.BaseScale }, EASE_SPRING)
 	else
@@ -3317,8 +3283,7 @@ function Window:SetVisible(state)
 			if not self.Visible then self.Main.Visible = false end
 		end)
 	end
-	-- the shared menu blur belongs to the window being open, so it fades with the
-	-- close instead of staying on screen after the menu is gone
+
 	if Library.SyncMenuBlur then Library:SyncMenuBlur() end
 end
 
@@ -3449,8 +3414,6 @@ function Library:Window(opts)
 		tabList.VerticalAlignment = Enum.VerticalAlignment.Center
 		tabList.HorizontalAlignment = horizontal
 
-		
-		
 		layoutTabs = function()
 			if bottomTabs then return end
 			local s = math.max(scale.Scale, 0.05)
@@ -3576,9 +3539,6 @@ function Library:Window(opts)
 		window:CloseFloating()
 	end))
 
-	
-	
-	
 	local function applyContentScale(value)
 		local cs = math.clamp(tonumber(value) or 1, 0.7, 1.6)
 		window.ContentScaleValue = cs
@@ -3664,7 +3624,7 @@ function Library:Window(opts)
 	end))
 
 	local gripHit = New("TextButton", {
-		
+
 		Size = UDim2.fromOffset(MSize(40, 56), MSize(40, 56)),
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -2, 1, -2),
@@ -3795,7 +3755,6 @@ function Library:Window(opts)
 		Library:CreateMobileButton(opts.MobileButtonOptions)
 	end
 
-	
 	window.TitleName = titleName
 	window.TitleSuffix = titleSuffix
 	window.TitleBaseSize = titleSize
@@ -3817,7 +3776,7 @@ function Library:Notify(opts, text, duration)
 	opts = opts or {}
 	opts.Text = opts.Text or opts.Content or opts.Description
 	local accent = opts.Color or StyleColor(opts.Style, Theme.Accent)
-	
+
 	local iconName = opts.Icon
 
 	if not self.NotifyGui or not self.NotifyGui.Parent then
@@ -3866,8 +3825,6 @@ function Library:Notify(opts, text, duration)
 	Corner(card, 10)
 	local cardStroke = Stroke(card, Theme.PopupBorder, 1, 1)
 
-	
-	
 	local rail = New("Frame", {
 		Size = UDim2.new(0, 2, 1, -20),
 		Position = UDim2.fromOffset(0, 10),
@@ -4177,8 +4134,6 @@ function Library:Panel(opts)
 		Parent = overlay,
 	})
 
-	
-	
 	local api = setmetatable({
 		Gui = gui,
 		Frame = frame,
@@ -4356,7 +4311,6 @@ function Library:CreateHotkeyPanel(opts)
 	Stroke(panel, Theme.SectionBorder)
 	Library:RegisterGlassPanel(panel)
 
-	-- the accent rail the other panels use, drawn over the top edge
 	New("Frame", {
 		Size = UDim2.new(1, 0, 0, 2),
 		BackgroundColor3 = Theme.Accent,
@@ -4379,7 +4333,7 @@ function Library:CreateHotkeyPanel(opts)
 		BackgroundTransparency = 1,
 		Parent = stack,
 	})
-	local title = Label(header, opts.Title or "keybind menu", Theme.TextBright, Theme.TextSize, Theme.FontMedium)
+	local title = Label(header, opts.Title or "Keybind Menu", Theme.TextBright, Theme.TextSize, Theme.FontMedium)
 	title.Position = UDim2.fromOffset(6, 2)
 	title.Size = UDim2.new(1, -12, 1, 0)
 
@@ -4401,6 +4355,7 @@ function Library:CreateHotkeyPanel(opts)
 		MaxSize = Vector2.new(1e4, opts.MaxHeight or 320),
 		Parent = body,
 	})
+	self.HotkeyMaxHeight = opts.MaxHeight or 320
 
 	local rows = New("Frame", {
 		Size = UDim2.new(1, 0, 0, 0),
@@ -4447,8 +4402,6 @@ function Library:RefreshHotkeys()
 		if child:IsA("TextLabel") then child:Destroy() end
 	end
 
-	-- the same key registers twice (the toggle and its keybind), so rows merge
-	-- on the key and the named entry wins over the generic one
 	local entries, seen = {}, {}
 	for index = #self.HotkeyEntries, 1, -1 do
 		local ok, data = pcall(self.HotkeyEntries[index])
@@ -4483,7 +4436,6 @@ function Library:RefreshHotkeys()
 	local shown = 0
 	local widest = 210
 
-	-- the reference row format: [KEY] feature (mode), accent while it is active
 	for _, entry in ipairs(entries) do
 		if mode ~= "active" or entry.Active == true then
 			shown = shown + 1
@@ -4511,7 +4463,11 @@ function Library:RefreshHotkeys()
 		empty.LayoutOrder = 1
 	end
 
-	self.HotkeyPanel.Size = UDim2.fromOffset(math.clamp(math.floor(widest + 0.5), 200, 360), 0)
+	local panelWidth = math.clamp(math.floor(widest + 0.5), 200, 360)
+	local rowHeight = MSize(16, 22)
+	local bodyHeight = math.min(shown * rowHeight + 12, self.HotkeyMaxHeight or 320)
+	self.HotkeyPanel.AutomaticSize = Enum.AutomaticSize.None
+	self.HotkeyPanel.Size = UDim2.fromOffset(panelWidth, 22 + bodyHeight)
 	self.HotkeyPanel.Visible = self.HotkeysEnabled ~= false
 end
 
@@ -4525,7 +4481,6 @@ end
 
 Library.KeybindMode = Library.KeybindMode or "all"
 
--- "all" lists every keybind, "active" only the ones held or switched on now.
 function Library:SetKeybindListMode(mode)
 	mode = string.lower(tostring(mode or "all"))
 	if mode ~= "active" and mode ~= "toggled" then mode = "all" end
@@ -4539,7 +4494,6 @@ function Library:ToggleKeybindList(state)
 	return self:SetHotkeysVisible(state)
 end
 
--- keybind names are the public ones, the hotkey names stay as aliases
 Library.CreateKeybindList = Library.CreateHotkeyPanel
 Library.RefreshKeybindList = Library.RefreshHotkeys
 Library.SetKeybindListVisible = Library.SetHotkeysVisible
@@ -4629,8 +4583,6 @@ function Library:ToggleUI(state)
 	self:RefreshCursor()
 	return self.Open
 end
-
-
 
 local MOBILE_BUTTON_DEFAULTS = {
 	Width = 44,
@@ -4739,7 +4691,7 @@ function Library:CreateMobileButton(opts)
 		bars[i] = bar
 	end
 	local cornerObject = button:FindFirstChildOfClass("UICorner")
-	
+
 	local function fillTransparency()
 		if config.Invisible then return 1 end
 		return math.clamp(config.Transparency, 0, 1)
@@ -4779,7 +4731,7 @@ function Library:CreateMobileButton(opts)
 		moved = false
 		origin = input.Position
 		startPos = button.Position
-		
+
 		touchObject = input.UserInputType == Enum.UserInputType.Touch and input or nil
 		Tween(button, { BackgroundColor3 = Theme.FieldHover }, EASE_FAST)
 		holdToken = holdToken + 1
@@ -4787,7 +4739,7 @@ function Library:CreateMobileButton(opts)
 		if config.Mode == "hold" then
 			task.delay(math.clamp(config.HoldDuration, 0.15, 5), function()
 				if myHold ~= holdToken or moved then return end
-				holdToken = holdToken + 1 
+				holdToken = holdToken + 1
 				Library:ToggleUI()
 			end)
 		end
@@ -4797,14 +4749,14 @@ function Library:CreateMobileButton(opts)
 			elseif move.UserInputType ~= Enum.UserInputType.MouseMovement then
 				return
 			end
-			
+
 			if config.Locked then return end
 			local delta = move.Position - origin
 			if not moved then
-				
+
 				if math.abs(delta.X) <= 6 and math.abs(delta.Y) <= 6 then return end
 				moved = true
-				holdToken = holdToken + 1 
+				holdToken = holdToken + 1
 			end
 			button.Position = UDim2.new(
 				startPos.X.Scale, startPos.X.Offset + delta.X,
@@ -4974,11 +4926,6 @@ Library.SaveManager = Library:LoadAddon("SaveManager")
 Library.InterfaceManager = Library:LoadAddon("InterfaceManager")
 Library.ThemeManager = Library:LoadAddon("ThemeManager")
 
-
-
-
-
-
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
@@ -4986,7 +4933,6 @@ local Players = game:GetService("Players")
 Library.SearchIndex = Library.SearchIndex or {}
 Library.ParticleMode = Library.ParticleMode or "none"
 Library.ParticleCustom = Library.ParticleCustom or ""
-
 
 Library.FlowerTexture = Library.FlowerTexture or 105968320075682
 Library.FlowerAsset = Library.FlowerAsset or 85283896414966
@@ -5054,7 +5000,6 @@ local function OrasenseResolveAsset(input)
 	return s
 end
 
-
 function Library:IndexElement(window, tab, kind, label, api)
 	if type(label) ~= "string" or label == "" then return end
 	table.insert(self.SearchIndex, {
@@ -5065,7 +5010,6 @@ function Library:IndexElement(window, tab, kind, label, api)
 		Api = api,
 	})
 end
-
 
 do
 	local OrigToggle = Elements.Toggle
@@ -5134,7 +5078,6 @@ do
 		return api
 	end
 end
-
 
 do
 	function Elements:SubToggle(opts)
@@ -5224,7 +5167,6 @@ do
 		return content
 	end
 
-	
 	do
 		local BaseToggle = Elements.Toggle
 		function Elements:Toggle(opts)
@@ -5248,7 +5190,6 @@ do
 	end
 end
 
-
 do
 	local OrigBlock = Tab.Block
 	function Tab:Block()
@@ -5259,7 +5200,7 @@ do
 		self:Block()
 		n = math.clamp(math.floor(tonumber(n) or 2), 1, 3)
 		if #self.Columns >= n then return self.Columns end
-		
+
 		local block = self.CurrentBlock
 		if n == 3 and #self.Columns == 2 then
 			for _, col in ipairs(self.Columns) do
@@ -5314,7 +5255,7 @@ do
 			end
 		end
 		side = math.clamp(math.floor(tonumber(side) or 1), 1, 3)
-		
+
 		if side >= 2 then self:EnsureColumns(3) end
 		local col = self:Column(side)
 		if not col then return self:Full(title) end
@@ -5339,7 +5280,6 @@ do
 	Tab.CenterTabBox = Tab.MiddleGroupbox
 	Tab.CenterBox = Tab.MiddleGroupbox
 end
-
 
 do
 	function Window:SubWindow(opts)
@@ -5496,7 +5436,7 @@ do
 			Parent = frame,
 		})
 		Corner(bar, 10)
-		
+
 		New("Frame", {
 			Size = UDim2.new(1, 0, 0, 12),
 			Position = UDim2.new(0, 0, 1, -12),
@@ -5538,8 +5478,6 @@ do
 		List(body, 8)
 		Pad(body, 2, 2, 10, 2)
 
-		
-		
 		local overlay = New("Frame", {
 			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
@@ -5700,8 +5638,6 @@ do
 		local resizing, resizeMove, resizeEnd, resizeTouch
 		local resizeOrigin, resizeStartW, resizeStartH
 
-		
-		
 		Track(gripHit.InputBegan:Connect(function(input)
 			if input.UserInputType ~= Enum.UserInputType.MouseButton1
 				and input.UserInputType ~= Enum.UserInputType.Touch then return end
@@ -5771,9 +5707,8 @@ do
 	end
 end
 
-
 do
-	
+
 	local SUB_SCALE = MOBILE and 1.2 or 1
 	local SUBBAR_HEIGHT = math.floor(MSize(30, 38) * SUB_SCALE + 0.5)
 
@@ -5798,8 +5733,6 @@ do
 
 		local inset = math.floor(MSize(8, 10) * SUB_SCALE + 0.5)
 
-		-- The icon and the title share a row, so they can never overlap and the
-		-- gap between them is the list padding.
 		local row = New("Frame", {
 			Size = UDim2.new(0, 0, 1, 0),
 			BackgroundTransparency = 1,
@@ -5850,7 +5783,7 @@ do
 			Tween(label, { TextColor3 = color }, info)
 			Tween(underline, { BackgroundTransparency = active and 0 or 1 }, info)
 			if iconLabel then Tween(iconLabel, { ImageColor3 = color }, info) end
-			-- the underline sweeps in from the left on the selected sub tab
+
 			if active then
 				underline.Size = UDim2.new(0, 0, 0, 2)
 				Tween(underline, { Size = UDim2.new(1, 0, 0, 2) }, EASE_SMOOTH)
@@ -5887,8 +5820,7 @@ do
 			})
 			local barList = List(bar, 14, Enum.FillDirection.Horizontal)
 			barList.VerticalAlignment = Enum.VerticalAlignment.Center
-			-- Each pill draws its own icon, so the parent tab's icon is not
-			-- repeated at the left of the strip.
+
 			self.SubBar = bar
 			self.SubTabs = {}
 			self.Page.Position = UDim2.fromOffset(0, SUBBAR_HEIGHT)
@@ -5923,7 +5855,7 @@ do
 		}, Tab)
 
 		if #self.SubTabs == 0 then
-			
+
 			MigrateContent(self.Page, page)
 			self.Page.Visible = false
 		end
@@ -5950,7 +5882,7 @@ CreatePill(self, sub, title, opts.Icon)
 			local shown = entry == sub
 			entry.Page.Visible = shown
 			if shown and animate ~= false then
-				-- sub pages live under the pill bar, so they slide sideways
+
 				entry.Page.Position = UDim2.fromOffset(8, SUBBAR_HEIGHT)
 				Tween(entry.Page, { Position = UDim2.fromOffset(0, SUBBAR_HEIGHT) }, EASE_SMOOTH)
 			end
@@ -6097,7 +6029,6 @@ do
 	end
 end
 
-
 do
 	function Elements:Image(opts)
 		opts = opts or {}
@@ -6140,7 +6071,6 @@ do
 	end
 end
 
-
 do
 	Library.Glass = Library.Glass or false
 	Library.GlassStrength = Library.GlassStrength or 1
@@ -6148,10 +6078,6 @@ do
 	Library.MenuBlur = Library.MenuBlur == true
 	Library.MenuBlurStrength = math.clamp(tonumber(Library.MenuBlurStrength) or 12, 0, 30)
 
-	-- Roblox can only blur the whole 3D view, never one region of the screen, so
-	-- the menu blur is a single shared BlurEffect in Lighting that the windows and
-	-- the modals all feed into. Two BlurEffects in Lighting fight over the screen,
-	-- which is why a modal opened with Blur = 0 used to cancel a blur outright.
 	local sharedBlur
 	local modalBlurs = {}
 	local modalBlur = 0
@@ -6230,7 +6156,7 @@ do
 			Parent = window.Main,
 		})
 		Corner(fx, 10)
-		
+
 		local spec = New("Frame", {
 			Size = UDim2.new(1, 0, 0, 90),
 			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
@@ -6249,10 +6175,7 @@ do
 			}),
 			Parent = spec,
 		})
-		
-		-- A full-size sheet with a soft diagonal band, moved by UIGradient.Offset.
-		-- The old rotated rectangle poked square corners through the rounded
-		-- window clip while it swept past, which read as a flashing corner.
+
 		local sheen = New("Frame", {
 			Size = UDim2.fromScale(1, 1),
 			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
@@ -6280,8 +6203,7 @@ do
 				if not window.LiquidFX or not window.LiquidFX.Parent then return end
 				if Library.LiquidGlass ~= true or window.Visible == false then return end
 				if not window.LiquidSheenGradient then return end
-				-- sine sweeps out and back, so the band never teleports from one
-				-- edge to the other when a cycle ends
+
 				local x = math.sin(os.clock() * 0.7)
 				pcall(function()
 					window.LiquidSheenGradient.Offset = Vector2.new(x, 0)
@@ -6294,8 +6216,7 @@ do
 	function Window:ApplyGlass()
 		local useGlass = Library.Glass == true or Library.LiquidGlass == true
 		local strength = math.clamp(tonumber(Library.GlassStrength) or 1, 0, 1.5)
-		-- set from state, never from visibility: a window that is hidden and shown
-		-- again must not come back opaque for a frame before the glass returns
+
 		if useGlass then
 			self.Main.BackgroundTransparency = math.clamp(0.18 + strength * 0.22, 0, 0.8)
 		else
@@ -6312,8 +6233,6 @@ do
 
 	Library.GlassPanels = Library.GlassPanels or {}
 
-	-- Floating panels (watermark, keybind menu) follow the same switch, so the
-	-- screen left over after the menu closes still has the glass look.
 	function Library:RefreshGlassPanels()
 		local on = self.Glass == true or self.LiquidGlass == true
 		for _, panel in ipairs(self.GlassPanels) do
@@ -6365,7 +6284,6 @@ do
 		return Library:SetLiquidGlass(state, strength)
 	end
 end
-
 
 do
 	function Window:SetBackground(asset, transparency, tint)
@@ -6430,9 +6348,6 @@ do
 	end
 end
 
-
-
-
 do
 	local function ParticleGui(window)
 		if window.ParticleGui and window.ParticleGui.Parent then return window.ParticleGui end
@@ -6457,7 +6372,6 @@ do
 		return gui
 	end
 
-	
 	local PARTICLE_STYLE = {
 		snow     = { count = 90,  size = 1.0, speed = 1.0,  sway = 26,  drift = 0 },
 		blizzard = { count = 170, size = 0.9, speed = 5.5,  sway = 120, drift = 1 },
@@ -6496,7 +6410,7 @@ do
 	end
 
 	local function ParticleSize(mode, style, opts)
-		
+
 		local unit = mode == "flowers" and 16 or (mode == "custom" and 18 or 4)
 		return math.max(1, style.size * (opts.Size / 100) * unit)
 	end
@@ -6595,8 +6509,6 @@ do
 				dot.Position = UDim2.fromOffset(data.x, data.y)
 			end
 
-			
-			
 			for _ = 1, wanted() do
 				if token ~= self.ParticleToken or not layer.Parent then return end
 				local dot = SpawnDot(layer, mode, custom)
@@ -6703,7 +6615,6 @@ do
 	end
 end
 
-
 do
 	function Elements:MultiDropdown(opts)
 		opts = opts or {}
@@ -6711,7 +6622,6 @@ do
 		return self:Dropdown(opts)
 	end
 end
-
 
 do
 	function Library:ServerBrowser(opts)
@@ -6805,10 +6715,6 @@ end
 Library.Dpi = Library.Dpi or 98
 Library.IsMobile = MOBILE
 
--- Default menu size: one call changes the menu size everywhere, mobile
--- included, instead of passing Width and Height to every window. Set the fields
--- before Library:Window(), or call SetDefaultSize later to also resize the
--- windows that are already open.
 Library.DefaultWidth = Library.DefaultWidth or 620
 Library.DefaultHeight = Library.DefaultHeight or 620
 
@@ -6840,8 +6746,6 @@ function Library:SetMenuTransparency(value)
 	end
 	return value
 end
-
-
 
 do
 	function Library:BuildEffectsSection(tab, column)
@@ -6959,16 +6863,13 @@ do
 	end
 end
 
-
-
 do
 	local OrigWindow = Library.Window
 	function Library:Window(opts)
 		opts = opts or {}
 		if opts.Title == nil then opts.Title = "orasense" end
 		local window = OrigWindow(self, opts)
-		
-		
+
 		task.defer(function()
 			if window.ApplyGlass then pcall(function() window:ApplyGlass() end) end
 		end)
@@ -6997,10 +6898,6 @@ do
 	end
 end
 
-
-
-
-
 do
 	local WatermarkPlayers = game:GetService("Players")
 	local WatermarkStats = game:GetService("Stats")
@@ -7024,8 +6921,6 @@ do
 		return 0
 	end
 
-	
-	
 	local function readRegion()
 		local env = type(getgenv) == "function" and getgenv() or nil
 		local forced = env and env.OrasenseRegion
@@ -7045,9 +6940,6 @@ do
 		return "??"
 	end
 
-
-	-- A floating icon bar pinned to the screen. Every item owns a window (or its
-	-- own OnClick), and the accent dot under an icon means that window is open.
 	function Library:FloatingToolbar(opts)
 		opts = opts or {}
 
@@ -7065,8 +6957,8 @@ do
 		local bar = New("Frame", {
 			Size = UDim2.fromOffset(0, opts.Height or 52),
 			AutomaticSize = Enum.AutomaticSize.X,
-			Position = opts.Position or UDim2.new(0.5, 0, 0, opts.TopOffset or 62),
-			AnchorPoint = Vector2.new(0.5, 0),
+			Position = opts.Position or UDim2.new(0.5, 0, 1, -(opts.TopOffset or 6)),
+			AnchorPoint = opts.AnchorPoint or Vector2.new(0.5, 1),
 			BackgroundColor3 = Theme.Window,
 			BackgroundTransparency = 0.08,
 			BorderSizePixel = 0,
@@ -7083,8 +6975,6 @@ do
 		local items = {}
 		local api = { Gui = gui, Bar = bar, Items = items, Visible = opts.Visible ~= false }
 
-		-- the bar follows the same glass switches as the windows, so it never
-		-- looks flat next to a glassy menu
 		local function applyGlass()
 			if Library.Glass == true or Library.LiquidGlass == true then
 				bar.BackgroundTransparency = 0.18
@@ -7195,7 +7085,6 @@ do
 
 		for _, item in ipairs(opts.Items or {}) do addItem(item) end
 
-		-- drag the bar anywhere by grabbing the empty space between icons
 		local origin, startPos, moving
 		Track(bar.InputBegan:Connect(function(input)
 			if input.UserInputType ~= Enum.UserInputType.MouseButton1
@@ -7252,7 +7141,6 @@ do
 		return api
 	end
 
-
 	function Library:Watermark(opts)
 		opts = opts or {}
 
@@ -7270,8 +7158,7 @@ do
 		local frame = New("Frame", {
 			Size = UDim2.fromOffset(opts.Width or 268, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
-			-- 18,18 lands under the Roblox topbar buttons on desktop and mobile,
-			-- so the default clears them
+
 			Position = opts.Position or UDim2.fromOffset(18, 96),
 			BackgroundColor3 = Theme.Section,
 			BorderSizePixel = 0,
@@ -7280,13 +7167,13 @@ do
 		})
 		Corner(frame, 9)
 		Stroke(frame, Theme.SectionBorder)
-		Pad(frame, 10, 12, 8, 11)
+		local padY = tonumber(opts.Padding) or 8
+		Pad(frame, 10, 12, padY, padY + 3)
 		List(frame, 5)
 		Library:RegisterGlassPanel(frame)
 
-		-- top row: name on the left, live player count on the right
 		local top = New("Frame", {
-			Size = UDim2.new(1, 0, 0, 18),
+			Size = UDim2.new(1, 0, 0, tonumber(opts.RowHeight) or 18),
 			BackgroundTransparency = 1,
 			LayoutOrder = 1,
 			Parent = frame,
@@ -7321,9 +7208,8 @@ do
 		players.Size = UDim2.fromOffset(0, 14)
 		players.AutomaticSize = Enum.AutomaticSize.X
 
-		-- bottom row: fps, ping, session time and region, each with its own icon
 		local statsRow = New("Frame", {
-			Size = UDim2.new(1, 0, 0, 15),
+			Size = UDim2.new(1, 0, 0, tonumber(opts.StatsHeight) or 15),
 			BackgroundTransparency = 1,
 			LayoutOrder = 2,
 			Parent = frame,
@@ -7455,7 +7341,6 @@ do
 	end
 end
 
-
 do
 	local function FormatNumber(value, opts)
 		local decimals = opts.Decimals or opts.Rounding or 0
@@ -7523,7 +7408,6 @@ do
 		})
 	end
 
-	
 	function Elements:SliderButtons(opts)
 		opts = opts or {}
 		local flag = FlagOf(opts)
@@ -7679,7 +7563,6 @@ do
 	Elements.SliderPlusMinus = Elements.SliderButtons
 	Elements.NumberSlider = Elements.SliderButtons
 
-	
 	function Elements:Stepper(opts)
 		opts = opts or {}
 		local flag = FlagOf(opts)
@@ -7784,7 +7667,6 @@ do
 	Elements.Counter = Elements.Stepper
 	Elements.NumberField = Elements.Stepper
 
-	
 	function Elements:BoxToggle(opts)
 		opts = opts or {}
 		local flag = FlagOf(opts)
@@ -7875,7 +7757,6 @@ do
 	Elements.CheckboxCard = Elements.BoxToggle
 	Elements.ToggleBox = Elements.BoxToggle
 
-	
 	function Elements:Checkbox(opts)
 		opts = opts or {}
 		local flag = FlagOf(opts)
@@ -7949,7 +7830,6 @@ do
 	end
 	Elements.CheckBox = Elements.Checkbox
 
-	
 	function Elements:ToggleSwitch(opts)
 		opts = opts or {}
 		local flag = FlagOf(opts)
@@ -8036,7 +7916,6 @@ do
 	Elements.Switch = Elements.ToggleSwitch
 	Elements.TogglePill = Elements.ToggleSwitch
 
-	
 	function Elements:RadioGroup(opts)
 		opts = opts or {}
 		local flag = FlagOf(opts)
@@ -8145,7 +8024,6 @@ do
 	end
 	Elements.Radio = Elements.RadioGroup
 
-	
 	function Elements:Segmented(opts)
 		opts = opts or {}
 		local flag = FlagOf(opts)
@@ -8248,7 +8126,6 @@ do
 	Elements.Tabs = Elements.Segmented
 	Elements.Segment = Elements.Segmented
 
-	
 	function Elements:TextArea(opts)
 		opts = opts or {}
 		local flag = FlagOf(opts)
@@ -8313,7 +8190,6 @@ do
 	end
 	Elements.MultilineInput = Elements.TextArea
 
-	
 	function Elements:CopyField(opts)
 		opts = opts or {}
 		local row = New("Frame", {
@@ -8373,7 +8249,6 @@ do
 		}
 	end
 
-	
 	function Elements:ProgressBar(opts)
 		opts = opts or {}
 		local flag = FlagOf(opts)
@@ -8434,7 +8309,6 @@ do
 	end
 	Elements.Bar = Elements.ProgressBar
 
-	
 	function Elements:Stat(opts)
 		opts = opts or {}
 		local card = New("Frame", {
@@ -8467,7 +8341,6 @@ do
 	Elements.StatCard = Elements.Stat
 	Elements.Metric = Elements.Stat
 
-	
 	function Elements:Badge(opts)
 		if type(opts) == "string" then opts = { Text = opts } end
 		opts = opts or {}
@@ -8503,7 +8376,6 @@ do
 	Elements.Tag = Elements.Badge
 	Elements.Pill = Elements.Badge
 
-	
 	function Elements:Banner(opts)
 		opts = opts or {}
 		local accent = StyleColor(opts.Style, Theme.Accent)
@@ -8568,7 +8440,6 @@ do
 	Elements.Callout = Elements.Banner
 	Elements.Note = Elements.Banner
 
-	
 	function Elements:Spinner(opts)
 		opts = opts or {}
 		local size = opts.Size or 16
@@ -8621,7 +8492,6 @@ do
 	end
 	Elements.Loading = Elements.Spinner
 
-	
 	function Elements:Avatar(opts)
 		opts = opts or {}
 		local size = opts.Size or 34
@@ -8675,7 +8545,6 @@ do
 		return { Instance = row, Image = image, Name = name, Sub = sub }
 	end
 
-	
 	function Elements:BulletList(opts)
 		opts = opts or {}
 		local items = opts.Items or opts.List or opts.Options or {}
@@ -8725,7 +8594,6 @@ do
 	end
 	Elements.Bullets = Elements.BulletList
 
-	
 	function Elements:Link(opts)
 		if type(opts) == "string" then opts = { Text = opts } end
 		opts = opts or {}
@@ -8756,7 +8624,6 @@ do
 	end
 	Elements.Hyperlink = Elements.Link
 
-	
 	function Elements:LabelDivider(text)
 		if type(text) == "table" then text = text.Text or text.Title end
 		local row = New("Frame", {
@@ -8787,7 +8654,6 @@ do
 	Elements.Separator = Elements.LabelDivider
 	Elements.SectionLabel = Elements.LabelDivider
 
-	
 	function Elements:KeyValueGrid(opts)
 		opts = opts or {}
 		local rows = opts.Rows or opts.Items or {}
@@ -8838,7 +8704,6 @@ do
 	Elements.Details = Elements.KeyValueGrid
 	Elements.InfoGrid = Elements.KeyValueGrid
 
-	
 	function Elements:ColorSwatches(opts)
 		opts = opts or {}
 		local colors = opts.Colors or {
@@ -8904,7 +8769,6 @@ do
 	end
 	Elements.Swatches = Elements.ColorSwatches
 
-	
 	function Elements:Card(opts)
 		if type(opts) == "string" then opts = { Title = opts } end
 		opts = opts or {}
@@ -9000,16 +8864,6 @@ do
 	end
 end
 
-
-
----------------------------------------------------------------------------
--- Reference API
---
--- The names below mirror the other UI library's API (CreateWindow, AddTab,
--- AddLeftGroupbox, AddToggle, AddSlider, ...), so a script written against it
--- runs here unchanged. Every one is a thin adapter over this library's own
--- API, so both styles work and can be mixed in the same script.
----------------------------------------------------------------------------
 do
 	local function Named(name, opts)
 		opts = opts or {}
@@ -9074,8 +8928,6 @@ do
 		return self:Divider()
 	end
 
-	-- a dependency box is a group of controls that only shows while the toggles
-	-- it depends on match the values it asks for
 	local function MakeDependencyBox(container)
 		local outer = container.Container or container
 		local frame = New("Frame", {
@@ -9138,8 +8990,6 @@ do
 		return MakeDependencyBox(self)
 	end
 
-	-- the other library's tab box: each added tab is its own bordered box in the
-	-- same column, so the controls keep their placement and stay reachable
 	local function MakeTabbox(tab, title, side)
 		local api = { Tabs = {} }
 		function api:AddTab(name)
@@ -9224,8 +9074,6 @@ do
 		return self._ReferenceWatermark
 	end
 
-	-- Notify(text, time) is the other shape: a message and a lifetime. This keeps
-	-- Notify(title, body, time) working at the same time.
 	local BaseNotify = Library.Notify
 	function Library:Notify(a, b, c)
 		if type(a) == "table" then return BaseNotify(self, a) end
@@ -9235,6 +9083,5 @@ do
 		return BaseNotify(self, a, b, c)
 	end
 end
-
 
 return Library

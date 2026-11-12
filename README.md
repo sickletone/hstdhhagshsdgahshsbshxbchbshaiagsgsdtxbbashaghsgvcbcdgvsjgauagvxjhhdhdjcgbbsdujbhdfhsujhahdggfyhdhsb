@@ -51,7 +51,7 @@ configs, theme, server browser, player panel).
   `Library:ToggleKeybindList()`) shows a floating, draggable list of every
   keybind. Rows use the reference format, `[Z] feature (mode)`, in the menu
   colors: the whole line turns accent while that key is held or switched on.
-  The panel is titled `keybind menu`, has an accent rail, an empty state, a scroll
+  The panel is titled `Keybind Menu`, has an accent rail, an empty state, a scroll
   cap, and grows to the longest row (up to 360 px). Keys registered twice by a
   toggle and its own keybind collapse into one row.
   `Library:SetKeybindListMode("all" | "active")` filters it to what is active
@@ -173,7 +173,7 @@ Set `Orasense.IconProvider` before the first window is built to switch provider:
 argument also accepts an `rbxassetid://` image or a raw asset id. The resolver is
 wrapped so that if Molto cannot load (Roblox Studio, no `HttpGet`/`loadstring`,
 unknown provider or unknown icon) the bundled Lucide sprite table in
-`addons/Icons.luau` is used instead — icons never go blank.
+`addons/Icons.lua` is used instead — icons never go blank.
 
 ## Component catalog
 
