@@ -718,7 +718,30 @@ end)
 
 local servers = Library:ServerBrowser()
 
--- The keybind list is on from the start: it fills itself as soon as keybinds
+-- Floating toolbar: icons pinned to the top of the screen that own windows. The
+-- dot under an icon means that window is open; click to open, click to close.
+local toolbar = Library:FloatingToolbar({
+        Position = UDim2.new(0.5, 0, 0, 18),
+        Items = {
+                { Title = "menu", Icon = "layout-dashboard", Window = Window },
+                {
+                        Title = "keybind menu",
+                        Icon = "keyboard",
+                        OnClick = function()
+                                Library:SetKeybindListVisible(not Library.HotkeysEnabled)
+                        end,
+                        IsActive = function() return Library.HotkeysEnabled ~= false end,
+                },
+                {
+                        Title = "server browser",
+                        Icon = "server",
+                        Window = servers,
+                        IsActive = function() return servers.Visible == true end,
+                },
+        },
+})
+
+-- The keybind menu is on from the start: it fills itself as soon as keybinds
 -- exist, and the overlay toggle below turns it off.
 pcall(function() Library:SetKeybindListVisible(true) end)
 
@@ -745,7 +768,7 @@ overlay:Toggle({
 })
 
 overlay:Toggle({
-        Text = "keybind list",
+        Text = "keybind menu",
         Flag = "overlay_keybinds",
         Hint = "floating list of every keybind in the menu, dragged like a panel",
         Default = true,
@@ -755,7 +778,7 @@ overlay:Toggle({
 })
 
 overlay:Dropdown({
-        Text = "keybind list mode",
+        Text = "keybind menu mode",
         Flag = "overlay_keybind_mode",
         Options = { "all", "active" },
         Default = "all",

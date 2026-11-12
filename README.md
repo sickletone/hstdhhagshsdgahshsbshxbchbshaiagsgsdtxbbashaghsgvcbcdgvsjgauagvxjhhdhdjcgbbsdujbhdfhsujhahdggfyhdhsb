@@ -20,9 +20,10 @@ configs, theme, server browser, player panel).
 ## What's included
 
 - **Window** — draggable, resizable, top or side tabs, footer actions,
-  modals, confirms, touch-only mobile button, cursor, keybind list, notifications,
-  watermark (normal / warning / danger / success), and the watermark title is
-  editable while running with `watermark:SetTitle("orasense 123.win")`.
+  modals, confirms, touch-only mobile button, cursor, keybind menu, notifications,
+  a floating toolbar whose icons own windows, open and close them and show an
+  accent dot while they are open, and a watermark stats panel (fps, ping, session
+  time, region and the live player count, retitled with `watermark:SetTitle`).
 - **Controls** — label, paragraph, button, button row (with `Tooltip` and
   `SubButtons`), toggle (+ keybind,
   color pickers, gear popups), slider, dropdown (single, multi-select,
@@ -50,7 +51,7 @@ configs, theme, server browser, player panel).
   `Library:ToggleKeybindList()`) shows a floating, draggable list of every
   keybind. Rows use the reference format, `[Z] feature (mode)`, in the menu
   colors: the whole line turns accent while that key is held or switched on.
-  The panel is titled `keybinds`, has an accent rail, an empty state, a scroll
+  The panel is titled `keybind menu`, has an accent rail, an empty state, a scroll
   cap, and grows to the longest row (up to 360 px). Keys registered twice by a
   toggle and its own keybind collapse into one row.
   `Library:SetKeybindListMode("all" | "active")` filters it to what is active

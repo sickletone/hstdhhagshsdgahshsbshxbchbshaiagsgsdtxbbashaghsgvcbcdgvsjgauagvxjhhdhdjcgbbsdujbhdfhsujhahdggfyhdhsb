@@ -4354,6 +4354,7 @@ function Library:CreateHotkeyPanel(opts)
 	})
 	Corner(panel, 6)
 	Stroke(panel, Theme.SectionBorder)
+	Library:RegisterGlassPanel(panel)
 
 	-- the accent rail the other panels use, drawn over the top edge
 	New("Frame", {
@@ -4378,7 +4379,7 @@ function Library:CreateHotkeyPanel(opts)
 		BackgroundTransparency = 1,
 		Parent = stack,
 	})
-	local title = Label(header, opts.Title or "keybinds", Theme.TextBright, Theme.TextSize, Theme.FontMedium)
+	local title = Label(header, opts.Title or "keybind menu", Theme.TextBright, Theme.TextSize, Theme.FontMedium)
 	title.Position = UDim2.fromOffset(6, 2)
 	title.Size = UDim2.new(1, -12, 1, 0)
 
@@ -6249,35 +6250,39 @@ do
 			Parent = spec,
 		})
 		
+		-- A full-size sheet with a soft diagonal band, moved by UIGradient.Offset.
+		-- The old rotated rectangle poked square corners through the rounded
+		-- window clip while it swept past, which read as a flashing corner.
 		local sheen = New("Frame", {
-			Size = UDim2.new(0.45, 0, 2, 0),
-			Position = UDim2.new(-0.5, 0, -0.5, 0),
-			Rotation = 18,
+			Size = UDim2.fromScale(1, 1),
 			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-			BackgroundTransparency = 0.88,
+			BackgroundTransparency = 0,
 			BorderSizePixel = 0,
 			ZIndex = 5,
 			Parent = fx,
 		})
-		New("UIGradient", {
-			Rotation = 90,
+		Corner(sheen, 10)
+		local sheenGradient = New("UIGradient", {
+			Rotation = 105,
 			Transparency = NumberSequence.new({
 				NumberSequenceKeypoint.new(0, 1),
-				NumberSequenceKeypoint.new(0.5, 0),
+				NumberSequenceKeypoint.new(0.42, 0.86),
+				NumberSequenceKeypoint.new(0.58, 0.86),
 				NumberSequenceKeypoint.new(1, 1),
 			}),
 			Parent = sheen,
 		})
 		window.LiquidSheen = sheen
+		window.LiquidSheenGradient = sheenGradient
 		window.LiquidFX = fx
 		if not window.LiquidConn then
 			window.LiquidConn = Track(RunService.RenderStepped:Connect(function()
 				if not window.LiquidFX or not window.LiquidFX.Parent then return end
 				if Library.LiquidGlass ~= true or window.Visible == false then return end
-				local t = os.clock() * 0.12 % 2
-				local x = -0.5 + t
+				if not window.LiquidSheenGradient then return end
+				local t = os.clock() * 0.35 % 2
 				pcall(function()
-					window.LiquidSheen.Position = UDim2.new(x, 0, -0.5, 0)
+					window.LiquidSheenGradient.Offset = Vector2.new(-1 + t, 0)
 				end)
 			end))
 		end
@@ -6286,14 +6291,15 @@ do
 
 	function Window:ApplyGlass()
 		local useGlass = Library.Glass == true or Library.LiquidGlass == true
-		local shown = self.Visible ~= false and self.Main.Visible ~= false
 		local strength = math.clamp(tonumber(Library.GlassStrength) or 1, 0, 1.5)
-		if useGlass and shown then
+		-- set from state, never from visibility: a window that is hidden and shown
+		-- again must not come back opaque for a frame before the glass returns
+		if useGlass then
 			self.Main.BackgroundTransparency = math.clamp(0.18 + strength * 0.22, 0, 0.8)
 		else
 			self.Main.BackgroundTransparency = 1 - (self.Opacity or (1 - Theme.WindowAlpha))
 		end
-		if Library.LiquidGlass == true and shown then
+		if Library.LiquidGlass == true then
 			local fx = EnsureLiquidFX(self)
 			fx.Visible = true
 		elseif self.LiquidFX then
@@ -6302,11 +6308,32 @@ do
 		Library:SyncMenuBlur()
 	end
 
+	Library.GlassPanels = Library.GlassPanels or {}
+
+	-- Floating panels (watermark, keybind menu) follow the same switch, so the
+	-- screen left over after the menu closes still has the glass look.
+	function Library:RefreshGlassPanels()
+		local on = self.Glass == true or self.LiquidGlass == true
+		for _, panel in ipairs(self.GlassPanels) do
+			if panel and panel.Parent then
+				panel.BackgroundTransparency = on and 0.3 or 0
+			end
+		end
+	end
+
+	function Library:RegisterGlassPanel(panel)
+		if not panel then return panel end
+		table.insert(self.GlassPanels, panel)
+		self:RefreshGlassPanels()
+		return panel
+	end
+
 	function Library:SetGlass(state)
 		self.Glass = state ~= false
 		for _, w in ipairs(self.Windows) do
 			if w.ApplyGlass then w:ApplyGlass() end
 		end
+		self:RefreshGlassPanels()
 		return self.Glass
 	end
 
@@ -6315,6 +6342,7 @@ do
 		for _, w in ipairs(self.Windows) do
 			if w.ApplyGlass then w:ApplyGlass() end
 		end
+		self:RefreshGlassPanels()
 		return self.GlassStrength
 	end
 
@@ -6327,6 +6355,7 @@ do
 		for _, w in ipairs(self.Windows) do
 			if w.ApplyGlass then w:ApplyGlass() end
 		end
+		self:RefreshGlassPanels()
 		return self.LiquidGlass
 	end
 
@@ -7014,6 +7043,214 @@ do
 		return "??"
 	end
 
+
+	-- A floating icon bar pinned to the screen. Every item owns a window (or its
+	-- own OnClick), and the accent dot under an icon means that window is open.
+	function Library:FloatingToolbar(opts)
+		opts = opts or {}
+
+		local gui = New("ScreenGui", {
+			Name = opts.Name or "OrasenseToolbar",
+			ResetOnSpawn = false,
+			IgnoreGuiInset = true,
+			ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+			AutoLocalize = false,
+			DisplayOrder = opts.DisplayOrder or 1003,
+			Enabled = opts.Visible ~= false,
+		})
+		ParentGui(gui)
+
+		local bar = New("Frame", {
+			Size = UDim2.fromOffset(0, opts.Height or 52),
+			AutomaticSize = Enum.AutomaticSize.X,
+			Position = opts.Position or UDim2.new(0.5, 0, 0, opts.TopOffset or 18),
+			AnchorPoint = Vector2.new(0.5, 0),
+			BackgroundColor3 = Theme.Window,
+			BackgroundTransparency = 0.08,
+			BorderSizePixel = 0,
+			Active = true,
+			Parent = gui,
+		})
+		Corner(bar, 13)
+		Stroke(bar, Theme.WindowBorder)
+		Pad(bar, 9, 9, 6, 6)
+		local row = List(bar, 4, Enum.FillDirection.Horizontal)
+		row.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		row.VerticalAlignment = Enum.VerticalAlignment.Center
+
+		local items = {}
+		local api = { Gui = gui, Bar = bar, Items = items, Visible = opts.Visible ~= false }
+
+		-- the bar follows the same glass switches as the windows, so it never
+		-- looks flat next to a glassy menu
+		local function applyGlass()
+			if Library.Glass == true or Library.LiquidGlass == true then
+				bar.BackgroundTransparency = 0.18
+			else
+				bar.BackgroundTransparency = 0.08
+			end
+		end
+
+		local function isActive(entry)
+			if entry.IsActive then
+				local ok, value = pcall(entry.IsActive)
+				return ok and value == true
+			end
+			if entry.Window then
+				return entry.Window.Visible ~= false and entry.Window.Shown ~= false
+			end
+			return entry.Active == true
+		end
+
+		local function paint(entry)
+			local active = isActive(entry)
+			entry.Active = active
+			Tween(entry.Button, {
+				BackgroundColor3 = active and Theme.FieldHover or Theme.Window,
+				BackgroundTransparency = active and 0 or 1,
+			}, EASE_FAST)
+			if entry.Image then
+				Tween(entry.Image, { ImageColor3 = active and Theme.TextBright or Theme.TextDim }, EASE_FAST)
+			elseif entry.Label then
+				Tween(entry.Label, { TextColor3 = active and Theme.TextBright or Theme.TextDim }, EASE_FAST)
+			end
+			entry.Dot.BackgroundTransparency = active and 0 or 1
+			return active
+		end
+
+		local function addItem(item)
+			item = item or {}
+			local button = New("TextButton", {
+				Size = UDim2.fromOffset(opts.ButtonWidth or 34, opts.ButtonHeight or 40),
+				BackgroundColor3 = Theme.Window,
+				BackgroundTransparency = 1,
+				BorderSizePixel = 0,
+				AutoButtonColor = false,
+				Text = "",
+				LayoutOrder = #items + 1,
+				Parent = bar,
+			})
+			Corner(button, 9)
+
+			local image = AttachIcon(button, item.Icon or "circle", Theme.TextDim, opts.IconSize or 20)
+			local text
+			if image then
+				image.AnchorPoint = Vector2.new(0.5, 0.5)
+				image.Position = UDim2.new(0.5, 0, 0.5, -3)
+			else
+				text = Label(button, string.sub(tostring(item.Title or "?"), 1, 1), Theme.TextDim, 15, Theme.FontMedium)
+				text.Size = UDim2.fromScale(1, 1)
+				text.TextXAlignment = Enum.TextXAlignment.Center
+			end
+
+			local dot = New("Frame", {
+				Size = UDim2.fromOffset(4, 4),
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.new(0.5, 0, 1, -5),
+				BackgroundColor3 = Theme.Accent,
+				BackgroundTransparency = 1,
+				BorderSizePixel = 0,
+				Parent = button,
+			})
+			Corner(dot, 2)
+
+			local entry = {
+				Title = item.Title,
+				Button = button,
+				Image = image,
+				Label = text,
+				Dot = dot,
+				Window = item.Window,
+				OnClick = item.OnClick,
+				IsActive = item.IsActive,
+				Active = false,
+			}
+			table.insert(items, entry)
+
+			Track(button.Activated:Connect(function()
+				local active = isActive(entry)
+				if entry.OnClick then
+					Library:SafeCallback(entry.Title or "toolbar", entry.OnClick, entry, active)
+				elseif entry.Window then
+					if entry.Window.SetVisible then
+						entry.Window:SetVisible(not active)
+					else
+						entry.Window.Visible = not active
+					end
+				end
+				paint(entry)
+			end))
+			Track(button.MouseEnter:Connect(function()
+				if not isActive(entry) then Tween(button, { BackgroundTransparency = 0.55 }, EASE_FAST) end
+			end))
+			Track(button.MouseLeave:Connect(function()
+				if not isActive(entry) then Tween(button, { BackgroundTransparency = 1 }, EASE_FAST) end
+			end))
+
+			paint(entry)
+			return entry
+		end
+
+		for _, item in ipairs(opts.Items or {}) do addItem(item) end
+
+		-- drag the bar anywhere by grabbing the empty space between icons
+		local origin, startPos, moving
+		Track(bar.InputBegan:Connect(function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1
+				and input.UserInputType ~= Enum.UserInputType.Touch then return end
+			origin = input.Position
+			startPos = bar.Position
+			moving = UserInputService.InputChanged:Connect(function(move)
+				if move.UserInputType ~= Enum.UserInputType.MouseMovement
+					and move.UserInputType ~= Enum.UserInputType.Touch then return end
+				local delta = move.Position - origin
+				bar.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
+					startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+			end)
+		end))
+		Track(UserInputService.InputEnded:Connect(function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1
+				and input.UserInputType ~= Enum.UserInputType.Touch then return end
+			if moving then moving:Disconnect() moving = nil end
+		end))
+
+		local alive = true
+		task.spawn(function()
+			while alive do
+				for _, entry in ipairs(items) do paint(entry) end
+				task.wait(0.25)
+			end
+		end)
+
+		function api:AddItem(item)
+			return addItem(item)
+		end
+
+		function api:SetVisible(state)
+			self.Visible = state ~= false
+			gui.Enabled = self.Visible
+			return self
+		end
+
+		function api:Refresh()
+			applyGlass()
+			for _, entry in ipairs(items) do paint(entry) end
+			return self
+		end
+
+		function api:Destroy()
+			alive = false
+			gui:Destroy()
+			if Library.Toolbar == self then Library.Toolbar = nil end
+			return nil
+		end
+
+		applyGlass()
+		Library.Toolbar = api
+		return api
+	end
+
+
 	function Library:Watermark(opts)
 		opts = opts or {}
 
@@ -7029,8 +7266,8 @@ do
 		ParentGui(gui)
 
 		local frame = New("Frame", {
-			Size = UDim2.fromOffset(0, 30),
-			AutomaticSize = Enum.AutomaticSize.X,
+			Size = UDim2.fromOffset(opts.Width or 268, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
 			-- 18,18 lands under the Roblox topbar buttons on desktop and mobile,
 			-- so the default clears them
 			Position = opts.Position or UDim2.fromOffset(18, 96),
@@ -7039,43 +7276,103 @@ do
 			Active = true,
 			Parent = gui,
 		})
-		Corner(frame, 8)
+		Corner(frame, 9)
 		Stroke(frame, Theme.SectionBorder)
-		Pad(frame, 0, 13, 0, 13)
-		local row = List(frame, 11, Enum.FillDirection.Horizontal)
-		row.VerticalAlignment = Enum.VerticalAlignment.Center
+		Pad(frame, 10, 12, 8, 11)
+		List(frame, 5)
+		Library:RegisterGlassPanel(frame)
 
-		local brand = Label(frame, tostring(opts.Title or "orasense") .. tostring(opts.Suffix or ".win"), Theme.Accent, 14, Theme.FontMedium)
-		brand.Size = UDim2.new(0, 0, 1, 0)
+		-- top row: name on the left, live player count on the right
+		local top = New("Frame", {
+			Size = UDim2.new(1, 0, 0, 18),
+			BackgroundTransparency = 1,
+			LayoutOrder = 1,
+			Parent = frame,
+		})
+		local nameRow = New("Frame", {
+			Size = UDim2.new(1, -86, 1, 0),
+			BackgroundTransparency = 1,
+			Parent = top,
+		})
+		local nameList = List(nameRow, 0, Enum.FillDirection.Horizontal)
+		nameList.VerticalAlignment = Enum.VerticalAlignment.Center
+		local brand = Label(nameRow, tostring(opts.Title or "orasense"), Theme.TextBright, 14, Theme.FontMedium)
+		brand.Size = UDim2.fromOffset(0, 16)
 		brand.AutomaticSize = Enum.AutomaticSize.X
-		brand.LayoutOrder = 1
+		local suffix = Label(nameRow, tostring(opts.Suffix or ".win"), Theme.Accent, 14, Theme.FontMedium)
+		suffix.Size = UDim2.fromOffset(0, 16)
+		suffix.AutomaticSize = Enum.AutomaticSize.X
+		suffix.LayoutOrder = 2
 
-		New("Frame", {
-			Size = UDim2.fromOffset(1, 15),
-			BackgroundColor3 = Theme.BorderSoft,
-			BorderSizePixel = 0,
+		local people = New("Frame", {
+			Size = UDim2.fromOffset(0, 18),
+			AnchorPoint = Vector2.new(1, 0),
+			Position = UDim2.fromScale(1, 0),
+			AutomaticSize = Enum.AutomaticSize.X,
+			BackgroundTransparency = 1,
+			Parent = top,
+		})
+		local peopleList = List(people, 5, Enum.FillDirection.Horizontal)
+		peopleList.VerticalAlignment = Enum.VerticalAlignment.Center
+		AttachIcon(people, opts.PlayersIcon or "users-round", Theme.TextDim, 13)
+		local players = Label(people, "0", Theme.Text, 13)
+		players.Size = UDim2.fromOffset(0, 14)
+		players.AutomaticSize = Enum.AutomaticSize.X
+
+		-- bottom row: fps, ping, session time and region, each with its own icon
+		local statsRow = New("Frame", {
+			Size = UDim2.new(1, 0, 0, 15),
+			BackgroundTransparency = 1,
 			LayoutOrder = 2,
 			Parent = frame,
 		})
+		local statsList = List(statsRow, 9, Enum.FillDirection.Horizontal)
+		statsList.VerticalAlignment = Enum.VerticalAlignment.Center
 
-		local stats = Label(frame, "", Theme.TextDim, 13)
-		stats.Size = UDim2.new(0, 0, 1, 0)
-		stats.AutomaticSize = Enum.AutomaticSize.X
-		stats.LayoutOrder = 3
+		local function stat(icon, text, order)
+			local box = New("Frame", {
+				Size = UDim2.fromOffset(0, 15),
+				AutomaticSize = Enum.AutomaticSize.X,
+				BackgroundTransparency = 1,
+				LayoutOrder = order,
+				Parent = statsRow,
+			})
+			local list = List(box, 4, Enum.FillDirection.Horizontal)
+			list.VerticalAlignment = Enum.VerticalAlignment.Center
+			AttachIcon(box, icon, Theme.TextDim, 12)
+			local value = Label(box, text, Theme.TextDim, 12)
+			value.Size = UDim2.fromOffset(0, 14)
+			value.AutomaticSize = Enum.AutomaticSize.X
+			return value
+		end
+
+		local fpsValue = stat(opts.FpsIcon or "gauge", "0 fps", 1)
+		local pingValue = stat(opts.PingIcon or "wifi", "0 ms", 2)
+		local timeValue = stat(opts.TimeIcon or "clock", "00:00:00", 3)
+		local regionValue = stat(opts.RegionIcon or "map-pin", "??", 4)
 
 		local pop = New("UIScale", { Scale = 0.9, Parent = frame })
 		Tween(pop, { Scale = 1 }, EASE_SPRING)
 
 		local api = { Gui = gui, Frame = frame, Visible = opts.Visible ~= false, Fps = 0, Region = nil }
+		local started = os.clock()
 
 		function api:SetTitle(text)
 			brand.Text = tostring(text or opts.Title or "orasense")
 		end
 
+		local function sessionTime()
+			local total = math.floor(os.clock() - started)
+			return string.format("%02d:%02d:%02d",
+				math.floor(total / 3600), math.floor(total % 3600 / 60), total % 60)
+		end
+
 		local function refresh()
-			stats.Text = string.format("%d fps  \u{00B7}  %d ms  \u{00B7}  %d/%d players  \u{00B7}  %s",
-				math.floor(api.Fps + 0.5), readPing(), #WatermarkPlayers:GetPlayers(),
-				WatermarkPlayers.MaxPlayers, api.Region or "??")
+			players.Text = tostring(#WatermarkPlayers:GetPlayers())
+			fpsValue.Text = string.format("%d fps", math.floor(api.Fps + 0.5))
+			pingValue.Text = string.format("%d ms", readPing())
+			timeValue.Text = sessionTime()
+			regionValue.Text = string.upper(tostring(api.Region or "??"))
 		end
 
 		local frames, elapsed = 0, 0
