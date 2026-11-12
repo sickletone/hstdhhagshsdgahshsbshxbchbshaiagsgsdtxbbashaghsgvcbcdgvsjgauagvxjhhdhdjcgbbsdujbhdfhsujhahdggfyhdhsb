@@ -893,27 +893,39 @@ end
 local function MakeButton(parent, opts, size, order)
 	local state = { Enabled = true }
 	local btn = New("TextButton", {
-		Size = size or UDim2.new(1, 0, 0, MSize(26, 34)),
+		Size = size or UDim2.new(1, 0, 0, MSize(28, 36)),
 		BackgroundColor3 = Theme.Field,
-		BackgroundTransparency = 0.35,
+		BackgroundTransparency = 0.18,
 		AutoButtonColor = false,
 		Text = "",
 		BorderSizePixel = 0,
 		LayoutOrder = order,
 		Parent = parent,
 	})
-	Corner(btn, 6)
+	Corner(btn, 8)
+	local btnStroke = Stroke(btn, Theme.Border, 1, 0.35)
+	local btnScale = New("UIScale", { Scale = 1, Parent = btn })
 
 	local text = Label(btn, opts.Text or "button", (LabelColor(opts, Theme.TextBright)), 13, Theme.FontMedium)
-	text.Size = UDim2.new(1, -16, 1, 0)
-	text.Position = UDim2.fromOffset(8, 0)
+	text.Size = UDim2.new(1, -18, 1, 0)
+	text.Position = UDim2.fromOffset(9, 0)
 	text.TextXAlignment = Enum.TextXAlignment.Center
 	text.TextTruncate = Enum.TextTruncate.AtEnd
 	Track(btn.MouseEnter:Connect(function()
-		Tween(btn, { BackgroundColor3 = Theme.FieldHover, BackgroundTransparency = 0.06 }, EASE_FAST)
+		Tween(btn, { BackgroundColor3 = Theme.FieldHover, BackgroundTransparency = 0 }, EASE_FAST)
+		Tween(btnStroke, { Color = Theme.Accent, Transparency = 0.55 }, EASE_FAST)
 	end))
 	Track(btn.MouseLeave:Connect(function()
-		Tween(btn, { BackgroundColor3 = Theme.Field, BackgroundTransparency = 0.35 }, EASE_FAST)
+		Tween(btn, { BackgroundColor3 = Theme.Field, BackgroundTransparency = 0.18 }, EASE_FAST)
+		Tween(btnStroke, { Color = Theme.Border, Transparency = 0.35 }, EASE_FAST)
+		Tween(btnScale, { Scale = 1 }, EASE_FAST)
+	end))
+	Track(btn.MouseButton1Down:Connect(function()
+		if state.Enabled == false then return end
+		Tween(btnScale, { Scale = 0.985 }, EASE_FAST)
+	end))
+	Track(btn.MouseButton1Up:Connect(function()
+		Tween(btnScale, { Scale = 1 }, EASE_FAST)
 	end))
 	if opts.Tooltip then Library:AttachTooltip(btn, opts.Tooltip) end
 	Track(btn.Activated:Connect(function()
@@ -1051,17 +1063,17 @@ function Elements:Input(opts)
 		cap.Size = UDim2.new(1, 0, 0, 15)
 	end
 	local field = New("Frame", {
-		Size = UDim2.new(1, 0, 0, MSize(30, 34)),
+		Size = UDim2.new(1, 0, 0, MSize(32, 38)),
 		BackgroundColor3 = Theme.Field,
 		BorderSizePixel = 0,
 		LayoutOrder = 2,
 		Parent = block,
 	})
-	Corner(field, 5)
+	Corner(field, 8)
 	local fStroke = Stroke(field, Theme.Border)
 	local box = New("TextBox", {
-		Size = UDim2.new(1, -20, 1, 0),
-		Position = UDim2.fromOffset(10, 0),
+		Size = UDim2.new(1, -24, 1, 0),
+		Position = UDim2.fromOffset(12, 0),
 		BackgroundTransparency = 1,
 		Text = opts.Default or "",
 		PlaceholderText = opts.Placeholder or "",
@@ -1083,10 +1095,12 @@ function Elements:Input(opts)
 	end
 
 	Track(box.Focused:Connect(function()
-		Tween(fStroke, { Color = Theme.Accent }, EASE_FAST)
+		Tween(field, { BackgroundColor3 = Theme.FieldHover }, EASE_FAST)
+		Tween(fStroke, { Color = Theme.Accent, Transparency = 0.15 }, EASE_FAST)
 	end))
 	Track(box.FocusLost:Connect(function(enter)
-		Tween(fStroke, { Color = Theme.Border }, EASE_FAST)
+		Tween(field, { BackgroundColor3 = Theme.Field }, EASE_FAST)
+		Tween(fStroke, { Color = Theme.Border, Transparency = 0 }, EASE_FAST)
 		if flag then
 			Library.Flags[flag] = box.Text
 			Library:MarkDirty(flag)
@@ -1177,26 +1191,43 @@ function Elements:Toggle(opts)
 		Parent = row,
 	})
 
+	local trackWidth = MSize(30, 34)
+	local trackHeight = MSize(17, 19)
+	local knobSize = MSize(11, 13)
+	local knobInset = 3
+
 	local box = New("Frame", {
-		Size = UDim2.fromOffset(MSize(13, 19), MSize(13, 19)),
+		Size = UDim2.fromOffset(trackWidth, trackHeight),
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 0, 0.5, 0),
-		BackgroundColor3 = Theme.Accent,
-		BackgroundTransparency = 1,
+		BackgroundColor3 = Theme.Field,
+		BackgroundTransparency = 0,
 		BorderSizePixel = 0,
 		Parent = row,
 	})
-	Corner(box, 3)
-	local boxStroke = Stroke(box, Theme.Border)
+	Corner(box, math.floor(trackHeight / 2))
+	local boxStroke = Stroke(box, Theme.Border, 1, 0.25)
+
+	local knob = New("Frame", {
+		Size = UDim2.fromOffset(knobSize, knobSize),
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, knobInset, 0.5, 0),
+		BackgroundColor3 = Theme.TextDim,
+		BorderSizePixel = 0,
+		Parent = box,
+	})
+	Corner(knob, math.floor(knobSize / 2))
+	local knobScale = New("UIScale", { Scale = 1, Parent = knob })
+	local knobTravel = trackWidth - knobSize - knobInset
 
 	local labelColor, customLabel = LabelColor(opts, Theme.Text)
 	local text = Label(row, opts.Text or "toggle", labelColor)
-	text.Position = UDim2.fromOffset(MSize(21, 28), 0)
-	text.Size = UDim2.new(1, -MSize(21, 28), 1, 0)
+	text.Position = UDim2.fromOffset(MSize(40, 46), 0)
+	text.Size = UDim2.new(1, -MSize(40, 46), 1, 0)
 
 	local left = New("Frame", {
-		Size = UDim2.new(1, -MSize(21, 28), 1, 0),
-		Position = UDim2.fromOffset(MSize(21, 28), 0),
+		Size = UDim2.new(1, -MSize(40, 46), 1, 0),
+		Position = UDim2.fromOffset(MSize(40, 46), 0),
 		BackgroundTransparency = 1,
 		Parent = row,
 	})
@@ -1225,7 +1256,7 @@ function Elements:Toggle(opts)
 	local function syncRow()
 		local s = owner.Window:UI()
 		local w = right.AbsoluteSize.X / s
-		left.Size = UDim2.new(1, -(21 + (w > 0 and w + 10 or 0)), 1, 0)
+		left.Size = UDim2.new(1, -(40 + (w > 0 and w + 10 or 0)), 1, 0)
 	end
 	Track(right:GetPropertyChangedSignal("AbsoluteSize"):Connect(syncRow))
 	syncRow()
@@ -1238,17 +1269,19 @@ function Elements:Toggle(opts)
 		return api
 	end
 
-	local boxScale = New("UIScale", { Scale = 1, Parent = box })
 
 	local function render(animate)
 		local info = animate and EASE_FAST or TweenInfo.new(0)
 		if animate then
-
-			boxScale.Scale = 0.82
-			Tween(boxScale, { Scale = 1 }, EASE_SPRING)
+			knobScale.Scale = 0.78
+			Tween(knobScale, { Scale = 1 }, EASE_SPRING)
 		end
-		Tween(box, { BackgroundTransparency = state and 0 or 1 }, info)
-		Tween(boxStroke, { Color = state and Theme.Accent or Theme.Border }, info)
+		Tween(box, { BackgroundColor3 = state and Theme.Accent or Theme.Field }, info)
+		Tween(boxStroke, { Color = state and Theme.Accent or Theme.Border, Transparency = state and 0 or 0.25 }, info)
+		Tween(knob, {
+			Position = UDim2.new(0, state and knobTravel or knobInset, 0.5, 0),
+			BackgroundColor3 = state and Theme.TextBright or Theme.TextDim,
+		}, info)
 	end
 
 	function api:Set(value, silent)
@@ -1477,7 +1510,7 @@ function Elements:Dropdown(opts)
 	end
 
 	local button = New("TextButton", {
-		Size = UDim2.new(1, 0, 0, MSize(26, 34)),
+		Size = UDim2.new(1, 0, 0, MSize(32, 38)),
 		BackgroundColor3 = Theme.Field,
 		AutoButtonColor = false,
 		Text = "",
@@ -1485,15 +1518,24 @@ function Elements:Dropdown(opts)
 		LayoutOrder = 2,
 		Parent = block,
 	})
-	Corner(button, 6)
+	Corner(button, 8)
+	local buttonStroke = Stroke(button, Theme.Border, 1, 0.25)
 
 	local value = Label(button, "", Theme.TextBright, 13, Theme.Font)
-	value.Position = UDim2.fromOffset(11, 0)
-	value.Size = UDim2.new(1, -37, 1, 0)
+	value.Position = UDim2.fromOffset(12, 0)
+	value.Size = UDim2.new(1, -40, 1, 0)
 	value.TextTruncate = Enum.TextTruncate.AtEnd
 	local chev = Chevron(button, Theme.TextDim)
 	chev.AnchorPoint = Vector2.new(1, 0.5)
-	chev.Position = UDim2.new(1, -11, 0.5, 0)
+	chev.Position = UDim2.new(1, -12, 0.5, 0)
+	Track(button.MouseEnter:Connect(function()
+		Tween(button, { BackgroundColor3 = Theme.FieldHover }, EASE_FAST)
+		Tween(buttonStroke, { Color = Theme.Accent, Transparency = 0.55 }, EASE_FAST)
+	end))
+	Track(button.MouseLeave:Connect(function()
+		Tween(button, { BackgroundColor3 = Theme.Field }, EASE_FAST)
+		Tween(buttonStroke, { Color = Theme.Border, Transparency = 0.25 }, EASE_FAST)
+	end))
 
 	local panel = self.Window:CreateFloating(0, true, self.Float)
 	local popupCorner = panel.Frame:FindFirstChildOfClass("UICorner")
@@ -1734,31 +1776,32 @@ function Elements:Slider(opts)
 	valueLabel.LayoutOrder = 2
 
 	local track = New("TextButton", {
-		Size = UDim2.new(1, 0, 0, 4),
-		Position = UDim2.new(0, 0, 0, MSize(24, 32)),
+		Size = UDim2.new(1, 0, 0, 6),
+		Position = UDim2.new(0, 0, 0, MSize(23, 31)),
 		BackgroundColor3 = Theme.Track,
 		AutoButtonColor = false,
 		Text = "",
 		BorderSizePixel = 0,
 		Parent = block,
 	})
-	Corner(track, 2)
+	Corner(track, 3)
 	local fill = New("Frame", {
 		Size = UDim2.fromScale(0, 1),
 		BackgroundColor3 = Theme.Accent,
 		BorderSizePixel = 0,
 		Parent = track,
 	})
-	Corner(fill, 2)
+	Corner(fill, 3)
 	local knob = New("Frame", {
-		Size = UDim2.fromOffset(MSize(9, 13), MSize(9, 13)),
+		Size = UDim2.fromOffset(MSize(12, 16), MSize(12, 16)),
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0, 0.5),
-		BackgroundColor3 = Theme.Accent,
+		BackgroundColor3 = Theme.TextBright,
 		BorderSizePixel = 0,
 		Parent = track,
 	})
-	Corner(knob, 5)
+	Corner(knob, 8)
+	Stroke(knob, Theme.Accent, 2, 0)
 
 	local hit = New("TextButton", {
 		Size = UDim2.new(1, 0, 0, MSize(15, 24)),
@@ -2458,10 +2501,12 @@ function Elements:Search(opts)
 	side.TextXAlignment = Enum.TextXAlignment.Right
 
 	Track(box.Focused:Connect(function()
-		Tween(fStroke, { Color = Theme.Accent }, EASE_FAST)
+		Tween(field, { BackgroundColor3 = Theme.FieldHover }, EASE_FAST)
+		Tween(fStroke, { Color = Theme.Accent, Transparency = 0.15 }, EASE_FAST)
 	end))
 	Track(box.FocusLost:Connect(function(enter)
-		Tween(fStroke, { Color = Theme.Border }, EASE_FAST)
+		Tween(field, { BackgroundColor3 = Theme.Field }, EASE_FAST)
+		Tween(fStroke, { Color = Theme.Border, Transparency = 0 }, EASE_FAST)
 		Library:SafeCallback(opts.Text or "input", opts.Callback, box.Text, enter)
 	end))
 	if opts.Live then
@@ -6995,8 +7040,8 @@ do
 
 		local bar = New("Frame", {
 			Size = UDim2.fromOffset(buttonWidth, barHeight),
-			Position = opts.Position or UDim2.new(0.5, 0, 1, -6),
-			AnchorPoint = opts.AnchorPoint or Vector2.new(0.5, 1),
+			Position = opts.Position or UDim2.new(0.5, 0, 0.5, (opts.MenuHeight or Library.DefaultHeight or 620) / 2 + 14),
+			AnchorPoint = opts.AnchorPoint or Vector2.new(0.5, 0),
 			BackgroundColor3 = Theme.Window,
 			BackgroundTransparency = 0.08,
 			BorderSizePixel = 0,
@@ -8191,7 +8236,7 @@ do
 				LayoutOrder = i,
 				Parent = bar,
 			})
-			Corner(button, 4)
+			Corner(button, 6)
 			local label = Label(button, name, Theme.TextDim, 12)
 			label.Size = UDim2.fromScale(1, 1)
 			label.TextXAlignment = Enum.TextXAlignment.Center
@@ -8257,14 +8302,14 @@ do
 			BorderSizePixel = 0,
 			Parent = wrap,
 		})
-		Corner(field, 5)
+		Corner(field, 8)
 		local stroke = Stroke(field, Theme.Border)
-		Pad(field, 6, 9)
+		Pad(field, 8, 12)
 		local box = New("TextBox", {
 			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
 			Text = opts.Default or "",
-			PlaceholderText = opts.Placeholder or "type...",
+			PlaceholderText = opts.Placeholder or "Text",
 			PlaceholderColor3 = Theme.TextDim,
 			TextColor3 = Theme.TextBright,
 			TextSize = Theme.TextSize,
@@ -8277,10 +8322,12 @@ do
 			Parent = field,
 		})
 		Track(box.Focused:Connect(function()
-			Tween(stroke, { Color = Theme.Accent }, EASE_FAST)
+			Tween(field, { BackgroundColor3 = Theme.FieldHover }, EASE_FAST)
+			Tween(stroke, { Color = Theme.Accent, Transparency = 0.15 }, EASE_FAST)
 		end))
 		Track(box.FocusLost:Connect(function(enter)
-			Tween(stroke, { Color = Theme.Border }, EASE_FAST)
+			Tween(field, { BackgroundColor3 = Theme.Field }, EASE_FAST)
+			Tween(stroke, { Color = Theme.Border, Transparency = 0 }, EASE_FAST)
 			if flag then
 				Library.Flags[flag] = box.Text
 				Library:MarkDirty(flag)

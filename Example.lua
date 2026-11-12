@@ -98,7 +98,7 @@ watermark:SetVisible(true)
 -- Floating toolbar: an icon bar pinned to the bottom center of the screen.
 -- Each button owns a window; the dot under an icon means that window is open.
 local toolbar = Library:FloatingToolbar({
-        -- the bar docks six pixels under the menu; these set its thickness
+        -- sits under the menu, centered; these set its thickness
         Height = 44,
         ButtonWidth = 30,
         ButtonHeight = 34,
@@ -114,6 +114,32 @@ local toolbar = Library:FloatingToolbar({
                         IsActive = function() return Library.HotkeysEnabled ~= false end,
                 },
         },
+})
+
+local toolbarSection = settingsOptions:Section("Floating Toolbar", 1)
+
+local toolbarToggle
+toolbarToggle = toolbarSection:Toggle({
+        Text = "Hide Floating Toolbar",
+        Flag = "overlay_toolbar",
+        Hint = "The icon bar at the bottom of the screen",
+        Default = true,
+        Callback = function(state)
+                toolbar:SetVisible(state)
+                if toolbarToggle then
+                        toolbarToggle:SetText(state and "Hide Floating Toolbar" or "Show Floating Toolbar")
+                end
+        end,
+})
+
+toolbarSection:Toggle({
+        Text = "Close Floating Toolbar with Menu",
+        Flag = "overlay_toolbar_menu",
+        Hint = "On hides the bar whenever the menu closes",
+        Default = false,
+        Callback = function(state)
+                toolbar:SetFollowMenu(state)
+        end,
 })
 
 local watermarkSection = settingsOptions:Section("Watermark", 1)
@@ -574,7 +600,7 @@ status:Slider({ Text = "Timeout", Flag = "net_timeout", Min = 1, Max = 30, Suffi
 Misc:Section("Mixer", 1):Slider({ Text = "Volume", Flag = "audio_volume", Min = 0, Max = 100, Suffix = "%", Default = 70 })
 
 local editor = Misc:Section("Editor", 1)
-editor:Button({ Text = "Reload Scripts", Callback = function() Library:Notify("orasense", "scripts reloaded.", 3) end })
+editor:Button({ Text = "Reload Scripts", Callback = function() Library:Notify({ Title = "Reloaded", Duration = 2 }) end })
 editor:ButtonRow({
         { Text = "Run", Callback = function() print("run") end },
         { Text = "Stop", Callback = function() print("stop") end },
@@ -598,13 +624,13 @@ reference:Split({
 
 
 Window:IconAction("info", function()
-        Library:Notify("footer", "icon action from the footer.", 3)
+        Library:Notify({ Title = "Footer", Text = "Action ran.", Duration = 2 })
 end, 1)
 Window:IconAction("check", function()
         Library:Success("footer", "second icon action.", 3)
 end, 2)
 Window:Action("Connect", function()
-        Library:Notify({ Title = "Connected", Text = "Session Started.", Duration = 3 })
+        Library:Notify({ Title = "Connected", Text = "Connected.", Duration = 3 })
 end)
 
 SaveManager:SetLibrary(Library)
@@ -634,7 +660,7 @@ Window:SetTab(Main)
 
 Library:Notify({
         Title = "Orasense",
-        Text = "Script Loaded.",
+        Text = "Ready.",
         Duration = 5,
 })
 
@@ -710,35 +736,6 @@ toolbar:AddItem({
 -- exist, and the overlay toggle below turns it off.
 pcall(function() Library:SetKeybindListVisible(true) end)
 
-local toolbarSection = settingsOptions:Section("Floating Toolbar", 1)
-
-local toolbarToggle
-toolbarToggle = toolbarSection:Toggle({
-        Text = "Hide Floating Toolbar",
-        Flag = "overlay_toolbar",
-        Hint = "The icon bar at the bottom of the screen",
-        Default = true,
-        Callback = function(state)
-                toolbar:SetVisible(state)
-                if toolbarToggle then
-                        toolbarToggle:SetText(state and "Hide Floating Toolbar" or "Show Floating Toolbar")
-                end
-        end,
-})
-
-toolbarSection:Toggle({
-        Text = "Close Floating Toolbar with Menu",
-        Flag = "overlay_toolbar_menu",
-        Hint = "On hides the bar whenever the menu closes",
-        Default = false,
-        Callback = function(state)
-                toolbar:SetFollowMenu(state)
-        end,
-})
-
-
-
-
 -- Mini window and sub window demos, opened from the components tab.
 local float = Library:MiniWindow({
         Title = "Mini Window",
@@ -746,11 +743,11 @@ local float = Library:MiniWindow({
         Height = 250,
         Position = UDim2.fromOffset(24, 120),
 })
-float.Content:Label("lives outside the menu, drag it anywhere.", { Style = "dim" })
+float.Content:Label("Drag to move.", { Style = "dim" })
 float.Content:Button({
         Text = "Notify",
         Callback = function()
-                Library:Notify({ Title = "orasense", Text = "Mini Window Works.", Style = "success", Duration = 2 })
+                Library:Notify({ Title = "orasense", Text = "Action ran.", Style = "success", Duration = 2 })
         end,
 })
 float:SetVisible(false)
@@ -802,36 +799,36 @@ inputsRight:ButtonRow({
         { Text = "Edit Modes", Callback = function()
                 toggleBind:SetMode("hold")
                 holdBind:SetMode("toggle")
-                Library:Notify("keybinds", "modes swapped.", 2)
+                Library:Notify({ Title = "Keybinds", Text = "Modes swapped.", Duration = 2 })
         end },
         { Text = "Remove Keys", Callback = function()
                 alwaysBind:Clear()
-                Library:Notify("keybinds", "always key cleared.", 2)
+                Library:Notify({ Title = "Keybinds", Text = "Key cleared.", Duration = 2 })
         end },
 })
-inputsRight:Input({ Text = "Input", Flag = "cmp_input", Placeholder = "type something" })
-inputsRight:Search({ Label = "search", Placeholder = "filter...", Live = true })
+inputsRight:Input({ Text = "Input", Flag = "cmp_input", Placeholder = "Value" })
+inputsRight:Search({ Label = "search", Placeholder = "Search", Live = true })
 inputsRight:ColorPicker({ Text = "Color Picker", Flag = "cmp_color", Default = Color3.fromRGB(120, 180, 255) })
 inputsRight:Divider()
-inputsRight:Button({ Text = "Button", Callback = function() Library:Notify("button", "clicked.", 2) end })
+inputsRight:Button({ Text = "Button", Callback = function() Library:Notify({ Title = "Button", Duration = 2 }) end })
 inputsRight:ButtonRow({
-        { Text = "Left", Callback = function() Library:Notify("row", "left pressed.", 2) end },
-        { Text = "Right", Callback = function() Library:Notify("row", "right pressed.", 2) end },
+        { Text = "Left", Callback = function() Library:Notify({ Title = "Row", Text = "Left.", Duration = 2 }) end },
+        { Text = "Right", Callback = function() Library:Notify({ Title = "Row", Text = "Right.", Duration = 2 }) end },
 })
 inputsRight:Button({
         Text = "Button with Tooltip",
         Tooltip = "tooltips float above the menu, in their own layer",
-        Callback = function() Library:Notify("tooltip", "hover me to see the tooltip.", 2) end,
+        Callback = function() Library:Notify({ Title = "Tooltip", Duration = 2 }) end,
 })
 inputsRight:Label("labels carry tooltips too.", { Tooltip = "this is a label tooltip" })
 inputsRight:Button({
         Text = "Main Action",
         Tooltip = "sub buttons open while you hover the button",
         SubButtons = {
-                { Text = "Sub One", Callback = function() Library:Notify("sub", "sub one pressed.", 2) end },
-                { Text = "Sub Two", Callback = function() Library:Notify("sub", "sub two pressed.", 2) end },
+                { Text = "Sub One", Callback = function() Library:Notify({ Title = "Sub", Text = "One.", Duration = 2 }) end },
+                { Text = "Sub Two", Callback = function() Library:Notify({ Title = "Sub", Text = "Two.", Duration = 2 }) end },
         },
-        Callback = function() Library:Notify("main", "main action pressed.", 2) end,
+        Callback = function() Library:Notify({ Title = "Action", Duration = 2 }) end,
 })
 inputsRight:Paragraph({
         Title = "Paragraph",
@@ -936,20 +933,20 @@ displayLeft:KeyValueGrid({ Rows = { { "region", "eu" }, { "ping", "42 ms" }, { "
 displayLeft:BulletList({ Title = "Features", Items = { "sub tabs", "full screen particles", "configs" } })
 displayLeft:Badge({ Text = "Stable", Style = "success" })
 displayLeft:Badge({ Text = "Beta", Style = "warning" })
-displayLeft:ColorSwatches({ Text = "Swatches", Default = 2, Callback = function(c) Library:Notify("swatch", tostring(c), 2) end })
+displayLeft:ColorSwatches({ Text = "Swatches", Default = 2, Callback = function(c) Library:Notify({ Title = "Swatch", Text = tostring(c), Duration = 2 }) end })
 
 local displayRight = cDisplay:Section("Info", 2)
 displayRight:Banner({ Title = "Info Banner", Content = "Banners support an icon, a title and a body.", Icon = "info", Style = "accent" })
 displayRight:Banner({ Title = "Warning", Content = "This one can be dismissed.", Icon = "alert-triangle", Style = "warning" })
 displayRight:Avatar({ Name = "player", Sub = "level 12" })
 displayRight:Spinner({ Text = "Loading Something" })
-displayRight:Link({ Text = "Link Component", Callback = function() Library:Notify("link", "link clicked.", 2) end })
+displayRight:Link({ Text = "Link Component", Callback = function() Library:Notify({ Title = "Link", Duration = 2 }) end })
 displayRight:CopyField({ Value = "orasense.win", ButtonText = "copy" })
-displayRight:TextArea({ Text = "Text Area", Placeholder = "multi line input", Default = "line one\nline two", Flag = "cmp_textarea" })
+displayRight:TextArea({ Text = "Text Area", Placeholder = "Notes", Default = "line one\nline two", Flag = "cmp_textarea" })
 displayRight:LabelDivider("layout below")
 
 local card = cLayout:Card({ Title = "Card Container" })
-card:Label("cards group elements and keep long menus organized.", { Style = "dim" })
+card:Label("Grouped controls.", { Style = "dim" })
 card:Toggle({ Text = "Card Toggle", Flag = "cmp_card_toggle", Default = true })
 card:SliderButtons({ Text = "Card Slider", Flag = "cmp_card_slider", Min = 0, Max = 100, Default = 30 })
 card:Divider()
