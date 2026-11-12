@@ -247,14 +247,14 @@ toast:Close()
 
 The settings tab has a **dpi** control and a **menu scale** control, and they
 now do different things. `dpi` resizes the **components** — buttons, rows,
-sliders, inputs, text, and the tab labels/icons — around the fixed 96 dpi
+sliders, inputs, text, and the tab labels/icons — around the 96 dpi reference (desktop starts at 98)
 baseline (`120` makes them a quarter larger); the window frame, title bar and
 footer stay exactly where they are, so the menu no longer grows or moves while
 you drag it.
 `menu scale` still scales the whole window. Both are saved through the config
 system (`interface_dpi`, `interface_scale`).
 
-On touch devices the baseline is **104 dpi** instead of 96, on top of the mobile
+On desktop the baseline is **98 dpi**. On touch devices it is **104 dpi**, on top of the mobile
 `1.12` boost, so mobile text and controls start bigger before anyone touches the
 sliders. `Library.Dpi` is set at load, so setting it before `Library:Window()`
 changes the starting point for every window.

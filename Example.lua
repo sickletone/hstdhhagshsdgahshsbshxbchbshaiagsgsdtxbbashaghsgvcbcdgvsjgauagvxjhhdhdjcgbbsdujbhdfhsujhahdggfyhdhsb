@@ -19,10 +19,16 @@ Library.IconProvider = "lucide"
 Library.Glass = false
 Library.LiquidGlass = false
 
--- Default menu size, shared by every window this script creates. Change the two
--- numbers to resize the menu; Library:SetDefaultSize() also resizes the windows
--- that are already open. Mobile keeps its own defaults unless you set them.
-Library:SetDefaultSize(1030, 620)
+-- Default menu size, shared by every window this script creates. Desktop gets a
+-- square 620 x 620; mobile keeps the library's own defaults.
+if not Library.IsMobile then
+        Library:SetDefaultSize(620, 620)
+end
+
+-- Desktop runs at 98 dpi, mobile keeps the roomier 104.
+if not Library.IsMobile then
+        Library:SetDpi(98)
+end
 
 local Players = game:GetService("Players")
 
@@ -36,8 +42,8 @@ assert(SaveManager and InterfaceManager and ThemeManager,
 local Window = Library:Window({
         Title = "orasense",
         Suffix = ".win",
-        Width = 1020,
-        Height = 620,
+        Width = Library.IsMobile and 560 or 620,
+        Height = Library.IsMobile and 560 or 620,
         MinWidth = 520,
         MinHeight = 340,
 
@@ -110,13 +116,6 @@ watermarkToggle = watermarkSection:Toggle({
         end,
 })
 
-watermarkSection:Button({
-        Text = "rename watermark",
-        Tooltip = "the watermark title is editable while the menu runs",
-        Callback = function()
-                watermark:SetTitle("orasense " .. tostring(math.random(100, 999)) .. ".win")
-        end,
-})
 
 -- The touch toggle only exists on mobile, so this sub tab is mobile-only.
 -- Every control carries a Flag, so the whole panel is written to a config file.

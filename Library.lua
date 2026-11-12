@@ -82,6 +82,10 @@ end
 
 local EASE      = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local EASE_FAST = TweenInfo.new(0.10, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+-- Slower, silkier transitions for anything the eye follows across the screen.
+local EASE_SMOOTH = TweenInfo.new(0.24, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+-- Overshoots a little on the way in, which gives the pop its weight.
+local EASE_SPRING = TweenInfo.new(0.38, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
 local Painted = {}
 local ThemeAlpha = {}
@@ -1140,6 +1144,9 @@ local function MakeHint(owner, parent, text, order)
 		Pad(tip, 6, 9)
 		Corner(tip, 4)
 		Stroke(tip, Theme.PopupBorder)
+		tip.BackgroundTransparency = 1
+		tip.TextTransparency = 1
+		Tween(tip, { BackgroundTransparency = 0, TextTransparency = 0 }, EASE_SMOOTH)
 
 		if window then
 			local scale = math.max(window.Scale.Scale, 0.05)
@@ -1235,8 +1242,15 @@ function Elements:Toggle(opts)
 		return api
 	end
 
+	local boxScale = New("UIScale", { Scale = 1, Parent = box })
+
 	local function render(animate)
 		local info = animate and EASE_FAST or TweenInfo.new(0)
+		if animate then
+			-- the box pops as the check fills in
+			boxScale.Scale = 0.82
+			Tween(boxScale, { Scale = 1 }, EASE_SPRING)
+		end
 		Tween(box, { BackgroundTransparency = state and 0 or 1 }, info)
 		Tween(boxStroke, { Color = state and Theme.Accent or Theme.Border }, info)
 	end
@@ -2820,7 +2834,7 @@ function Window:Tab(name, icon)
 	tab.IconOnly = iconOnly
 
 	function tab:SetActive(active, animate)
-		local info = animate and EASE_FAST or TweenInfo.new(0)
+		local info = animate and EASE_SMOOTH or TweenInfo.new(0)
 		local color = active and Theme.TextBright or Theme.TextDim
 		Tween(label, { TextColor3 = color }, info)
 		if icon then Tween(icon, { ImageColor3 = color }, info) end
@@ -2939,8 +2953,9 @@ function Window:SetTab(tab)
 	end
 	self.ActiveTab = tab
 	tab.Page.Visible = true
-	tab.Page.Position = UDim2.fromOffset(0, 6)
-	Tween(tab.Page, { Position = UDim2.fromOffset(0, 0) })
+	-- the new page rises into place instead of appearing
+	tab.Page.Position = UDim2.fromOffset(0, 12)
+	Tween(tab.Page, { Position = UDim2.fromOffset(0, 0) }, EASE_SMOOTH)
 	tab:SetActive(true, true)
 end
 
@@ -3292,12 +3307,13 @@ function Window:SetVisible(state)
 		
 		
 		if self.ApplyGlass then self:ApplyGlass() end
-		self.Scale.Scale = self.BaseScale * 0.97
-		Tween(self.Scale, { Scale = self.BaseScale }, EASE_FAST)
+		-- the window springs open, slightly undersized, and overshoots back
+		self.Scale.Scale = self.BaseScale * 0.92
+		Tween(self.Scale, { Scale = self.BaseScale }, EASE_SPRING)
 	else
 		self:CloseFloating()
 		for _, modal in ipairs(self.Modals or {}) do modal:SetOpen(false) end
-		Tween(self.Scale, { Scale = self.BaseScale * 0.97 }, EASE_FAST).Completed:Once(function()
+		Tween(self.Scale, { Scale = self.BaseScale * 0.94 }, EASE_SMOOTH).Completed:Once(function()
 			if not self.Visible then self.Main.Visible = false end
 		end)
 	end
@@ -3309,7 +3325,7 @@ end
 function Library:Window(opts)
 	opts = opts or {}
 	local width = opts.Width or self.DefaultWidth or (MOBILE and 560 or 620)
-	local height = opts.Height or self.DefaultHeight or 560
+	local height = opts.Height or self.DefaultHeight or (MOBILE and 560 or 620)
 
 	local gui = New("ScreenGui", {
 		Name = opts.Name or "Orasense",
@@ -3786,7 +3802,7 @@ function Library:Window(opts)
 	window.BaseWidth = width
 
 	table.insert(Library.Windows, window)
-	window:SetDpi(Library.Dpi or (MOBILE and 104 or 96))
+	window:SetDpi(Library.Dpi or (MOBILE and 104 or 98))
 	if (Library.MenuTransparency or 0) > 0 then
 		window:SetMenuTransparency(Library.MenuTransparency)
 	end
@@ -5828,11 +5844,18 @@ do
 		sub.PillLabel = label
 		sub.Underline = underline
 		function sub:SetActive(active, animate)
-			local info = animate == false and TweenInfo.new(0) or EASE_FAST
+			local info = animate == false and TweenInfo.new(0) or EASE_SMOOTH
 			local color = active and Theme.TextBright or Theme.TextDim
 			Tween(label, { TextColor3 = color }, info)
 			Tween(underline, { BackgroundTransparency = active and 0 or 1 }, info)
 			if iconLabel then Tween(iconLabel, { ImageColor3 = color }, info) end
+			-- the underline sweeps in from the left on the selected sub tab
+			if active then
+				underline.Size = UDim2.new(0, 0, 0, 2)
+				Tween(underline, { Size = UDim2.new(1, 0, 0, 2) }, EASE_SMOOTH)
+			else
+				underline.Size = UDim2.new(1, 0, 0, 2)
+			end
 		end
 		Track(button.MouseEnter:Connect(function()
 			if tab.ActiveSub == sub then return end
@@ -5923,8 +5946,14 @@ CreatePill(self, sub, title, opts.Icon)
 		sub = sub or self.ActiveSub or self.SubTabs[1]
 		if not sub then return nil end
 		for _, entry in ipairs(self.SubTabs) do
-			entry.Page.Visible = (entry == sub)
-			if entry.SetActive then entry:SetActive(entry == sub, animate) end
+			local shown = entry == sub
+			entry.Page.Visible = shown
+			if shown and animate ~= false then
+				-- sub pages live under the pill bar, so they slide sideways
+				entry.Page.Position = UDim2.fromOffset(8, SUBBAR_HEIGHT)
+				Tween(entry.Page, { Position = UDim2.fromOffset(0, SUBBAR_HEIGHT) }, EASE_SMOOTH)
+			end
+			if entry.SetActive then entry:SetActive(shown, animate) end
 		end
 		self.ActiveSub = sub
 		return sub
@@ -6742,7 +6771,7 @@ do
 	end
 end
 
-Library.Dpi = Library.Dpi or (MOBILE and 104 or 96)
+Library.Dpi = Library.Dpi or (MOBILE and 104 or 98)
 Library.IsMobile = MOBILE
 
 -- Default menu size: one call changes the menu size everywhere, mobile
@@ -6750,7 +6779,7 @@ Library.IsMobile = MOBILE
 -- before Library:Window(), or call SetDefaultSize later to also resize the
 -- windows that are already open.
 Library.DefaultWidth = Library.DefaultWidth or (MOBILE and 560 or 620)
-Library.DefaultHeight = Library.DefaultHeight or 560
+Library.DefaultHeight = Library.DefaultHeight or (MOBILE and 560 or 620)
 
 function Library:SetDefaultSize(width, height)
 	width = math.clamp(tonumber(width) or self.DefaultWidth or 620, 240, 2400)
@@ -6764,7 +6793,7 @@ end
 Library.MenuTransparency = Library.MenuTransparency or 0
 
 function Library:SetDpi(dpi)
-	dpi = math.clamp(tonumber(dpi) or (MOBILE and 104 or 96), 60, 200)
+	dpi = math.clamp(tonumber(dpi) or (MOBILE and 104 or 98), 60, 200)
 	self.Dpi = dpi
 	for _, w in ipairs(self.Windows) do
 		if w.SetDpi then w:SetDpi(dpi) end
@@ -7000,7 +7029,7 @@ do
 		ParentGui(gui)
 
 		local frame = New("Frame", {
-			Size = UDim2.fromOffset(0, 22),
+			Size = UDim2.fromOffset(0, 30),
 			AutomaticSize = Enum.AutomaticSize.X,
 			-- 18,18 lands under the Roblox topbar buttons on desktop and mobile,
 			-- so the default clears them
@@ -7010,29 +7039,32 @@ do
 			Active = true,
 			Parent = gui,
 		})
-		Corner(frame, 6)
+		Corner(frame, 8)
 		Stroke(frame, Theme.SectionBorder)
-		Pad(frame, 0, 10, 0, 10)
-		local row = List(frame, 8, Enum.FillDirection.Horizontal)
+		Pad(frame, 0, 13, 0, 13)
+		local row = List(frame, 11, Enum.FillDirection.Horizontal)
 		row.VerticalAlignment = Enum.VerticalAlignment.Center
 
-		local brand = Label(frame, tostring(opts.Title or "orasense") .. tostring(opts.Suffix or ".win"), Theme.Accent, 12, Theme.FontMedium)
+		local brand = Label(frame, tostring(opts.Title or "orasense") .. tostring(opts.Suffix or ".win"), Theme.Accent, 14, Theme.FontMedium)
 		brand.Size = UDim2.new(0, 0, 1, 0)
 		brand.AutomaticSize = Enum.AutomaticSize.X
 		brand.LayoutOrder = 1
 
 		New("Frame", {
-			Size = UDim2.fromOffset(1, 10),
+			Size = UDim2.fromOffset(1, 15),
 			BackgroundColor3 = Theme.BorderSoft,
 			BorderSizePixel = 0,
 			LayoutOrder = 2,
 			Parent = frame,
 		})
 
-		local stats = Label(frame, "", Theme.TextDim, 12)
+		local stats = Label(frame, "", Theme.TextDim, 13)
 		stats.Size = UDim2.new(0, 0, 1, 0)
 		stats.AutomaticSize = Enum.AutomaticSize.X
 		stats.LayoutOrder = 3
+
+		local pop = New("UIScale", { Scale = 0.9, Parent = frame })
+		Tween(pop, { Scale = 1 }, EASE_SPRING)
 
 		local api = { Gui = gui, Frame = frame, Visible = opts.Visible ~= false, Fps = 0, Region = nil }
 
@@ -7065,7 +7097,11 @@ do
 		function api:SetVisible(state)
 			self.Visible = state ~= false
 			gui.Enabled = self.Visible
-			if self.Visible then refresh() end
+			if self.Visible then
+				refresh()
+				pop.Scale = 0.92
+				Tween(pop, { Scale = 1 }, EASE_SPRING)
+			end
 			return self
 		end
 
