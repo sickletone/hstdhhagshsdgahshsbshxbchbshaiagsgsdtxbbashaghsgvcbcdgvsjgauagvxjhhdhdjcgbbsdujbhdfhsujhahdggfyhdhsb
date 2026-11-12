@@ -3924,7 +3924,8 @@ function Library:Notify(opts, text, duration)
 		l.VerticalAlignment = Enum.VerticalAlignment.Bottom
 		l.HorizontalAlignment = Enum.HorizontalAlignment.Right
 		local viewportX = (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.X) or 1280
-		New("UIScale", { Scale = math.clamp(viewportX / 1500, 0.68, 1), Parent = holder })
+		local notifyScale = Library.IsMobile and math.clamp(viewportX / 1200, 0.66, 0.84) or 1
+		if notifyScale ~= 1 then New("UIScale", { Scale = notifyScale, Parent = holder }) end
 		self.NotifyGui = gui
 		self.NotifyHolder = holder
 	end
@@ -4437,7 +4438,7 @@ function Library:CreateHotkeyPanel(opts)
 	Corner(panel, 8)
 	Stroke(panel, Theme.SectionBorder)
 	local viewportX = (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.X) or 1280
-	local hotkeyScale = math.clamp(viewportX / 1500, 0.7, 1)
+	local hotkeyScale = Library.IsMobile and math.clamp(viewportX / 1200, 0.68, 0.86) or 1
 	New("UIScale", { Scale = hotkeyScale, Parent = panel })
 	self.HotkeyScale = hotkeyScale
 	Library:RegisterGlassPanel(panel)
@@ -7116,6 +7117,11 @@ do
 		})
 		Corner(bar, 11)
 		local barStroke = Stroke(bar, Theme.WindowBorder)
+		local mobile = Library.IsMobile == true
+		local barScale = opts.Scale or (mobile and 0.76 or 1)
+		if barScale ~= 1 then
+			New("UIScale", { Scale = barScale, Parent = bar })
+		end
 
 		local content = New("Frame", {
 			Size = UDim2.new(1, -padX * 2, 1, -padY * 2),
@@ -7277,25 +7283,41 @@ do
 
 		for _, item in ipairs(opts.Items or {}) do addItem(item) end
 
-		local origin, startPos, moving
-		Track(bar.InputBegan:Connect(function(input)
-			if input.UserInputType ~= Enum.UserInputType.MouseButton1
-				and input.UserInputType ~= Enum.UserInputType.Touch then return end
-			origin = input.Position
-			startPos = bar.Position
-			moving = UserInputService.InputChanged:Connect(function(move)
-				if move.UserInputType ~= Enum.UserInputType.MouseMovement
-					and move.UserInputType ~= Enum.UserInputType.Touch then return end
-				local delta = move.Position - origin
-				bar.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
-					startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-			end)
-		end))
-		Track(UserInputService.InputEnded:Connect(function(input)
-			if input.UserInputType ~= Enum.UserInputType.MouseButton1
-				and input.UserInputType ~= Enum.UserInputType.Touch then return end
-			if moving then moving:Disconnect() moving = nil end
-		end))
+		if opts.Draggable == true then
+			local origin, startPos, moveConn, endConn, dragTouch
+			local function stopDrag()
+				if moveConn then moveConn:Disconnect() moveConn = nil end
+				if endConn then endConn:Disconnect() endConn = nil end
+				dragTouch = nil
+			end
+			Track(bar.InputBegan:Connect(function(input)
+				if input.UserInputType ~= Enum.UserInputType.MouseButton1
+					and input.UserInputType ~= Enum.UserInputType.Touch then return end
+				if moveConn then return end
+				api.Dock = false
+				origin = input.Position
+				startPos = bar.Position
+				dragTouch = input.UserInputType == Enum.UserInputType.Touch and input or nil
+				moveConn = UserInputService.InputChanged:Connect(function(move)
+					if dragTouch then
+						if move ~= dragTouch then return end
+					elseif move.UserInputType ~= Enum.UserInputType.MouseMovement then
+						return
+					end
+					local delta = move.Position - origin
+					bar.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
+						startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+				end)
+				endConn = UserInputService.InputEnded:Connect(function(ended)
+					if dragTouch then
+						if ended ~= dragTouch then return end
+					elseif ended.UserInputType ~= Enum.UserInputType.MouseButton1 then
+						return
+					end
+					stopDrag()
+				end)
+			end))
+		end
 
 		Track(RunService.RenderStepped:Connect(function()
 			if not gui.Parent then return end
@@ -7310,7 +7332,8 @@ do
 				if size.Y > 0 then
 					local camera = workspace.CurrentCamera
 					local viewport = camera and camera.ViewportSize.Y or 1080
-					local top = math.min(pos.Y + size.Y + 14, viewport - barHeight - 12)
+					local drawn = bar.AbsoluteSize.Y > 0 and bar.AbsoluteSize.Y or barHeight
+					local top = math.min(pos.Y + size.Y + 14, viewport - drawn - 12)
 					bar.Position = UDim2.fromOffset(pos.X + size.X / 2, math.max(top, 8))
 				end
 			end
