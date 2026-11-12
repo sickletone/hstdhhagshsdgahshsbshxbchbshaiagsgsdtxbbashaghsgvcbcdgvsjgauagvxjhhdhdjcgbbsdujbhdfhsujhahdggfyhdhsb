@@ -51,7 +51,7 @@ local function Build(Library)
 	}
 
 	ThemeManager.Presets = {
-		orasense   = { Bg = Color3.fromRGB(20, 20, 22),    Accent = Color3.fromRGB(243, 167, 178) },
+		orasense   = { Bg = Color3.fromRGB(26, 26, 28),    Accent = Color3.fromRGB(232, 161, 168) },
 		darker     = { Bg = Color3.fromRGB(16, 16, 16),    Accent = Color3.fromRGB(72, 138, 182) },
 		typewriter = { Bg = Color3.fromRGB(34, 34, 34),    Accent = Color3.fromRGB(109, 180, 120) },
 		aqua       = { Bg = Color3.fromRGB(14, 22, 22),    Accent = Color3.fromRGB(60, 165, 165) },

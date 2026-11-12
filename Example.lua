@@ -52,7 +52,7 @@ assert(type(ThemeManager.SetLibrary) == "function"
         "addon chunks did not return modules, check the addons/ folder")
 
 local Window = Library:Window({
-        Title = "Orasense",
+        Title = "orasense",
         Suffix = ".win",
         Width = 620,
         Height = 620,
@@ -103,7 +103,7 @@ local settingsThemes = Settings:SubTab({ Title = "Themes", Icon = "palette" })
 -- Watermark: built here, before the rest of the menu, so the pill is on screen
 -- from the first frame and its box exists even if something later fails.
 local watermark = Library:Watermark({
-        Title = "Orasense",
+        Title = "orasense",
         Suffix = ".win",
         Width = 268,
         Padding = 8,        -- thickness: lower this for a slimmer pill
@@ -219,11 +219,10 @@ local mobileTab = Settings:SubTab({ Title = "Mobile", Icon = "smartphone" })
         mobileButton:Dropdown({
                 Text = "Toggle Mode",
                 Flag = "mobile_button_mode",
-                Options = { "Tap", "Tap Twice", "Hold" },
-                Default = cfg.Mode == "tap_twice" and "Tap Twice" or (cfg.Mode == "hold" and "Hold" or "Tap"),
+                Options = { "tap", "tap twice", "hold" },
+                Default = cfg.Mode == "tap_twice" and "tap twice" or (cfg.Mode or "tap"),
                 Callback = function(choice)
-                        local mode = string.lower(tostring(choice))
-                        if mode == "tap twice" then mode = "tap_twice" end
+                        local mode = (choice == "tap twice") and "tap_twice" or choice
                         apply({ Mode = mode })
                         if holdSlider then holdSlider.Instance.Visible = (mode == "hold") end
                 end,
@@ -237,7 +236,7 @@ local mobileTab = Settings:SubTab({ Title = "Mobile", Icon = "smartphone" })
         })
         if holdSlider then holdSlider.Instance.Visible = (cfg.Mode == "hold") end
 
-        local behaviour = mobileTab:Section("Behavior", 1)
+        local behaviour = mobileTab:Section("Behaviour", 1)
 
         behaviour:Toggle({
                 Text = "Invisible Button",
@@ -290,7 +289,7 @@ global:Toggle({
         :Keybind({ Default = "F", Flag = "global_enable_key" })
         :Gear(function(panel)
                 panel:Slider({ Text = "Delay", Flag = "global_delay", Min = 0, Max = 500, Suffix = " ms", Default = 60 })
-                panel:Dropdown({ Text = "Profile", Flag = "global_profile", Options = { "Default", "Custom" }, Default = "Default" })
+                panel:Dropdown({ Text = "Profile", Flag = "global_profile", Options = { "default", "custom" }, Default = "default" })
         end)
 
 global:Toggle({ Text = "Auto Refresh", Flag = "auto_refresh", Default = true })
@@ -357,9 +356,9 @@ local transform = Main:Section("Transform", 1)
 transform:Toggle({ Text = "Enable", Flag = "transform_enable" })
         :Keybind({ Default = "G", Flag = "transform_enable_key" })
 
-transform:Dropdown({ Text = "Direction", Flag = "transform_direction", Options = { "Forward", "Backward", "Mirrored" }, Default = "Forward" })
-transform:Dropdown({ Text = "Yaw", Flag = "transform_yaw", Options = { "None", "Relative", "Absolute" }, Default = "None" })
-transform:Dropdown({ Text = "Pitch", Flag = "transform_pitch", Options = { "Off", "Clamped", "Free" }, Default = "Off" })
+transform:Dropdown({ Text = "Direction", Flag = "transform_direction", Options = { "forward", "backward", "mirrored" }, Default = "forward" })
+transform:Dropdown({ Text = "Yaw", Flag = "transform_yaw", Options = { "none", "relative", "absolute" }, Default = "none" })
+transform:Dropdown({ Text = "Pitch", Flag = "transform_pitch", Options = { "off", "clamped", "free" }, Default = "off" })
 
 transform:Divider()
 
@@ -370,21 +369,21 @@ transform:Toggle({ Text = "Offset Angle", Flag = "transform_offset" })
 
 local settings = Main:Section("Settings", 2)
 
-settings:Dropdown({ Text = "Visualization", Flag = "visualization", Options = { "Visible", "Always", "Hidden" }, Default = "Visible" })
-settings:Dropdown({ Text = "Anchor", Flag = "anchor", Options = { "Head", "Torso", "Origin", "Bounds" }, Default = "Head" })
-settings:Dropdown({ Text = "Target Selection", Flag = "target_selection", Options = { "Crosshair", "Distance", "Priority" }, Default = "Crosshair" })
+settings:Dropdown({ Text = "Visualization", Flag = "visualization", Options = { "visible", "always", "hidden" }, Default = "visible" })
+settings:Dropdown({ Text = "Anchor", Flag = "anchor", Options = { "head", "torso", "origin", "bounds" }, Default = "head" })
+settings:Dropdown({ Text = "Target Selection", Flag = "target_selection", Options = { "crosshair", "distance", "priority" }, Default = "crosshair" })
 
 settings:Dropdown({
         Text = "Ignore Conditions",
         Flag = "ignore_conditions",
-        Options = { "Friends", "Hidden", "Inactive" },
+        Options = { "friends", "hidden", "inactive" },
         Multi = true,
-        Default = { "Friends" },
-        Empty = "None",
+        Default = { "friends" },
+        Empty = "none",
 })
 
 settings:Slider({ Text = "Radius", Flag = "radius", Min = 0, Max = 200, Default = 1 })
-settings:Slider({ Text = "Max Distance", Flag = "max_distance", Min = 0, Max = 5000, Default = 0, ZeroText = "0 - Unlimited" })
+settings:Slider({ Text = "Max Distance", Flag = "max_distance", Min = 0, Max = 5000, Default = 0, ZeroText = "0 - unlimited" })
 
 settings:ColorPicker({
         Text = "Highlight",
@@ -398,20 +397,20 @@ local groups = Main:Section("Group Filter", 2)
 
 groups:Search({
         Placeholder = "",
-        Label = "Search",
+        Label = "search",
         Live = true,
         Callback = function(text) print("query:", text) end,
 })
-groups:Label("No Groups Found.")
+groups:Label("no groups found.")
 
 
 local leftNotes = Main:Section("Notes", 1)
 leftNotes:Paragraph({
         Title = "Left Column",
-        Content = "A paragraph inside a normal card. Text wraps to the column width.",
+        Content = "A paragraph inside a normal card. text wraps on the column width.",
         Icon = "info",
 })
-leftNotes:Label("Plain Label, No Icon, No Style.")
+leftNotes:Label("plain label, no icon, no style.")
 
 local rightNotes = Main:Section("Warnings", 2)
 rightNotes:Paragraph({
@@ -420,7 +419,7 @@ rightNotes:Paragraph({
         Style = "warning",
         Icon = "alert-triangle",
 })
-rightNotes:Label("All Systems Nominal.", { Style = "success", Icon = "check" })
+rightNotes:Label("all systems nominal.", { Style = "success", Icon = "check" })
 
 local visual = Main:Section("Preview", 2)
 
@@ -430,9 +429,9 @@ avatar:SetUser(Players.LocalPlayer.UserId)
 local board = Main:Section("Nearby", 2)
 
 local roster = board:Table({
-        Columns = { "Player", "Distance", "Team" },
+        Columns = { "player", "distance", "team" },
         MaxRows = 6,
-        EmptyText = "Nobody Nearby",
+        EmptyText = "nobody nearby",
 })
 
 local function rootOf(player)
@@ -470,7 +469,7 @@ local notes = Main:Section("Reference", "full")
 
 notes:Paragraph({
         Title = "Full Width",
-        Content = "This box spans both columns. Any element fits inside, stacked or side by side.",
+        Content = "This box spans both columns. any element fits inside, stacked or side by side.",
         Icon = "info",
 })
 
@@ -493,21 +492,21 @@ notes:Split({
         end,
 })
 
-notes:Label("A Full Width Box Can Hold as Many Paragraphs as You Need.")
+notes:Label("a full width box can hold as many paragraphs as you need.")
 
 -- Orasense extras demo: dependency toggle, sub toggles, tab boxes.
 local demoTab = Main
-local leftBox = demoTab:LeftGroupbox("Left Box")
+local leftBox = demoTab:LeftGroupbox("left box")
 leftBox:Toggle({ Text = "Master Switch", Flag = "demo_master", Default = true }):Dependency(function(dep)
-        dep:Toggle({ Text = "Hidden Option A", Flag = "demo_a", Default = true })
+        dep:Toggle({ Text = "Hidden Option a", Flag = "demo_a", Default = true })
         dep:Slider({ Text = "Hidden Strength", Flag = "demo_strength", Min = 0, Max = 100, Default = 40 })
 end)
-local midBox = demoTab:MiddleGroupbox("Middle Box")
+local midBox = demoTab:MiddleGroupbox("middle box")
 midBox:Toggle({ Text = "Parent", Flag = "demo_parent" })
-midBox:SubToggle({ Text = "Sub Toggle", Flag = "demo_sub", Hint = "Indented Child Toggle" })
-midBox:Dropdown({ Text = "Searchable", Flag = "demo_search", Options = { "Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta", "Theta", "Iota" }, Default = "Alpha", Search = true })
-local rightBox = demoTab:RightGroupbox("Right Box")
-rightBox:Dropdown({ Text = "Multi Select", Flag = "demo_multi", Options = { "A", "B", "C", "D" }, Multi = true, Default = { "A" } })
+midBox:SubToggle({ Text = "Sub Toggle", Flag = "demo_sub", Hint = "Indented child toggle" })
+midBox:Dropdown({ Text = "Searchable", Flag = "demo_search", Options = { "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota" }, Default = "alpha", Search = true })
+local rightBox = demoTab:RightGroupbox("right box")
+rightBox:Dropdown({ Text = "Multi Select", Flag = "demo_multi", Options = { "a", "b", "c", "d" }, Multi = true, Default = { "a" } })
 
 local aim = World:Section("Aim", 1)
 
@@ -518,19 +517,19 @@ aim:Slider({ Text = "Smoothness", Flag = "aim_smooth", Min = 0, Max = 100, Defau
 aim:Dropdown({
         Text = "Mode",
         Flag = "aim_mode",
-        Options = { "Hold", "Toggle" },
-        Default = "Hold",
+        Options = { "hold", "toggle" },
+        Default = "hold",
         Compact = true,
 })
 
 local targeting = World:Section("Targeting", 2)
 
-targeting:Dropdown({ Text = "Hitbox", Flag = "aim_hitbox", Options = { "Head", "Torso", "Nearest" }, Default = "Head" })
+targeting:Dropdown({ Text = "Hitbox", Flag = "aim_hitbox", Options = { "head", "torso", "nearest" }, Default = "head" })
 targeting:MultiDropdown({
         Text = "Ignore",
         Flag = "aim_ignore",
-        Options = { "Friends", "Team", "Invisible", "Dead" },
-        Default = { "Friends", "Dead" },
+        Options = { "friends", "team", "invisible", "dead" },
+        Default = { "friends", "dead" },
 })
 targeting:ToggleSwitch({ Text = "Wall Check", Flag = "aim_wall", Default = true })
 targeting:SliderButtons({ Text = "Delay", Flag = "aim_delay", Min = 0, Max = 500, Step = 10, Suffix = " ms", Default = 60 })
@@ -589,8 +588,8 @@ objects:Toggle({ Text = "Static Objects", Flag = "static_objects" })
 objects:Dropdown({
         Text = "Material",
         Flag = "objects_material",
-        Options = { "Plastic", "Wood", "Metal", "Glass", "Neon", "Concrete", "Brick", "Sand", "Grass", "Ice", "Marble", "Fabric" },
-        Default = "Plastic",
+        Options = { "plastic", "wood", "metal", "glass", "neon", "concrete", "brick", "sand", "grass", "ice", "marble", "fabric" },
+        Default = "plastic",
 })
 
 objects:Keybind({
@@ -617,23 +616,23 @@ naming:Input({
         Placeholder = "obj_",
         Callback = function(text) print("prefix", text) end,
 })
-naming:Button({ Text = "Apply to Selection", Callback = function() Library:Success("Prefix Applied", "The prefix was applied to the selection.", 3) end })
+naming:Button({ Text = "Apply to Selection", Callback = function() Library:Success("done", "prefix applied.", 3) end })
 
 local status = Misc:Section("Status", 1)
-status:Label("Idle.", { Style = "dim" })
+status:Label("idle.", { Style = "dim" })
 status:Slider({ Text = "Timeout", Flag = "net_timeout", Min = 1, Max = 30, Suffix = " s", Default = 10 })
 
 Misc:Section("Mixer", 1):Slider({ Text = "Volume", Flag = "audio_volume", Min = 0, Max = 100, Suffix = "%", Default = 70 })
 
 local editor = Misc:Section("Editor", 1)
-editor:Button({ Text = "Reload Scripts", Callback = function() Library:Notify({ Title = "Scripts Reloaded", Text = "The script list was refreshed.", Duration = 2 }) end })
+editor:Button({ Text = "Reload Scripts", Callback = function() Library:Notify({ Title = "Reloaded", Duration = 2 }) end })
 editor:ButtonRow({
         { Text = "Run", Callback = function() print("run") end },
         { Text = "Stop", Callback = function() print("stop") end },
 })
 
 local console = Misc:Section("Output", 1)
-console:Label("Empty.")
+console:Label("empty.")
 
 local reference = Misc:Section("Reference", "full")
 reference:Split({
@@ -641,7 +640,7 @@ reference:Split({
                 left:Paragraph({ Title = "Flags", Content = "Every stateful element takes a flag, used for saving.", Icon = "info" })
         end,
         function(middle)
-                middle:Paragraph({ Title = "Styles", Content = "Warning, danger, success and accent.", Style = "warning", Icon = "alert-triangle" })
+                middle:Paragraph({ Title = "Styles", Content = "Warning, danger, success, accent.", Style = "warning", Icon = "alert-triangle" })
         end,
         function(right)
                 right:Paragraph({ Title = "No Filesystem", Content = "Configs stay in memory for the session.", Style = "danger", Icon = "x-circle" })
@@ -650,13 +649,13 @@ reference:Split({
 
 
 Window:IconAction("info", function()
-        Library:Notify({ Title = "Footer Action", Text = "The footer action completed.", Duration = 2 })
+        Library:Notify({ Title = "Footer", Text = "Action ran.", Duration = 2 })
 end, 1)
 Window:IconAction("check", function()
-        Library:Success("Second Action", "The second footer action completed.", 3)
+        Library:Success("footer", "second icon action.", 3)
 end, 2)
 Window:Action("Connect", function()
-        Library:Notify({ Title = "Connected", Text = "The connection was established.", Duration = 3 })
+        Library:Notify({ Title = "Connected", Text = "Connected.", Duration = 3 })
 end)
 
 ThemeManager:SetLibrary(Library)
@@ -688,7 +687,7 @@ Window:SetTab(Main)
 
 Library:Notify({
         Title = "Orasense",
-        Text = "Interface ready.",
+        Text = "Ready.",
         Duration = 5,
 })
 
@@ -710,15 +709,15 @@ local hud = Library:Panel({
         Visible = false,
 })
 
-hud.Content:Label("Name", { Style = "dim" })
+hud.Content:Label("name", { Style = "dim" })
 hud.Content:Label(Players.LocalPlayer.Name, { Style = "bright" })
 
 hud.Content:Divider()
 
-hud.Content:Label("Health", { Style = "dim" })
+hud.Content:Label("health", { Style = "dim" })
 local healthLabel = hud.Content:Label("-", { Style = "success" })
 
-hud.Content:Label("Players", { Style = "dim" })
+hud.Content:Label("players", { Style = "dim" })
 local playersLabel = hud.Content:Label(tostring(#Players:GetPlayers()), { Style = "bright" })
 
 hud:SetVisible(false)
@@ -774,20 +773,20 @@ local float = Library:MiniWindow({
 })
 local floatTab = float:Tab({ Title = "Mini" })
 local floatMain = floatTab:Section("Controls", 1)
-floatMain:Label("Drag to Move.", { Style = "dim" })
+floatMain:Label("Drag to move.", { Style = "dim" })
 floatMain:ToggleSwitch({ Text = "Speed", Flag = "mini_speed", Default = true })
 floatMain:Dropdown({
         Text = "Quality",
         Flag = "mini_quality",
-        Options = { "Low", "Mid", "High" },
-        Default = "Mid",
+        Options = { "low", "mid", "high" },
+        Default = "mid",
         Compact = true,
 })
 floatMain:Slider({ Text = "FOV", Flag = "mini_fov", Min = 40, Max = 120, Default = 70 })
 floatMain:Button({
         Text = "Notify",
         Callback = function()
-                Library:Notify({ Title = "Orasense", Text = "The Mini Window action ran.", Style = "success", Duration = 2 })
+                Library:Notify({ Title = "orasense", Text = "Mini action ran.", Style = "success", Duration = 2 })
         end,
 })
 float:SetVisible(false)
@@ -795,44 +794,44 @@ float:SetVisible(false)
 local sub = Window:SubWindow({ Title = "Sub Window", Width = 280, Height = 220 })
 local subTab = sub:Tab({ Title = "Sub" })
 local subMain = subTab:Section("Controls", 1)
-subMain:Label("A Window Inside the Window.", { Style = "dim" })
+subMain:Label("A window inside the window.", { Style = "dim" })
 subMain:Toggle({ Text = "Enabled", Flag = "sub_enabled", Default = true })
-subMain:RadioGroup({ Text = "Mode", Flag = "sub_mode", Options = { "Safe", "Fast" }, Default = "Safe" })
-subMain:Input({ Text = "Name", Flag = "sub_name", Placeholder = "Type Here" })
+subMain:RadioGroup({ Text = "Mode", Flag = "sub_mode", Options = { "safe", "fast" }, Default = "safe" })
+subMain:Input({ Text = "Name", Flag = "sub_name", Placeholder = "type here" })
 subMain:ButtonRow({
-        { Text = "Ping", Callback = function() Library:Notify({ Title = "Orasense", Text = "Pong. The Sub Window action ran.", Duration = 2 }) end },
+        { Text = "Ping", Callback = function() Library:Notify({ Title = "orasense", Text = "Pong", Duration = 2 }) end },
         { Text = "Close", Callback = function() sub:SetVisible(false) end },
 })
 sub:SetVisible(false)
 
 -- Every component, grouped in sub tabs.
-local Components = Window:Tab("Components")
-local cInputs = Components:SubTab("Inputs")
-local cGroups = Components:SubTab("Groups")
-local cWindows = Components:SubTab("Windows")
+local Components = Window:Tab("components")
+local cInputs = Components:SubTab("inputs")
+local cGroups = Components:SubTab("groups")
+local cWindows = Components:SubTab("windows")
 
 local inputsLeft = cInputs:Section("Controls", 1)
-inputsLeft:Label("Every Control, with Its Default Look.")
+inputsLeft:Label("every control, with its default look.")
 inputsLeft:Toggle({ Text = "Parent Toggle", Flag = "cmp_parent", Default = true })
         :Dependency(function(dep)
                 dep:Toggle({ Text = "Child Toggle", Flag = "cmp_child", Default = true })
                 dep:Slider({ Text = "Child Slider", Flag = "cmp_child_slider", Min = 0, Max = 100, Default = 25 })
         end)
-inputsLeft:SubToggle({ Text = "Sub Toggle", Flag = "cmp_sub", Hint = "Indented Child Toggle" })
+inputsLeft:SubToggle({ Text = "Sub Toggle", Flag = "cmp_sub", Hint = "Indented child toggle" })
 inputsLeft:DependencyToggle({ Text = "Dependency Toggle", Flag = "cmp_dep", Default = false }, function(dep)
-        dep:Input({ Text = "Dep Input", Flag = "cmp_dep_input", Placeholder = "Only Visible When On" })
+        dep:Input({ Text = "Dep Input", Flag = "cmp_dep_input", Placeholder = "only visible when on" })
 end)
 inputsLeft:MultiDropdown({
         Text = "Multi Dropdown",
         Flag = "cmp_multi",
-        Options = { "Alpha", "Beta", "Gamma", "Delta" },
-        Default = { "Alpha", "Beta" },
+        Options = { "alpha", "beta", "gamma", "delta" },
+        Default = { "alpha", "beta" },
 })
 inputsLeft:Dropdown({
         Text = "Searchable Dropdown",
         Flag = "cmp_search_dropdown",
-        Options = { "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight" },
-        Default = "One",
+        Options = { "one", "two", "three", "four", "five", "six", "seven", "eight" },
+        Default = "one",
         Search = true,
 })
 
@@ -847,36 +846,36 @@ inputsRight:ButtonRow({
         { Text = "Edit Modes", Callback = function()
                 toggleBind:SetMode("hold")
                 holdBind:SetMode("toggle")
-                Library:Notify({ Title = "Keybind Modes", Text = "The keybind modes were swapped.", Duration = 2 })
+                Library:Notify({ Title = "Keybinds", Text = "Modes swapped.", Duration = 2 })
         end },
         { Text = "Remove Keys", Callback = function()
                 alwaysBind:Clear()
-                Library:Notify({ Title = "Key Cleared", Text = "The keybind was cleared.", Duration = 2 })
+                Library:Notify({ Title = "Keybinds", Text = "Key cleared.", Duration = 2 })
         end },
 })
 inputsRight:Input({ Text = "Input", Flag = "cmp_input", Placeholder = "Value" })
-inputsRight:Search({ Label = "Search", Placeholder = "Search", Live = true })
+inputsRight:Search({ Label = "search", Placeholder = "Search", Live = true })
 inputsRight:ColorPicker({ Text = "Color Picker", Flag = "cmp_color", Default = Color3.fromRGB(120, 180, 255) })
 inputsRight:Divider()
-inputsRight:Button({ Text = "Primary Button", Callback = function() Library:Notify({ Title = "Button Pressed", Text = "The demonstration button responded.", Duration = 2 }) end })
+inputsRight:Button({ Text = "Button", Callback = function() Library:Notify({ Title = "Button", Duration = 2 }) end })
 inputsRight:ButtonRow({
-        { Text = "Left", Callback = function() Library:Notify({ Title = "Left Pressed", Text = "The left-button action ran.", Duration = 2 }) end },
-        { Text = "Right", Callback = function() Library:Notify({ Title = "Right Pressed", Text = "The right-button action ran.", Duration = 2 }) end },
+        { Text = "Left", Callback = function() Library:Notify({ Title = "Row", Text = "Left.", Duration = 2 }) end },
+        { Text = "Right", Callback = function() Library:Notify({ Title = "Row", Text = "Right.", Duration = 2 }) end },
 })
 inputsRight:Button({
         Text = "Button with Tooltip",
-        Tooltip = "Tooltips float above the menu in their own layer.",
-        Callback = function() Library:Notify({ Title = "Tooltip", Text = "Tooltips float above the interface.", Duration = 2 }) end,
+        Tooltip = "tooltips float above the menu, in their own layer",
+        Callback = function() Library:Notify({ Title = "Tooltip", Duration = 2 }) end,
 })
-inputsRight:Label("Labels Carry Tooltips Too.", { Tooltip = "This is a label tooltip." })
+inputsRight:Label("labels carry tooltips too.", { Tooltip = "this is a label tooltip" })
 inputsRight:Button({
         Text = "Main Action",
-        Tooltip = "Sub-buttons open while you hover the button.",
+        Tooltip = "sub buttons open while you hover the button",
         SubButtons = {
-                { Text = "Sub One", Callback = function() Library:Notify({ Title = "Sub Action", Text = "The first sub action completed.", Duration = 2 }) end },
-                { Text = "Sub Two", Callback = function() Library:Notify({ Title = "Sub Action", Text = "The second sub action completed.", Duration = 2 }) end },
+                { Text = "Sub One", Callback = function() Library:Notify({ Title = "Sub", Text = "One.", Duration = 2 }) end },
+                { Text = "Sub Two", Callback = function() Library:Notify({ Title = "Sub", Text = "Two.", Duration = 2 }) end },
         },
-        Callback = function() Library:Notify({ Title = "Action Executed", Text = "The main action completed.", Duration = 2 }) end,
+        Callback = function() Library:Notify({ Title = "Action", Duration = 2 }) end,
 })
 inputsRight:Paragraph({
         Title = "Paragraph",
@@ -890,19 +889,19 @@ groupsLeft:Toggle({ Text = "Left Toggle", Flag = "cmp_left_toggle", Default = tr
 groupsLeft:Slider({ Text = "Left Slider", Flag = "cmp_left_slider", Min = 0, Max = 10, Default = 3 })
 
 local groupsMiddle = cGroups:CenterTabBox({ Title = "Center Box", Icon = "settings" })
-groupsMiddle:Label("Middle Column Label.", { Style = "dim" })
-groupsMiddle:Dropdown({ Text = "Middle Dropdown", Flag = "cmp_mid_dd", Options = { "A", "B", "C" }, Default = "A" })
+groupsMiddle:Label("middle column label.", { Style = "dim" })
+groupsMiddle:Dropdown({ Text = "Middle Dropdown", Flag = "cmp_mid_dd", Options = { "a", "b", "c" }, Default = "a" })
 
 local groupsRight = cGroups:RightTabBox({ Title = "Right Box", Icon = "wrench" })
-groupsRight:Button({ Text = "Right Button", Callback = function() Library:Success("Right Box", "The right box action works.", 2) end })
-local cmpTable = groupsRight:Table({ Columns = { "Name", "Value" }, MaxRows = 3, EmptyText = "No Rows" })
-cmpTable:SetRows({ { "One", "1" }, { "Two", "2" } })
+groupsRight:Button({ Text = "Right Button", Callback = function() Library:Success("right", "works.", 2) end })
+local cmpTable = groupsRight:Table({ Columns = { "name", "value" }, MaxRows = 3, EmptyText = "no rows" })
+cmpTable:SetRows({ { "one", "1" }, { "two", "2" } })
 
 local windowsDialogs = cWindows:Section("Dialogs", 1)
 windowsDialogs:ButtonRow({
         { Text = "Modal", Callback = function()
                 local modal = Window:Modal({ Title = "Modal", Width = 320, Height = 220 })
-                modal.Content:Label("A Modal with Its Own Components.", { Style = "dim" })
+                modal.Content:Label("a modal with its own components.", { Style = "dim" })
                 modal.Content:Toggle({ Text = "Modal Toggle", Flag = "cmp_modal_toggle", Default = true })
                 modal.Content:Slider({ Text = "Modal Slider", Flag = "cmp_modal_slider", Min = 0, Max = 100, Default = 30 })
                 modal.Content:Button({ Text = "Close", Callback = function() modal:SetOpen(false) end })
@@ -911,11 +910,11 @@ windowsDialogs:ButtonRow({
         { Text = "Confirm", Callback = function()
                 Window:Confirm({
                         Title = "Confirm",
-                        Text = "This Is the Built-In Confirm Dialog.",
-                        Confirm = "Accept",
-                        Cancel = "Dismiss",
-                        OnConfirm = function() Library:Success("Accepted", "You pressed Accept.", 3) end,
-                        OnCancel = function() Library:Notify({ Title = "Dismissed", Text = "You pressed Dismiss.", Style = "info", Duration = 3 }) end,
+                        Text = "This Is the Built in Confirm Dialog.",
+                        Confirm = "accept",
+                        Cancel = "dismiss",
+                        OnConfirm = function() Library:Success("accepted", "you pressed accept.", 3) end,
+                        OnCancel = function() Library:Notify("dismissed", "you pressed dismiss.", 3) end,
                 })
         end },
 })
@@ -931,40 +930,40 @@ end })
 
 
 -- extra components: switches, sliders, display, cards
-local cSwitches = Components:SubTab("Switches")
-local cSliders = Components:SubTab("Sliders")
-local cDisplay = Components:SubTab("Display")
-local cLayout = Components:SubTab("Layout")
+local cSwitches = Components:SubTab("switches")
+local cSliders = Components:SubTab("sliders")
+local cDisplay = Components:SubTab("display")
+local cLayout = Components:SubTab("layout")
 
 local switchLeft = cSwitches:Section("Toggles", 1)
 switchLeft:ToggleSwitch({ Text = "Toggle Switch", Flag = "cmp_switch", Default = true })
-switchLeft:BoxToggle({ Text = "Box Toggle", Hint = "Card-Style Toggle", Flag = "cmp_boxtoggle", Default = true })
+switchLeft:BoxToggle({ Text = "Box Toggle", Hint = "Card style toggle", Flag = "cmp_boxtoggle", Default = true })
 switchLeft:Checkbox({ Text = "Checkbox", Flag = "cmp_checkbox", Default = false })
-switchLeft:RadioGroup({ Text = "Radio Group", Flag = "cmp_radio", Options = { "Low", "Medium", "High" }, Default = "Medium" })
+switchLeft:RadioGroup({ Text = "Radio Group", Flag = "cmp_radio", Options = { "low", "medium", "high" }, Default = "medium" })
 
 local switchRight = cSwitches:Section("More Toggles", 2)
 switchRight:ToggleSwitch({ Text = "Speed", Flag = "cmp_switch2", Default = true })
 switchRight:Dropdown({
         Text = "Profile",
         Flag = "cmp_compact_drop",
-        Options = { "Low", "Mid", "High" },
-        Default = "Mid",
+        Options = { "low", "mid", "high" },
+        Default = "mid",
         Compact = true,
 })
 switchRight:Button({
         Text = "FOV",
         Compact = true,
-        Callback = function() Library:Notify({ Title = "Orasense", Text = "The Field of View button responded.", Duration = 2 }) end,
+        Callback = function() Library:Notify({ Title = "orasense", Text = "FOV clicked.", Duration = 2 }) end,
 })
 switchRight:Dropdown({
         Text = "Quality",
         Flag = "cmp_segmented",
-        Options = { "Low", "Mid", "High" },
-        Default = "Mid",
+        Options = { "low", "mid", "high" },
+        Default = "mid",
         Compact = true,
 })
-switchRight:Segmented({ Flag = "cmp_segmented2", Options = { "One", "Two" }, Default = "One" })
-switchRight:RadioGroup({ Text = "Mode", Flag = "cmp_radio2", Options = { "Safe", "Fast" }, Default = "Safe" })
+switchRight:Segmented({ Flag = "cmp_segmented2", Options = { "one", "two" }, Default = "one" })
+switchRight:RadioGroup({ Text = "Mode", Flag = "cmp_radio2", Options = { "safe", "fast" }, Default = "safe" })
 
 local sliderLeft = cSliders:Section("Sliders", 1)
 sliderLeft:SliderButtons({ Text = "Slider + Buttons", Flag = "cmp_sliderbuttons", Min = 0, Max = 100, Step = 5, Default = 50, Suffix = "%" })
@@ -995,30 +994,30 @@ sliderRight:ProgressBar({ Text = "Static Bar", Default = 75, Style = "success" }
 
 local displayLeft = cDisplay:Section("Stats", 1)
 displayLeft:Stat({ Title = "Players", Value = "12", Sub = "+3 today", Style = "accent" })
-displayLeft:KeyValueGrid({ Rows = { { "Region", "EU" }, { "Ping", "42 ms" }, { "Uptime", "3h" }, { "Build", "Orasense.win" } } })
-displayLeft:BulletList({ Title = "Features", Items = { "Sub Tabs", "Full Screen Particles", "Configs" } })
+displayLeft:KeyValueGrid({ Rows = { { "region", "eu" }, { "ping", "42 ms" }, { "uptime", "3h" }, { "build", "orasense.win" } } })
+displayLeft:BulletList({ Title = "Features", Items = { "sub tabs", "full screen particles", "configs" } })
 displayLeft:Badge({ Text = "Stable", Style = "success" })
 displayLeft:Badge({ Text = "Beta", Style = "warning" })
-displayLeft:ColorSwatches({ Text = "Swatches", Default = 2, Callback = function(c) Library:Notify({ Title = "Color Selected", Text = "A color swatch was selected.", Duration = 2 }) end })
+displayLeft:ColorSwatches({ Text = "Swatches", Default = 2, Callback = function(c) Library:Notify({ Title = "Swatch", Text = tostring(c), Duration = 2 }) end })
 
 local displayRight = cDisplay:Section("Info", 2)
 displayRight:Banner({ Title = "Info Banner", Content = "Banners support an icon, a title and a body.", Icon = "info", Style = "accent" })
 displayRight:Banner({ Title = "Warning", Content = "This one can be dismissed.", Icon = "alert-triangle", Style = "warning" })
-displayRight:Avatar({ Name = "Player", Sub = "Level 12" })
+displayRight:Avatar({ Name = "player", Sub = "level 12" })
 displayRight:Spinner({ Text = "Loading Something" })
-displayRight:Link({ Text = "Link Component", Callback = function() Library:Notify({ Title = "Link Opened", Text = "The link component was activated.", Duration = 2 }) end })
-displayRight:CopyField({ Value = "Orasense.win", ButtonText = "Copy" })
-displayRight:TextArea({ Text = "Text Area", Placeholder = "Notes", Default = "Line One\nLine Two", Flag = "cmp_textarea" })
-displayRight:LabelDivider("Layout Below")
+displayRight:Link({ Text = "Link Component", Callback = function() Library:Notify({ Title = "Link", Duration = 2 }) end })
+displayRight:CopyField({ Value = "orasense.win", ButtonText = "copy" })
+displayRight:TextArea({ Text = "Text Area", Placeholder = "Notes", Default = "line one\nline two", Flag = "cmp_textarea" })
+displayRight:LabelDivider("layout below")
 
 local card = cLayout:Card({ Title = "Card Container" })
-card:Label("Grouped Controls.", { Style = "dim" })
+card:Label("Grouped controls.", { Style = "dim" })
 card:Toggle({ Text = "Card Toggle", Flag = "cmp_card_toggle", Default = true })
 card:SliderButtons({ Text = "Card Slider", Flag = "cmp_card_slider", Min = 0, Max = 100, Default = 30 })
 card:Divider()
-card:Button({ Text = "Card Button", Callback = function() Library:Notify("Card Action", "The button inside the card responded.", 2) end })
+card:Button({ Text = "Card Button", Callback = function() Library:Notify("card", "button inside a card.", 2) end })
 
-local card2 = cLayout:Card("Second Card")
-card2:Avatar({ Name = "Row One", Sub = "Inside a Card" })
-card2:Stat({ Title = "Value", Value = "42", Sub = "Stat Inside a Card", Style = "success" })
+local card2 = cLayout:Card("second card")
+card2:Avatar({ Name = "row one", Sub = "inside a card" })
+card2:Stat({ Title = "Value", Value = "42", Sub = "stat inside a card", Style = "success" })
 card2:Badge({ Text = "Inside", Style = "accent" })
