@@ -7001,7 +7001,6 @@ do
 			Items = items,
 			Visible = opts.Visible ~= false,
 			FollowMenu = opts.FollowMenu ~= false,
-			DockToMenu = opts.DockToMenu ~= false,
 			Menu = opts.Menu or (Library.Windows and Library.Windows[1]) or nil,
 		}
 
@@ -7136,19 +7135,10 @@ do
 		Track(RunService.RenderStepped:Connect(function()
 			if not gui.Parent then return end
 			local menuOpen = true
-			local main = api.Menu and api.Menu.Main
 			if api.FollowMenu and api.Menu then
 				menuOpen = api.Menu.Visible ~= false
 			end
 			gui.Enabled = api.Visible ~= false and menuOpen
-			if api.DockToMenu and main and menuOpen then
-				local pos, size = main.AbsolutePosition, main.AbsoluteSize
-				bar.AnchorPoint = Vector2.new(0.5, 0)
-				bar.Position = UDim2.fromOffset(pos.X + size.X * 0.5, pos.Y + size.Y + 6)
-			else
-				bar.AnchorPoint = Vector2.new(0.5, 1)
-				bar.Position = UDim2.new(0.5, 0, 1, -6)
-			end
 			if sheen.Visible then
 				sheenGradient.Offset = Vector2.new(math.sin(os.clock() * 0.7), 0)
 			end

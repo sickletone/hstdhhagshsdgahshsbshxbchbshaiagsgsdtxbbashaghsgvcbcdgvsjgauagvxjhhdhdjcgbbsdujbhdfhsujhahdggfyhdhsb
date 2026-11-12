@@ -176,17 +176,17 @@ return function(Library)
 
 	local function applyData(data)
 		if type(data) ~= "table" then return false end
-		if data.Preset then self:Apply(data.Preset) end
+		if data.Preset then ThemeManager:Apply(data.Preset) end
 		for key, hex in pairs(data.Colors or {}) do
 			local color, alpha = fromHex(hex)
 			if color and Theme[key] ~= nil then
-				self.Library:SetColor(key, color, alpha)
+				ThemeManager.Library:SetColor(key, color, alpha)
 			end
 		end
-		if self.Library.SetLiquidGlass and data.LiquidGlass ~= nil then
-			self.Library:SetLiquidGlass(data.LiquidGlass == true)
+		if ThemeManager.Library.SetLiquidGlass and data.LiquidGlass ~= nil then
+			ThemeManager.Library:SetLiquidGlass(data.LiquidGlass == true)
 		end
-		self.Library:Repaint()
+		ThemeManager.Library:Repaint()
 		return true
 	end
 
