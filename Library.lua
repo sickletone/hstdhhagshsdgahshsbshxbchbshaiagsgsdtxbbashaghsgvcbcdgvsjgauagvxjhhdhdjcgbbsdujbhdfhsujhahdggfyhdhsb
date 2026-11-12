@@ -4768,8 +4768,12 @@ function Library:CreateCursor(opts)
 
 	self.CursorGui = gui
 	self.CursorHolder = holder
+	self.CursorOriginalMouseIcon = UserInputService.MouseIconEnabled
 
-	local canDraw = type(Drawing) == "table" and type(Drawing.new) == "function"
+	local canDraw = false
+	pcall(function()
+		canDraw = Drawing ~= nil and type(Drawing.new) == "function"
+	end)
 	if canDraw then
 		local built, cursor = pcall(function()
 			local fill = Drawing.new("Triangle")
@@ -4789,7 +4793,6 @@ function Library:CreateCursor(opts)
 
 		if built and cursor then
 			self.CursorDrawing = cursor
-			self.CursorOriginalMouseIcon = UserInputService.MouseIconEnabled
 
 			local cursorShown = false
 			Track(RunService.RenderStepped:Connect(function()
@@ -5741,6 +5744,7 @@ do
 			MinHeight = opts.MinHeight or 120,
 			Title = ttl,
 			Bar = bar,
+			ParentWindow = self,
 		}, { __index = Window })
 		api.Content = NewContainer(api, body)
 
@@ -5780,6 +5784,15 @@ do
 			return tab
 		end
 
+		function api:SetTab(tab)
+			Window.SetTab(self, tab)
+			local active = self.ActiveTab
+			if api.Content and active then
+				api.Content.Container = active.ActiveSub and active.ActiveSub.Page or active.Page
+			end
+			return active or tab
+		end
+
 		function api:Section(title, column)
 			local tab = api.ActiveTab or api:Tab({ Title = "main" })
 			return tab:Section(title, column)
@@ -5814,8 +5827,9 @@ do
 		function api:Destroy()
 			self:CloseFloating()
 			root:Destroy()
-			for index, entry in ipairs(self.SubWindows or {}) do
-				if entry == api then table.remove(self.SubWindows, index) break end
+			local owner = api.ParentWindow
+			for index, entry in ipairs(owner and owner.SubWindows or {}) do
+				if entry == api then table.remove(owner.SubWindows, index) break end
 			end
 		end
 
@@ -5836,7 +5850,7 @@ do
 					and input.UserInputType ~= Enum.UserInputType.Touch then return end
 				origin = input.Position
 				startPos = root.Position
-				self:CloseFloating()
+				api:CloseFloating()
 				moveConn = UserInputService.InputChanged:Connect(function(move)
 					if move.UserInputType ~= Enum.UserInputType.MouseMovement
 						and move.UserInputType ~= Enum.UserInputType.Touch then return end
@@ -6024,6 +6038,15 @@ do
 				body.Visible = false
 			end
 			return tab
+		end
+
+		function api:SetTab(tab)
+			Window.SetTab(self, tab)
+			local active = self.ActiveTab
+			if api.Content and active then
+				api.Content.Container = active.ActiveSub and active.ActiveSub.Page or active.Page
+			end
+			return active or tab
 		end
 
 		function api:Section(title, column)
