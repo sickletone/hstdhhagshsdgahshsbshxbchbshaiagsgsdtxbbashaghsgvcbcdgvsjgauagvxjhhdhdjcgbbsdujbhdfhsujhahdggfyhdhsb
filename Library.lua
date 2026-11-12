@@ -6240,6 +6240,7 @@ do
 				panel.BackgroundTransparency = on and 0.3 or 0
 			end
 		end
+		if self.Toolbar and self.Toolbar.Refresh then self.Toolbar:Refresh() end
 	end
 
 	function Library:RegisterGlassPanel(panel)
@@ -6530,7 +6531,7 @@ do
 					for _ = 1, math.min(8, target - #dots) do
 						if not layer.Parent then break end
 						local dot = SpawnDot(layer, mode, custom)
-						place(dot, false)
+						place(dot, true)
 						table.insert(dots, dot)
 					end
 				elseif #dots > target then
@@ -6955,9 +6956,9 @@ do
 		ParentGui(gui)
 
 		local bar = New("Frame", {
-			Size = UDim2.fromOffset(0, opts.Height or 52),
+			Size = UDim2.fromOffset(0, opts.Height or 44),
 			AutomaticSize = Enum.AutomaticSize.X,
-			Position = opts.Position or UDim2.new(0.5, 0, 1, -(opts.TopOffset or 6)),
+			Position = opts.Position or UDim2.new(0.5, 0, 1, -6),
 			AnchorPoint = opts.AnchorPoint or Vector2.new(0.5, 1),
 			BackgroundColor3 = Theme.Window,
 			BackgroundTransparency = 0.08,
@@ -6965,22 +6966,49 @@ do
 			Active = true,
 			Parent = gui,
 		})
-		Corner(bar, 13)
+		Corner(bar, 11)
 		Stroke(bar, Theme.WindowBorder)
-		Pad(bar, 9, 9, 6, 6)
-		local row = List(bar, 4, Enum.FillDirection.Horizontal)
+		Pad(bar, 5, 5, 4, 4)
+		local row = List(bar, 2, Enum.FillDirection.Horizontal)
 		row.HorizontalAlignment = Enum.HorizontalAlignment.Center
 		row.VerticalAlignment = Enum.VerticalAlignment.Center
 
+		local sheen = New("Frame", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+			BackgroundTransparency = 0,
+			BorderSizePixel = 0,
+			ZIndex = 2,
+			Visible = false,
+			Parent = bar,
+		})
+		Corner(sheen, 11)
+		local sheenGradient = New("UIGradient", {
+			Rotation = 105,
+			Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 1),
+				NumberSequenceKeypoint.new(0.42, 0.88),
+				NumberSequenceKeypoint.new(0.58, 0.88),
+				NumberSequenceKeypoint.new(1, 1),
+			}),
+			Parent = sheen,
+		})
+
 		local items = {}
-		local api = { Gui = gui, Bar = bar, Items = items, Visible = opts.Visible ~= false }
+		local api = {
+			Gui = gui,
+			Bar = bar,
+			Items = items,
+			Visible = opts.Visible ~= false,
+			FollowMenu = opts.FollowMenu ~= false,
+			DockToMenu = opts.DockToMenu ~= false,
+			Menu = opts.Menu or (Library.Windows and Library.Windows[1]) or nil,
+		}
 
 		local function applyGlass()
-			if Library.Glass == true or Library.LiquidGlass == true then
-				bar.BackgroundTransparency = 0.18
-			else
-				bar.BackgroundTransparency = 0.08
-			end
+			local glass = Library.Glass == true or Library.LiquidGlass == true
+			bar.BackgroundTransparency = glass and 0.16 or 0.08
+			sheen.Visible = Library.LiquidGlass == true
 		end
 
 		local function isActive(entry)
@@ -7105,6 +7133,27 @@ do
 			if moving then moving:Disconnect() moving = nil end
 		end))
 
+		Track(RunService.RenderStepped:Connect(function()
+			if not gui.Parent then return end
+			local menuOpen = true
+			local main = api.Menu and api.Menu.Main
+			if api.FollowMenu and api.Menu then
+				menuOpen = api.Menu.Visible ~= false
+			end
+			gui.Enabled = api.Visible ~= false and menuOpen
+			if api.DockToMenu and main and menuOpen then
+				local pos, size = main.AbsolutePosition, main.AbsoluteSize
+				bar.AnchorPoint = Vector2.new(0.5, 0)
+				bar.Position = UDim2.fromOffset(pos.X + size.X * 0.5, pos.Y + size.Y + 6)
+			else
+				bar.AnchorPoint = Vector2.new(0.5, 1)
+				bar.Position = UDim2.new(0.5, 0, 1, -6)
+			end
+			if sheen.Visible then
+				sheenGradient.Offset = Vector2.new(math.sin(os.clock() * 0.7), 0)
+			end
+		end))
+
 		local alive = true
 		task.spawn(function()
 			while alive do
@@ -7121,6 +7170,11 @@ do
 			self.Visible = state ~= false
 			gui.Enabled = self.Visible
 			return self
+		end
+
+		function api:SetFollowMenu(state)
+			self.FollowMenu = state ~= false
+			return self.FollowMenu
 		end
 
 		function api:Refresh()
