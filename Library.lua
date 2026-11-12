@@ -2160,7 +2160,7 @@ end
 
 function ColorSwatch(parent, props)
 	local swatch = New("TextButton", props)
-	Corner(swatch, 3)
+	Corner(swatch, 6)
 	Stroke(swatch, Theme.Border)
 	return swatch
 end
@@ -2176,7 +2176,7 @@ function Elements:ColorPicker(opts)
 	name.Size = UDim2.new(1, -36, 1, 0)
 
 	local swatch = ColorSwatch(row, {
-		Size = UDim2.fromOffset(28, 14),
+		Size = UDim2.fromOffset(32, 16),
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, 0, 0.5, 0),
 		BackgroundColor3 = opts.Default or Color3.fromRGB(255, 255, 255),
@@ -2267,7 +2267,7 @@ function Elements:Keybind(opts)
 	name.Size = UDim2.new(1, -80, 1, 0)
 
 	local pill = New("TextButton", {
-		Size = UDim2.new(0, 0, 0, MSize(20, 26)),
+		Size = UDim2.new(0, 0, 0, MSize(24, 30)),
 		AutomaticSize = Enum.AutomaticSize.X,
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, 0, 0.5, 0),
@@ -2277,9 +2277,17 @@ function Elements:Keybind(opts)
 		BorderSizePixel = 0,
 		Parent = row,
 	})
-	Corner(pill, 4)
-	Stroke(pill, Theme.Border)
-	Pad(pill, MSize(0, 3), 8)
+	Corner(pill, 7)
+	local pillStroke = Stroke(pill, Theme.Border, 1, 0.25)
+	Pad(pill, MSize(0, 4), 10)
+	Track(pill.MouseEnter:Connect(function()
+		Tween(pill, { BackgroundColor3 = Theme.FieldHover }, EASE_FAST)
+		Tween(pillStroke, { Color = Theme.Accent, Transparency = 0.55 }, EASE_FAST)
+	end))
+	Track(pill.MouseLeave:Connect(function()
+		Tween(pill, { BackgroundColor3 = Theme.Field }, EASE_FAST)
+		Tween(pillStroke, { Color = Theme.Border, Transparency = 0.25 }, EASE_FAST)
+	end))
 	local pl = Label(pill, "", Theme.TextDim, 12)
 	pl.Size = UDim2.new(0, 0, 1, 0)
 	pl.AutomaticSize = Enum.AutomaticSize.X
@@ -3876,6 +3884,8 @@ function Library:Notify(opts, text, duration)
 		local l = List(holder, 8)
 		l.VerticalAlignment = Enum.VerticalAlignment.Bottom
 		l.HorizontalAlignment = Enum.HorizontalAlignment.Right
+		local viewportX = (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.X) or 1280
+		New("UIScale", { Scale = math.clamp(viewportX / 1500, 0.68, 1), Parent = holder })
 		self.NotifyGui = gui
 		self.NotifyHolder = holder
 	end
@@ -4385,8 +4395,12 @@ function Library:CreateHotkeyPanel(opts)
 		ClipsDescendants = true,
 		Parent = gui,
 	})
-	Corner(panel, 6)
+	Corner(panel, 8)
 	Stroke(panel, Theme.SectionBorder)
+	local viewportX = (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.X) or 1280
+	local hotkeyScale = math.clamp(viewportX / 1500, 0.7, 1)
+	New("UIScale", { Scale = hotkeyScale, Parent = panel })
+	self.HotkeyScale = hotkeyScale
 	Library:RegisterGlassPanel(panel)
 
 	New("Frame", {
@@ -4443,24 +4457,37 @@ function Library:CreateHotkeyPanel(opts)
 	})
 	List(rows, 0)
 
-	local origin, startPos, moveConn, endConn
+	local origin, startPos, moveConn, endConn, dragTouch
+	local function stopDrag()
+		if moveConn then moveConn:Disconnect() moveConn = nil end
+		if endConn then endConn:Disconnect() endConn = nil end
+		dragTouch = nil
+	end
 	Track(panel.InputBegan:Connect(function(input)
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1
 			and input.UserInputType ~= Enum.UserInputType.Touch then return end
+		if moveConn then return end
 		origin = input.Position
 		startPos = panel.Position
+		dragTouch = input.UserInputType == Enum.UserInputType.Touch and input or nil
 		moveConn = UserInputService.InputChanged:Connect(function(move)
-			if move.UserInputType ~= Enum.UserInputType.MouseMovement
-				and move.UserInputType ~= Enum.UserInputType.Touch then return end
+			if dragTouch then
+				if move ~= dragTouch then return end
+			elseif move.UserInputType ~= Enum.UserInputType.MouseMovement then
+				return
+			end
 			local delta = move.Position - origin
 			panel.Position = UDim2.new(
 				startPos.X.Scale, startPos.X.Offset + delta.X,
 				startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 		end)
 		endConn = UserInputService.InputEnded:Connect(function(ended)
-			if ended.UserInputType ~= input.UserInputType then return end
-			if moveConn then moveConn:Disconnect() moveConn = nil end
-			if endConn then endConn:Disconnect() endConn = nil end
+			if dragTouch then
+				if ended ~= dragTouch then return end
+			elseif ended.UserInputType ~= Enum.UserInputType.MouseButton1 then
+				return
+			end
+			stopDrag()
 		end)
 	end))
 
@@ -7089,6 +7116,7 @@ do
 			Items = items,
 			Visible = opts.Visible ~= false,
 			FollowMenu = opts.FollowMenu == true,
+			Dock = opts.Dock == true or (opts.Dock ~= false and opts.Position == nil),
 			Menu = opts.Menu or (Library.Windows and Library.Windows[1]) or nil,
 		}
 
@@ -7235,6 +7263,17 @@ do
 			local menuOpen = true
 			if api.FollowMenu and api.Menu then
 				menuOpen = api.Menu.Visible ~= false
+			end
+			if api.Dock and api.Menu and api.Menu.Main then
+				local main = api.Menu.Main
+				local size = main.AbsoluteSize
+				local pos = main.AbsolutePosition
+				if size.Y > 0 then
+					local camera = workspace.CurrentCamera
+					local viewport = camera and camera.ViewportSize.Y or 1080
+					local top = math.min(pos.Y + size.Y + 14, viewport - barHeight - 12)
+					bar.Position = UDim2.fromOffset(pos.X + size.X / 2, math.max(top, 8))
+				end
 			end
 			gui.Enabled = api.Visible ~= false and menuOpen
 			if sheen.Visible then
@@ -7833,9 +7872,9 @@ do
 			BorderSizePixel = 0,
 			Parent = self.Container,
 		})
-		Corner(card, 5)
+		Corner(card, 8)
 		local stroke = Stroke(card, Theme.GroupBorder)
-		Pad(card, 7, 10)
+		Pad(card, 8, 11)
 
 		local hit = New("TextButton", {
 			Size = UDim2.fromScale(1, 1),
@@ -7845,14 +7884,14 @@ do
 			Parent = card,
 		})
 		local box = New("Frame", {
-			Size = UDim2.fromOffset(MSize(15, 21), MSize(15, 21)),
+			Size = UDim2.fromOffset(MSize(16, 20), MSize(16, 20)),
 			Position = UDim2.new(0, 0, 0.5, -MSize(8, 10)),
 			BackgroundColor3 = Theme.Accent,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			Parent = card,
 		})
-		Corner(box, 3)
+		Corner(box, 5)
 		local boxStroke = Stroke(box, Theme.Border)
 		local tick = AttachIcon(box, "check", Theme.TextBright, MSize(11, 15))
 		if tick then tick.Position = UDim2.fromOffset(MSize(2, 3), MSize(2, 3)) end
