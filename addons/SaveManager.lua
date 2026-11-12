@@ -1,5 +1,5 @@
--- Orasense addon | SaveManager
--- Sauvegarde et chargement des configurations, au format JSON.
+
+
 
 return function(Library)
 	local HttpService = game:GetService("HttpService")
@@ -70,8 +70,8 @@ return function(Library)
 		if not raw then return false, "not found" end
 		local ok, data = pcall(function() return HttpService:JSONDecode(raw) end)
 		if not ok then return false, "corrupted file" end
-		-- every value goes through LoadConfig, which pcall-guards each setter and
-		-- skips flags that no longer exist in this build
+
+
 		local applied, err = pcall(function() self.Library:LoadConfig(data, self.Ignore) end)
 		if not applied then return false, tostring(err) end
 		if self.Library.Repaint then self.Library:Repaint() end

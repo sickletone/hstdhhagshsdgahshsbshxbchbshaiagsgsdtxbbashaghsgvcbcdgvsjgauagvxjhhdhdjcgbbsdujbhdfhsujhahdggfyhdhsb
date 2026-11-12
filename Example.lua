@@ -729,8 +729,8 @@ toolbarToggle = toolbarSection:Toggle({
 toolbarSection:Toggle({
         Text = "Close Floating Toolbar with Menu",
         Flag = "overlay_toolbar_menu",
-        Hint = "Off keeps the bar on screen while the menu is closed",
-        Default = true,
+        Hint = "On hides the bar whenever the menu closes",
+        Default = false,
         Callback = function(state)
                 toolbar:SetFollowMenu(state)
         end,

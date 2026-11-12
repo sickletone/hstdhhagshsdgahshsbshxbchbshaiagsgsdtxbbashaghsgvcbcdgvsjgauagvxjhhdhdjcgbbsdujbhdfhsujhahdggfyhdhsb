@@ -1,4 +1,4 @@
--- Orasense addon | ThemeManager
+
 
 return function(Library)
 	local HttpService = game:GetService("HttpService")
@@ -206,8 +206,8 @@ return function(Library)
 			colors[entry[1]] = toHex(Theme[entry[1]], alphas[entry[1]])
 		end
 		local ok, encoded = pcall(function()
-			-- Glass is deliberately not stored: it is a session look, set in
-			-- Settings > themes, and must start off on every launch.
+
+
 			return HttpService:JSONEncode({
 				Preset = self.Current,
 				Colors = colors,
@@ -224,8 +224,8 @@ return function(Library)
 		if not raw or raw == "" then return false end
 		local ok, data = pcall(function() return HttpService:JSONDecode(raw) end)
 		if not ok or type(data) ~= "table" then return false end
-		-- Old theme files may still carry glass keys. They are ignored on
-		-- purpose so glass cannot come back on at launch.
+
+
 		return applyData(data)
 	end
 
@@ -265,13 +265,13 @@ return function(Library)
 		return true, path .. (copied and " (copied)" or "")
 	end
 
-	--[[
-		Named theme configs
-		-------------------
-		Separate from the menu configs: every theme is a file in
-		<Folder>/themes and can be created, overwritten, loaded, deleted,
-		marked as the autoload or moved through the clipboard.
-	]]
+
+
+
+
+
+
+
 	function ThemeManager:ThemeFolder()
 		return self.Folder .. "/themes"
 	end
@@ -523,19 +523,19 @@ return function(Library)
 			defaults[entry[1]] = Theme[entry[1]]
 		end
 
-		-- With a container the same editor is built straight into a settings
-		-- sub tab; without one it stays a modal opened from the footer.
+
+
 		local modal
 		local content
-		-- One column: the settings page puts the theme configs in the column
-		-- beside this one, so the editor does not split itself in two.
+
+
 		local controls, colors
 		if container then
 			content = container
 			controls, colors = content, content
 		else
-			-- no scrim: the interface behind has to stay readable while its
-			-- colours are being edited
+
+
 			modal = window:Modal({ Title = "Theme", Width = 300, Height = 0.82, Dim = 0, Blur = 0 })
 			content = modal.Content
 			controls, colors = content, content
@@ -620,8 +620,8 @@ return function(Library)
 
 		controls:Divider()
 
-		-- Actions sit above the colour list: it is the long part of the page,
-		-- so reset and export stay reachable without scrolling past it.
+
+
 		controls:ButtonRow({
 			{
 				Text = "Reset Colors",

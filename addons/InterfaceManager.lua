@@ -1,5 +1,5 @@
--- Orasense addon | InterfaceManager
--- Reglages de l'interface elle-meme : touche du menu, echelle, dechargement.
+
+
 
 return function(Library)
 	local InterfaceManager = {}
@@ -53,8 +53,8 @@ return function(Library)
 			end,
 		})
 
-		-- dpi only grows the components (buttons, rows, text), never the window
-		-- frame, so changing it no longer moves or rescales the menu itself.
+
+
 		dpi = section:SliderButtons({
 			Text = "dpi",
 			Flag = "interface_dpi",

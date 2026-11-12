@@ -4076,11 +4076,12 @@ function Library:Panel(opts)
 	})
 	List(stack, 0)
 
-	local headerChevron, headerTitle, headerButton
+	local headerChevron, headerTitle, headerButton, header
 	if opts.Title then
-		local header = New("Frame", {
+		header = New("Frame", {
 			Size = UDim2.new(1, 0, 0, 32),
 			BackgroundTransparency = 1,
+			Active = true,
 			Parent = stack,
 		})
 		Pad(header, 0, 11, 0, 11)
@@ -4250,12 +4251,12 @@ function Library:Panel(opts)
 				dragTouch = nil
 			end
 
-			Track(bar.InputBegan:Connect(function(input)
+			Track((header or frame).InputBegan:Connect(function(input)
 				if input.UserInputType ~= Enum.UserInputType.MouseButton1
 					and input.UserInputType ~= Enum.UserInputType.Touch then return end
 				stopDrag()
 				origin = input.Position
-				startPos = root.Position
+				startPos = frame.Position
 				dragTouch = input.UserInputType == Enum.UserInputType.Touch and input or nil
 				self:CloseFloating()
 				moveConn = UserInputService.InputChanged:Connect(function(move)
@@ -4265,7 +4266,7 @@ function Library:Panel(opts)
 						return
 					end
 					local delta = move.Position - origin
-					root.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+					frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 				end)
 				endConn = UserInputService.InputEnded:Connect(function(ended)
 					if dragTouch then
@@ -7022,7 +7023,7 @@ do
 			Bar = bar,
 			Items = items,
 			Visible = opts.Visible ~= false,
-			FollowMenu = opts.FollowMenu ~= false,
+			FollowMenu = opts.FollowMenu == true,
 			Menu = opts.Menu or (Library.Windows and Library.Windows[1]) or nil,
 		}
 
