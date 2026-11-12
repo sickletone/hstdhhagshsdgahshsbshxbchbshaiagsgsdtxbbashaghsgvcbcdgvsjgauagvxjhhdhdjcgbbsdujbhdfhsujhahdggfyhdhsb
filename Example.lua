@@ -23,6 +23,15 @@ Library.LiquidGlass = false
 Library:SetDefaultSize(620, 620)
 Library:SetDpi(98)
 
+-- Script side defaults: set any flag before the controls exist, or after.
+-- Unknown flags are kept pending until a component registers them.
+Library:SetFlags({
+        auto_refresh = false,
+        simulation = true,
+        motion_smoothing = false,
+        cache_check = true,
+})
+
 local Players = game:GetService("Players")
 
 local SaveManager = Library.SaveManager
@@ -734,7 +743,7 @@ toolbar:AddItem({
 
 -- The keybind menu is on from the start: it fills itself as soon as keybinds
 -- exist, and the overlay toggle below turns it off.
-pcall(function() Library:SetKeybindListVisible(true) end)
+pcall(function() Library:SetKeybindListVisible(false) end)
 
 -- Mini window and sub window demos, opened from the components tab.
 local float = Library:MiniWindow({

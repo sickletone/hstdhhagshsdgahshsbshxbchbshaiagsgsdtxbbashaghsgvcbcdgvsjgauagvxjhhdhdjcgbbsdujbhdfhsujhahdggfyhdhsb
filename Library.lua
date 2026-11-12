@@ -124,6 +124,7 @@ Library.ToggleInput = nil
 Library.Binding = false
 Library.Registry = {}
 Library.Defaults = {}
+Library.Pending = {}
 Library.NotificationsEnabled = true
 Library.NotificationLimit = 5
 Library.Dirty = false
@@ -244,6 +245,14 @@ function Library:Register(flag, entry)
 	end
 	self.Registry[flag] = entry
 	self.Defaults[flag] = entry.Get()
+
+	if self.Pending[flag] ~= nil then
+		local value = self.Pending[flag]
+		self.Pending[flag] = nil
+		pcall(entry.Set, value)
+		local ok, current = pcall(entry.Get)
+		if ok then self.Defaults[flag] = current end
+	end
 end
 
 function Library:MarkDirty(flag)
@@ -300,6 +309,36 @@ function Library:LoadConfig(data, ignore)
 		if string.find(flag, "theme_color_", 1, true) == 1 then apply(flag, value) end
 	end
 	self:ClearDirty()
+end
+
+function Library:GetFlag(flag)
+	local entry = self.Registry[flag]
+	if not entry then return self.Pending[flag] end
+	local ok, value = pcall(entry.Get)
+	if ok then return value end
+	return nil
+end
+
+function Library:SetFlag(flag, value)
+	if flag == nil then return false end
+	local entry = self.Registry[flag]
+	if entry then
+		return pcall(entry.Set, value)
+	end
+	self.Pending[flag] = value
+	return true
+end
+
+function Library:SetFlags(values)
+	for flag, value in pairs(values or {}) do
+		self:SetFlag(flag, value)
+	end
+	return self
+end
+Library.Configure = Library.SetFlags
+
+function Library:GetFlags()
+	return self:GetConfig()
 end
 
 function Library:CaptureDefaults()
