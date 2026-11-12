@@ -25,7 +25,7 @@ return function(Library)
 	end
 
 	function InterfaceManager:BuildInterfaceSection(tab, column)
-		self.Settings = self.Settings or { MenuKey = "RightShift", Scale = 100, Dpi = Library.IsMobile and 104 or 98, Hotkeys = false, Transparency = 0 }
+		self.Settings = self.Settings or { MenuKey = "RightShift", Scale = 100, Dpi = 98, Hotkeys = false, Transparency = 0 }
 
 		local section = tab:Section("interface", column or 1)
 		local menuKey = section:Keybind({

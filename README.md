@@ -255,7 +255,7 @@ you drag it.
 `menu scale` still scales the whole window. Both are saved through the config
 system (`interface_dpi`, `interface_scale`).
 
-On desktop the baseline is **98 dpi**. On touch devices it is **104 dpi**, on top of the mobile
+The baseline is **98 dpi** on desktop and on touch devices, on top of the mobile
 `1.12` boost, so mobile text and controls start bigger before anyone touches the
 sliders. `Library.Dpi` is set at load, so setting it before `Library:Window()`
 changes the starting point for every window.
@@ -290,7 +290,7 @@ mobile sizing automatically: every interactive row is taller
 (`Toggle` 22 -> 32, `Slider` 30 -> 40, inputs and buttons 26 -> 34, and the
 same treatment for the component pack), group headers and sub tab pills get
 bigger touch targets, tab labels get bigger text, the components start at
-104 dpi and a further 12% boost, and windows are created 560 px wide (or
+98 dpi and a further 12% boost, and windows are created 620 px wide (or
 `Library.DefaultWidth` x `Library.DefaultHeight` once you set them) so the fit pass scales the
 whole menu up instead of down. `Library.Mobile` reports the detected mode,
 and any window can still opt out by passing its own `Width`.

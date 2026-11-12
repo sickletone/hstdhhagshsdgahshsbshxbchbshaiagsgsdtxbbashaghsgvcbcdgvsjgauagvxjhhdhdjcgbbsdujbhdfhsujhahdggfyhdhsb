@@ -19,16 +19,9 @@ Library.IconProvider = "lucide"
 Library.Glass = false
 Library.LiquidGlass = false
 
--- Default menu size, shared by every window this script creates. Desktop gets a
--- square 620 x 620; mobile keeps the library's own defaults.
-if not Library.IsMobile then
-        Library:SetDefaultSize(620, 620)
-end
-
--- Desktop runs at 98 dpi, mobile keeps the roomier 104.
-if not Library.IsMobile then
-        Library:SetDpi(98)
-end
+-- One square menu size and one dpi for every platform, mobile included.
+Library:SetDefaultSize(620, 620)
+Library:SetDpi(98)
 
 local Players = game:GetService("Players")
 
@@ -42,8 +35,8 @@ assert(SaveManager and InterfaceManager and ThemeManager,
 local Window = Library:Window({
         Title = "orasense",
         Suffix = ".win",
-        Width = Library.IsMobile and 560 or 620,
-        Height = Library.IsMobile and 560 or 620,
+        Width = 620,
+        Height = 620,
         MinWidth = 520,
         MinHeight = 340,
 
@@ -51,7 +44,7 @@ local Window = Library:Window({
         TabWidth = 140,
 
         -- Title: free size and horizontal alignment.
-        TitleSize = 20,      -- 9 to 28
+        TitleSize = 16,      -- 9 to 28
         TitleAlign = "left", -- "left", "center" or "right"
 
         -- Tabs: aligned at the top, or placed at the bottom of the window.
@@ -99,6 +92,23 @@ local watermark = Library:Watermark({
         Position = UDim2.fromOffset(18, 96),
 })
 watermark:SetVisible(true)
+
+-- Floating toolbar: an icon bar pinned just under the Roblox topbar. Each
+-- button owns a window; the dot under an icon means that window is open.
+local toolbar = Library:FloatingToolbar({
+        Position = UDim2.new(0.5, 0, 0, 62),
+        Items = {
+                { Title = "menu", Icon = "layout-dashboard", Window = Window },
+                {
+                        Title = "keybind menu",
+                        Icon = "keyboard",
+                        OnClick = function()
+                                Library:SetKeybindListVisible(not Library.HotkeysEnabled)
+                        end,
+                        IsActive = function() return Library.HotkeysEnabled ~= false end,
+                },
+        },
+})
 
 local watermarkSection = settingsOptions:Section("watermark", 1)
 
@@ -206,14 +216,14 @@ local mobileTab = Settings:SubTab({ Title = "mobile", Icon = "smartphone" })
                 Text = "width",
                 Flag = "menu_default_width",
                 Min = 520, Max = 1100,   -- the window never goes under its MinWidth
-                Default = Library.DefaultWidth or 560,
+                Default = Library.DefaultWidth or 620,
                 Callback = function(v) Library:SetDefaultSize(v, Library.DefaultHeight) end,
         })
         menuSize:Slider({
                 Text = "height",
                 Flag = "menu_default_height",
                 Min = 340, Max = 1100,   -- same for MinHeight
-                Default = Library.DefaultHeight or 560,
+                Default = Library.DefaultHeight or 620,
                 Callback = function(v) Library:SetDefaultSize(Library.DefaultWidth, v) end,
         })
 end
@@ -718,27 +728,12 @@ end)
 
 local servers = Library:ServerBrowser()
 
--- Floating toolbar: icons pinned to the top of the screen that own windows. The
--- dot under an icon means that window is open; click to open, click to close.
-local toolbar = Library:FloatingToolbar({
-        Position = UDim2.new(0.5, 0, 0, 18),
-        Items = {
-                { Title = "menu", Icon = "layout-dashboard", Window = Window },
-                {
-                        Title = "keybind menu",
-                        Icon = "keyboard",
-                        OnClick = function()
-                                Library:SetKeybindListVisible(not Library.HotkeysEnabled)
-                        end,
-                        IsActive = function() return Library.HotkeysEnabled ~= false end,
-                },
-                {
-                        Title = "server browser",
-                        Icon = "server",
-                        Window = servers,
-                        IsActive = function() return servers.Visible == true end,
-                },
-        },
+-- the server browser joins the toolbar once it exists
+toolbar:AddItem({
+        Title = "server browser",
+        Icon = "server",
+        Window = servers,
+        IsActive = function() return servers.Visible == true end,
 })
 
 -- The keybind menu is on from the start: it fills itself as soon as keybinds

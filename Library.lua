@@ -3009,7 +3009,7 @@ end
 function Window:RefreshTitleScale()
 	local name = self.TitleName
 	if not name or not name.Parent then return end
-	local base = self.TitleBaseSize or 14
+	local base = self.TitleBaseSize or 16
 	local dpi = math.clamp(self.ContentScaleValue or 1, 0.55, 2.2)
 	local width = self.Width or self.BaseWidth or 620
 	local widthScale = math.clamp(width / (self.BaseWidth or 620), 0.8, 1.45)
@@ -3324,8 +3324,8 @@ end
 
 function Library:Window(opts)
 	opts = opts or {}
-	local width = opts.Width or self.DefaultWidth or (MOBILE and 560 or 620)
-	local height = opts.Height or self.DefaultHeight or (MOBILE and 560 or 620)
+	local width = opts.Width or self.DefaultWidth or 620
+	local height = opts.Height or self.DefaultHeight or 620
 
 	local gui = New("ScreenGui", {
 		Name = opts.Name or "Orasense",
@@ -3357,7 +3357,7 @@ function Library:Window(opts)
 		Parent = main,
 	})
 	Corner(topBar, 10)
-	local titleSize = math.clamp(tonumber(opts.TitleSize) or 14, 9, 28)
+	local titleSize = math.clamp(tonumber(opts.TitleSize) or 16, 9, 28)
 	local titleAlign = string.lower(tostring(opts.TitleAlign or "left"))
 	New("Frame", {
 		Size = UDim2.new(1, 0, 0, 12),
@@ -3802,7 +3802,7 @@ function Library:Window(opts)
 	window.BaseWidth = width
 
 	table.insert(Library.Windows, window)
-	window:SetDpi(Library.Dpi or (MOBILE and 104 or 98))
+	window:SetDpi(Library.Dpi or 98)
 	if (Library.MenuTransparency or 0) > 0 then
 		window:SetMenuTransparency(Library.MenuTransparency)
 	end
@@ -6280,9 +6280,11 @@ do
 				if not window.LiquidFX or not window.LiquidFX.Parent then return end
 				if Library.LiquidGlass ~= true or window.Visible == false then return end
 				if not window.LiquidSheenGradient then return end
-				local t = os.clock() * 0.35 % 2
+				-- sine sweeps out and back, so the band never teleports from one
+				-- edge to the other when a cycle ends
+				local x = math.sin(os.clock() * 0.7)
 				pcall(function()
-					window.LiquidSheenGradient.Offset = Vector2.new(-1 + t, 0)
+					window.LiquidSheenGradient.Offset = Vector2.new(x, 0)
 				end)
 			end))
 		end
@@ -6800,19 +6802,19 @@ do
 	end
 end
 
-Library.Dpi = Library.Dpi or (MOBILE and 104 or 98)
+Library.Dpi = Library.Dpi or 98
 Library.IsMobile = MOBILE
 
 -- Default menu size: one call changes the menu size everywhere, mobile
 -- included, instead of passing Width and Height to every window. Set the fields
 -- before Library:Window(), or call SetDefaultSize later to also resize the
 -- windows that are already open.
-Library.DefaultWidth = Library.DefaultWidth or (MOBILE and 560 or 620)
-Library.DefaultHeight = Library.DefaultHeight or (MOBILE and 560 or 620)
+Library.DefaultWidth = Library.DefaultWidth or 620
+Library.DefaultHeight = Library.DefaultHeight or 620
 
 function Library:SetDefaultSize(width, height)
 	width = math.clamp(tonumber(width) or self.DefaultWidth or 620, 240, 2400)
-	height = math.clamp(tonumber(height) or self.DefaultHeight or 560, 160, 1600)
+	height = math.clamp(tonumber(height) or self.DefaultHeight or 620, 160, 1600)
 	self.DefaultWidth, self.DefaultHeight = width, height
 	for _, w in ipairs(self.Windows or {}) do
 		if w.SetSize then pcall(function() w:SetSize(width, height) end) end
@@ -6822,7 +6824,7 @@ end
 Library.MenuTransparency = Library.MenuTransparency or 0
 
 function Library:SetDpi(dpi)
-	dpi = math.clamp(tonumber(dpi) or (MOBILE and 104 or 98), 60, 200)
+	dpi = math.clamp(tonumber(dpi) or 98, 60, 200)
 	self.Dpi = dpi
 	for _, w in ipairs(self.Windows) do
 		if w.SetDpi then w:SetDpi(dpi) end
@@ -7063,7 +7065,7 @@ do
 		local bar = New("Frame", {
 			Size = UDim2.fromOffset(0, opts.Height or 52),
 			AutomaticSize = Enum.AutomaticSize.X,
-			Position = opts.Position or UDim2.new(0.5, 0, 0, opts.TopOffset or 18),
+			Position = opts.Position or UDim2.new(0.5, 0, 0, opts.TopOffset or 62),
 			AnchorPoint = Vector2.new(0.5, 0),
 			BackgroundColor3 = Theme.Window,
 			BackgroundTransparency = 0.08,
