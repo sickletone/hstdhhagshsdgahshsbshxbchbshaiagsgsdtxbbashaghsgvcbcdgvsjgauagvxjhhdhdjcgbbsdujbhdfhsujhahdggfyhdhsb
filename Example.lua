@@ -1018,7 +1018,7 @@ local progress = sliderRight:ProgressBar({ Text = "Progress", Flag = "cmp_progre
 sliderRight:SliderButtons({ Text = "Drives the Bar", Min = 0, Max = 100, Default = 42, Callback = function(v) progress:Set(v) end })
 sliderRight:ProgressBar({ Text = "Static Bar", Default = 75, Style = "success" })
 
-local displayLeft = cVisuals:Section("Stats", 1)
+local displayLeft = cDisplay:Section("Stats", 1)
 displayLeft:Stat({ Title = "Players", Value = "12", Sub = "+3 today", Style = "accent" })
 displayLeft:KeyValueGrid({ Rows = { { "region", "eu" }, { "ping", "42 ms" }, { "uptime", "3h" }, { "build", "orasense.win" } } })
 displayLeft:BulletList({ Title = "Features", Items = { "sub tabs", "full screen particles", "configs" } })
@@ -1026,7 +1026,7 @@ displayLeft:Badge({ Text = "Stable", Style = "success" })
 displayLeft:Badge({ Text = "Beta", Style = "warning" })
 displayLeft:ColorSwatches({ Text = "Swatches", Default = 2, Callback = function(c) Library:Notify("swatch", tostring(c), 2) end })
 
-local displayRight = cVisuals:Section("Info", 2)
+local displayRight = cDisplay:Section("Info", 2)
 displayRight:Banner({ Title = "Info Banner", Content = "Banners support an icon, a title and a body.", Icon = "info", Style = "accent" })
 displayRight:Banner({ Title = "Warning", Content = "This one can be dismissed.", Icon = "alert-triangle", Style = "warning" })
 displayRight:Avatar({ Name = "player", Sub = "level 12" })
