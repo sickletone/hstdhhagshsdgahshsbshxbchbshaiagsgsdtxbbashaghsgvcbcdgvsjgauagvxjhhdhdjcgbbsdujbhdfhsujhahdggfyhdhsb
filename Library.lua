@@ -20,7 +20,10 @@ local function GetPlayerGui()
 	return player:FindFirstChildOfClass("PlayerGui") or player:WaitForChild("PlayerGui", 10)
 end
 
+local ScreenGuis = {}
+
 local function ParentGui(gui)
+	table.insert(ScreenGuis, gui)
 	local ok = pcall(function()
 		if gethui then
 			gui.Parent = gethui()
@@ -5004,6 +5007,30 @@ function Library:Destroy()
 	table.clear(self.HotkeyEntries)
 	table.clear(self.Registry)
 	table.clear(self.Flags)
+	table.clear(self.Defaults)
+	table.clear(self.Pending)
+	table.clear(self.RepaintHooks)
+	table.clear(self.Windows)
+	table.clear(self.Panels)
+	table.clear(self.Addons)
+	self.Toolbar = nil
+	self._ReferenceWatermark = nil
+	self.NotifyGui = nil
+	self.NotifyHolder = nil
+	self.HotkeyGui = nil
+	self.HotkeyPanel = nil
+	self.HotkeyRows = nil
+	self.HotkeyBody = nil
+	self.MobileGui = nil
+	self.MobileButton = nil
+	self.CursorGui = nil
+	self.CursorHolder = nil
+	self.FloatStack = {}
+	self.Open = false
+	for _, gui in ipairs(ScreenGuis) do
+		pcall(function() gui:Destroy() end)
+	end
+	table.clear(ScreenGuis)
 end
 
 local HttpService = game:GetService("HttpService")
@@ -7398,6 +7425,31 @@ do
 
 		function api:AddItem(item)
 			return addItem(item)
+		end
+
+		function api:RemoveItem(target)
+			for index, entry in ipairs(items) do
+				if entry == target or entry.Title == target then
+					pcall(function() entry.Button:Destroy() end)
+					table.remove(items, index)
+					for order, rest in ipairs(items) do
+						rest.Button.LayoutOrder = order
+					end
+					layout()
+					return true
+				end
+			end
+			return false
+		end
+
+		function api:SetItems(list)
+			for index = #items, 1, -1 do
+				pcall(function() items[index].Button:Destroy() end)
+				table.remove(items, index)
+			end
+			for _, item in ipairs(list or {}) do addItem(item) end
+			layout()
+			return api
 		end
 
 		function api:IsVisible()

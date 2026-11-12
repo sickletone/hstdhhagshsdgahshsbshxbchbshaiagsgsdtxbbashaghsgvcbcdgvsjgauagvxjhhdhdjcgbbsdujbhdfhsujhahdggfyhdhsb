@@ -200,21 +200,10 @@ return function(Library)
 	end
 
 	function ThemeManager:Save()
-		local alphas = self.Library.ThemeAlpha or {}
-		local colors = {}
-		for _, entry in ipairs(self.Keys) do
-			colors[entry[1]] = toHex(Theme[entry[1]], alphas[entry[1]])
-		end
-		local ok, encoded = pcall(function()
-
-
-			return HttpService:JSONEncode({
-				Preset = self.Current,
-				Colors = colors,
-			})
-		end)
-		if ok then self.Library.FileSystem:Write(self:Path(), encoded) end
-		return ok
+		local encoded = self:Encode()
+		if not encoded then return false end
+		self.Library.FileSystem:Write(self:Path(), encoded)
+		return true
 	end
 
 	function ThemeManager:Load()
