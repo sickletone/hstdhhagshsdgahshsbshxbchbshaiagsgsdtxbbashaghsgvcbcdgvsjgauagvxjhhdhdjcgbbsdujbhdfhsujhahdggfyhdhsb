@@ -710,6 +710,32 @@ toolbar:AddItem({
 -- exist, and the overlay toggle below turns it off.
 pcall(function() Library:SetKeybindListVisible(true) end)
 
+local toolbarSection = settingsOptions:Section("Floating Toolbar", 1)
+
+local toolbarToggle
+toolbarToggle = toolbarSection:Toggle({
+        Text = "Hide Floating Toolbar",
+        Flag = "overlay_toolbar",
+        Hint = "The icon bar at the bottom of the screen",
+        Default = true,
+        Callback = function(state)
+                toolbar:SetVisible(state)
+                if toolbarToggle then
+                        toolbarToggle:SetText(state and "Hide Floating Toolbar" or "Show Floating Toolbar")
+                end
+        end,
+})
+
+toolbarSection:Toggle({
+        Text = "Close Floating Toolbar with Menu",
+        Flag = "overlay_toolbar_menu",
+        Hint = "Off keeps the bar on screen while the menu is closed",
+        Default = true,
+        Callback = function(state)
+                toolbar:SetFollowMenu(state)
+        end,
+})
+
 local overlay = settingsOptions:Section("Overlay", 1)
 
 
@@ -751,31 +777,6 @@ overlay:Dropdown({
                 Library:SetKeybindListMode(value)
         end,
 })
-
-local toolbarToggle
-toolbarToggle = overlay:Toggle({
-        Text = "Hide Floating Toolbar",
-        Flag = "overlay_toolbar",
-        Hint = "The icon bar that docks under the menu",
-        Default = true,
-        Callback = function(state)
-                toolbar:SetVisible(state)
-                if toolbarToggle then
-                        toolbarToggle:SetText(state and "Hide Floating Toolbar" or "Show Floating Toolbar")
-                end
-        end,
-})
-
-overlay:Toggle({
-        Text = "Close Floating Toolbar with Menu",
-        Flag = "overlay_toolbar_menu",
-        Hint = "The bar hides whenever the menu is closed",
-        Default = true,
-        Callback = function(state)
-                toolbar:SetFollowMenu(state)
-        end,
-})
-
 
 -- Mini window: a second, smaller window that floats outside the menu. It
 -- keeps its own title bar, drag and corner grip, and its Content accepts every

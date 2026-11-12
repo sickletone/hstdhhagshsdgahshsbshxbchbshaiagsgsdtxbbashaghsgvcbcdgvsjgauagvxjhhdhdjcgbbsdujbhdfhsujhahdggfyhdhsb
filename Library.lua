@@ -7192,14 +7192,23 @@ do
 			return addItem(item)
 		end
 
+		function api:IsVisible()
+			return self.Visible ~= false
+		end
+
 		function api:SetVisible(state)
 			self.Visible = state ~= false
-			gui.Enabled = self.Visible
+			local menuOpen = true
+			if self.FollowMenu and self.Menu then
+				menuOpen = self.Menu.Visible ~= false
+			end
+			gui.Enabled = self.Visible and menuOpen
 			return self
 		end
 
 		function api:SetFollowMenu(state)
 			self.FollowMenu = state ~= false
+			self:SetVisible(self.Visible)
 			return self.FollowMenu
 		end
 
