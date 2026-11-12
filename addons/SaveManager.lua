@@ -162,9 +162,9 @@ return function(Library)
 	end
 
 	function SaveManager:BuildConfigSection(tab, column)
-		local section = tab:Section("configs", column or 2)
-		local nameBox = section:Input({ Text = "name", Flag = false, Default = "default", Placeholder = "config name" })
-		local savedBox = section:Dropdown({ Text = "saved", Flag = false, Options = self:List(), Empty = "none", Search = true })
+		local section = tab:Section("Configs", column or 2)
+		local nameBox = section:Input({ Text = "Name", Flag = false, Default = "default", Placeholder = "Config Name" })
+		local savedBox = section:Dropdown({ Text = "Saved", Flag = false, Options = self:List(), Empty = "None", Search = true })
 
 		local autoloadLabel, dirtyLabel
 
@@ -196,7 +196,7 @@ return function(Library)
 
 		section:ButtonRow({
 			{
-				Text = "create",
+				Text = "Create",
 				Callback = function()
 					local name = nameBox:Get()
 					if name == "" then return notify(false, "enter a name", "") end
@@ -208,7 +208,7 @@ return function(Library)
 				end,
 			},
 			{
-				Text = "overwrite",
+				Text = "Overwrite",
 				Callback = function()
 					local file = selected() or nameBox:Get()
 					if not file or file == "" then return notify(false, "no config", "") end
@@ -221,14 +221,14 @@ return function(Library)
 
 		section:ButtonRow({
 			{
-				Text = "load",
+				Text = "Load",
 				Callback = function()
 					local ok, result = self:Load(selected())
 					notify(ok, result, "loaded")
 				end,
 			},
 			{
-				Text = "refresh list",
+				Text = "Refresh List",
 				Callback = function()
 					refreshList()
 					notify(true, "config list refreshed", "refreshed")
@@ -238,7 +238,7 @@ return function(Library)
 
 		section:ButtonRow({
 			{
-				Text = "delete",
+				Text = "Delete",
 				Callback = function()
 					local file = selected()
 					if not file then return notify(false, "no config", "") end
@@ -256,7 +256,7 @@ return function(Library)
 					if not window then return remove() end
 
 					window:Confirm({
-						Title = "delete config",
+						Title = "Delete Config",
 						Text = "Delete " .. file .. " permanently?",
 						Confirm = "delete",
 						Cancel = "cancel",
@@ -265,7 +265,7 @@ return function(Library)
 				end,
 			},
 			{
-				Text = "set autoload",
+				Text = "Set Autoload",
 				Callback = function()
 					local file = selected()
 					if not file then return notify(false, "no config", "") end
@@ -278,7 +278,7 @@ return function(Library)
 
 		section:ButtonRow({
 			{
-				Text = "remove autoload",
+				Text = "Remove Autoload",
 				Callback = function()
 					self:ClearAutoload()
 					autoloadLabel:Set("autoload: none")
@@ -286,7 +286,7 @@ return function(Library)
 				end,
 			},
 			{
-				Text = "copy to clipboard",
+				Text = "Copy to Clipboard",
 				Callback = function()
 					local ok, encoded = pcall(function()
 						return HttpService:JSONEncode(self.Library:GetConfig(self.Ignore))
@@ -303,7 +303,7 @@ return function(Library)
 
 		section:ButtonRow({
 			{
-				Text = "import from clipboard",
+				Text = "Import from Clipboard",
 				Callback = function()
 					local reader = typeof(getclipboard) == "function" and getclipboard or nil
 					if not reader then return notify(false, "clipboard unavailable", "") end
@@ -314,7 +314,7 @@ return function(Library)
 				end,
 			},
 			{
-				Text = "reset defaults",
+				Text = "Reset Defaults",
 				Callback = function()
 					self.Library:ResetDefaults(self.Ignore)
 					notify(true, "defaults restored", "reset")
@@ -322,8 +322,8 @@ return function(Library)
 			},
 		})
 
-		autoloadLabel = section:Label("autoload: " .. (self:GetAutoload() or "none"))
-		dirtyLabel = section:Label("no unsaved changes")
+		autoloadLabel = section:Label("Autoload: " .. (self:GetAutoload() or "none"))
+		dirtyLabel = section:Label("No Unsaved Changes")
 
 		self.Library:CaptureDefaults()
 		self.Library:ClearDirty()

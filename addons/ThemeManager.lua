@@ -12,29 +12,29 @@ return function(Library)
 	ThemeManager.Current = "orasense"
 
 	ThemeManager.Keys = {
-		{ "Accent", "accent" },
-		{ "AccentSoft", "accent hover" },
-		{ "AccentDim", "accent dim" },
-		{ "Window", "window bg" },
-		{ "WindowBorder", "window border" },
-		{ "TopBar", "topbar bg" },
-		{ "Section", "card bg" },
-		{ "SectionBorder", "card border" },
-		{ "Group", "group bg" },
-		{ "GroupBorder", "group border" },
-		{ "Field", "control bg" },
-		{ "FieldHover", "control hover" },
-		{ "Border", "control border" },
-		{ "BorderSoft", "divider" },
-		{ "PopupBg", "popup bg" },
-		{ "PopupBorder", "popup border" },
-		{ "Track", "slider track" },
-		{ "Text", "text" },
-		{ "TextDim", "text dim" },
-		{ "TextBright", "text bright" },
-		{ "TextMarked", "text warning" },
-		{ "TextCode", "text success" },
-		{ "Danger", "text danger" },
+		{ "Accent", "Accent" },
+		{ "AccentSoft", "Accent Hover" },
+		{ "AccentDim", "Accent Dim" },
+		{ "Window", "Window BG" },
+		{ "WindowBorder", "Window Border" },
+		{ "TopBar", "Topbar BG" },
+		{ "Section", "Card BG" },
+		{ "SectionBorder", "Card Border" },
+		{ "Group", "Group BG" },
+		{ "GroupBorder", "Group Border" },
+		{ "Field", "Control BG" },
+		{ "FieldHover", "Control Hover" },
+		{ "Border", "Control Border" },
+		{ "BorderSoft", "Divider" },
+		{ "PopupBg", "Popup Bg" },
+		{ "PopupBorder", "Popup Border" },
+		{ "Track", "Slider Track" },
+		{ "Text", "Text" },
+		{ "TextDim", "Text Dim" },
+		{ "TextBright", "Text Bright" },
+		{ "TextMarked", "Text Warning" },
+		{ "TextCode", "Text Success" },
+		{ "Danger", "Text Danger" },
 	}
 
 	ThemeManager.Order = {
@@ -359,9 +359,9 @@ return function(Library)
 	end
 
 	function ThemeManager:BuildThemeConfigSection(tab, column)
-		local section = tab:Section("configs", column or 1)
-		local nameBox = section:Input({ Text = "name", Flag = false, Default = "default", Placeholder = "theme name" })
-		local savedBox = section:Dropdown({ Text = "saved", Flag = false, Options = self:List(), Empty = "none", Search = true })
+		local section = tab:Section("Configs", column or 1)
+		local nameBox = section:Input({ Text = "Name", Flag = false, Default = "default", Placeholder = "Theme Name" })
+		local savedBox = section:Dropdown({ Text = "Saved", Flag = false, Options = self:List(), Empty = "None", Search = true })
 		local autoloadLabel
 
 		local function refreshList(select)
@@ -392,7 +392,7 @@ return function(Library)
 
 		section:ButtonRow({
 			{
-				Text = "create",
+				Text = "Create",
 				Callback = function()
 					local name = nameBox:Get()
 					if name == "" then return notify(false, "enter a name", "") end
@@ -404,7 +404,7 @@ return function(Library)
 				end,
 			},
 			{
-				Text = "overwrite",
+				Text = "Overwrite",
 				Callback = function()
 					local file = selected() or nameBox:Get()
 					if not file or file == "" then return notify(false, "no theme", "") end
@@ -417,14 +417,14 @@ return function(Library)
 
 		section:ButtonRow({
 			{
-				Text = "load",
+				Text = "Load",
 				Callback = function()
 					local ok, result = self:LoadAs(selected())
 					notify(ok, result, "loaded")
 				end,
 			},
 			{
-				Text = "refresh list",
+				Text = "Refresh List",
 				Callback = function()
 					refreshList()
 					notify(true, "theme list refreshed", "refreshed")
@@ -434,7 +434,7 @@ return function(Library)
 
 		section:ButtonRow({
 			{
-				Text = "delete",
+				Text = "Delete",
 				Callback = function()
 					local file = selected()
 					if not file then return notify(false, "no theme", "") end
@@ -451,7 +451,7 @@ return function(Library)
 					local window = self.Library.Windows[1]
 					if not window then return remove() end
 					window:Confirm({
-						Title = "delete theme",
+						Title = "Delete Theme",
 						Text = "Delete " .. file .. " permanently?",
 						Confirm = "delete",
 						Cancel = "cancel",
@@ -460,7 +460,7 @@ return function(Library)
 				end,
 			},
 			{
-				Text = "set autoload",
+				Text = "Set Autoload",
 				Callback = function()
 					local file = selected()
 					if not file then return notify(false, "no theme", "") end
@@ -473,7 +473,7 @@ return function(Library)
 
 		section:ButtonRow({
 			{
-				Text = "remove autoload",
+				Text = "Remove Autoload",
 				Callback = function()
 					self:ClearAutoload()
 					if autoloadLabel then autoloadLabel:Set("autoload: none") end
@@ -481,7 +481,7 @@ return function(Library)
 				end,
 			},
 			{
-				Text = "copy to clipboard",
+				Text = "Copy to Clipboard",
 				Callback = function()
 					local ok, result = self:CopyToClipboard()
 					notify(ok, result, "copied")
@@ -491,14 +491,14 @@ return function(Library)
 
 		section:ButtonRow({
 			{
-				Text = "import from clipboard",
+				Text = "Import from Clipboard",
 				Callback = function()
 					local ok, result = self:ImportFromClipboard()
 					notify(ok, result, "imported")
 				end,
 			},
 			{
-				Text = "export file",
+				Text = "Export File",
 				Callback = function()
 					local ok, result = self:Export(selected() or nameBox:Get())
 					if ok then refreshList(result) end
@@ -507,7 +507,7 @@ return function(Library)
 			},
 		})
 
-		autoloadLabel = section:Label("autoload: " .. (self:GetAutoload() or "none"))
+		autoloadLabel = section:Label("Autoload: " .. (self:GetAutoload() or "none"))
 
 		self.ConfigSection = section
 		return section
@@ -536,7 +536,7 @@ return function(Library)
 		else
 			-- no scrim: the interface behind has to stay readable while its
 			-- colours are being edited
-			modal = window:Modal({ Title = "theme", Width = 300, Height = 0.82, Dim = 0, Blur = 0 })
+			modal = window:Modal({ Title = "Theme", Width = 300, Height = 0.82, Dim = 0, Blur = 0 })
 			content = modal.Content
 			controls, colors = content, content
 		end
@@ -576,7 +576,7 @@ return function(Library)
 		end
 
 		presetBox = controls:Dropdown({
-			Text = "preset",
+			Text = "Preset",
 			Flag = "theme_preset",
 			Options = self:Names(),
 			Default = self.Current,
@@ -589,24 +589,13 @@ return function(Library)
 			end,
 		})
 
-		local glassToggle, strengthSlider, liquidToggle
+		local strengthSlider, liquidToggle
 		if self.Library.SetGlass then
-			glassToggle = controls:Toggle({
-				Text = "glass",
-				Flag = false,
-				Default = self.Library.Glass == true,
-				Hint = "see-through panels",
-				Callback = function(state)
-					self.Library:SetGlass(state)
-					dirty = true
-					if self.AutoSave then self:Save() end
-				end,
-			})
 			liquidToggle = controls:Toggle({
-				Text = "liquid glass",
-				Flag = false,
+				Text = "Liquid Glass",
+				Flag = "theme_liquid",
 			Default = self.Library.LiquidGlass == true,
-				Hint = "true refractive liquid look, not plain blur",
+				Hint = "True refractive liquid look, not plain blur",
 				Callback = function(state)
 					self.Library:SetLiquidGlass(state)
 					dirty = true
@@ -614,8 +603,8 @@ return function(Library)
 				end,
 			})
 			strengthSlider = controls:Slider({
-				Text = "glass strength",
-				Flag = false,
+				Text = "Glass Strength",
+				Flag = "theme_strength",
 				Min = 0,
 				Max = 150,
 				Suffix = "%",
@@ -627,7 +616,7 @@ return function(Library)
 				end,
 			})
 		end
-		self.GlassToggle, self.StrengthSlider, self.LiquidToggle = glassToggle, strengthSlider, liquidToggle
+		self.StrengthSlider, self.LiquidToggle = strengthSlider, liquidToggle
 
 		controls:Divider()
 
@@ -635,7 +624,7 @@ return function(Library)
 		-- so reset and export stay reachable without scrolling past it.
 		controls:ButtonRow({
 			{
-				Text = "reset colors",
+				Text = "Reset Colors",
 				Callback = function()
 					for key, color in pairs(defaults) do
 						Theme[key] = color
@@ -649,7 +638,7 @@ return function(Library)
 				end,
 			},
 			{
-				Text = "export theme",
+				Text = "Export Theme",
 				Callback = function()
 					local ok, result = self:Export()
 					self.Library:Notify({
@@ -667,7 +656,7 @@ return function(Library)
 			local key, label = entry[1], entry[2]
 			pickers[key] = colors:ColorPicker({
 				Text = label,
-				Flag = false,
+				Flag = "theme_color_" .. key,
 				Default = Theme[key],
 				DefaultAlpha = alphas[key] or 1,
 				Callback = function(color, alpha)
@@ -691,8 +680,8 @@ return function(Library)
 					return
 				end
 				window:Confirm({
-					Title = "theme",
-					Text = "Save the colour changes?",
+					Title = "Theme",
+					Text = "Save the Colour Changes?",
 					Confirm = "save",
 					Cancel = "discard",
 					OnConfirm = function()

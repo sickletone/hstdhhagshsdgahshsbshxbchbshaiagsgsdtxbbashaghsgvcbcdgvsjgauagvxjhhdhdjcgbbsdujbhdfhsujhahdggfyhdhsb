@@ -498,33 +498,9 @@ effects:Toggle({ Text = "Blur", Flag = "fx_blur" })
         end)
 effects:Slider({ Text = "Saturation", Flag = "fx_saturation", Min = -1, Max = 1, Decimals = 2, Default = 0 })
 
--- Look controls: glass, liquid glass and the menu blur. The same settings
--- also live in settings > themes and settings > options.
+-- Look controls: the glass switch itself lives in settings > themes, so only
+-- the menu blur stays here.
 local look = Visuals:Section("Look", 2)
-
-look:Toggle({
-        Text = "Glass",
-        Default = Library.Glass == true,
-        Hint = "see-through Window fill",
-        Callback = function(state) Library:SetGlass(state) end,
-})
-
-look:Slider({
-        Text = "Glass Strength",
-        Flag = false,
-        Min = 0,
-        Max = 150,
-        Suffix = "%",
-        Default = 100,
-        Callback = function(value) Library:SetGlassStrength(value / 100) end,
-})
-
-look:Toggle({
-        Text = "Liquid Glass",
-        Default = Library.LiquidGlass == true,
-        Hint = "Sheen travelling over the glass",
-        Callback = function(state) Library:SetLiquidGlass(state) end,
-})
 
 look:Toggle({
         Text = "Menu Blur",
@@ -636,7 +612,6 @@ InterfaceManager:SetLibrary(Library)
 InterfaceManager:SetWindow(Window)
 ThemeManager:SetLibrary(Library)
 
-SaveManager:IgnoreThemeSettings()
 SaveManager:SetIgnoreIndexes({})
 
 InterfaceManager:SetFolder("Orasense")

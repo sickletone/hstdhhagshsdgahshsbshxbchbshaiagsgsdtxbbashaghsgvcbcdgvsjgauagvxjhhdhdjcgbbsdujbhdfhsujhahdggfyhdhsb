@@ -281,11 +281,23 @@ function Library:LoadConfig(data, ignore)
 	if type(mobile) == "table" then
 		pcall(function() self:SetMobileButtonOptions(mobile) end)
 	end
-	for flag, value in pairs(data or {}) do
+	local function apply(flag, value)
 		local entry = self.Registry[flag]
 		if entry and not (ignore and ignore[flag]) then
 			pcall(entry.Set, value)
 		end
+	end
+
+	for flag, value in pairs(data or {}) do
+		if flag == "theme_preset" then apply(flag, value) end
+	end
+	for flag, value in pairs(data or {}) do
+		if flag ~= "theme_preset" and not string.find(flag, "theme_color_", 1, true) then
+			apply(flag, value)
+		end
+	end
+	for flag, value in pairs(data or {}) do
+		if string.find(flag, "theme_color_", 1, true) == 1 then apply(flag, value) end
 	end
 	self:ClearDirty()
 end
@@ -6273,7 +6285,6 @@ do
 			self:SetGlassStrength(strength)
 		end
 		self.LiquidGlass = state ~= false
-		if self.LiquidGlass then self.Glass = true end
 		for _, w in ipairs(self.Windows) do
 			if w.ApplyGlass then w:ApplyGlass() end
 		end
@@ -6955,9 +6966,14 @@ do
 		})
 		ParentGui(gui)
 
+		local barHeight = opts.Height or 44
+		local padX = 5
+		local padY = 4
+		local gap = 2
+		local buttonWidth = opts.ButtonWidth or 30
+
 		local bar = New("Frame", {
-			Size = UDim2.fromOffset(0, opts.Height or 44),
-			AutomaticSize = Enum.AutomaticSize.X,
+			Size = UDim2.fromOffset(buttonWidth, barHeight),
 			Position = opts.Position or UDim2.new(0.5, 0, 1, -6),
 			AnchorPoint = opts.AnchorPoint or Vector2.new(0.5, 1),
 			BackgroundColor3 = Theme.Window,
@@ -6967,9 +6983,15 @@ do
 			Parent = gui,
 		})
 		Corner(bar, 11)
-		Stroke(bar, Theme.WindowBorder)
-		Pad(bar, 5, 5, 4, 4)
-		local row = List(bar, 2, Enum.FillDirection.Horizontal)
+		local barStroke = Stroke(bar, Theme.WindowBorder)
+
+		local content = New("Frame", {
+			Size = UDim2.new(1, -padX * 2, 1, -padY * 2),
+			Position = UDim2.fromOffset(padX, padY),
+			BackgroundTransparency = 1,
+			Parent = bar,
+		})
+		local row = List(content, gap, Enum.FillDirection.Horizontal)
 		row.HorizontalAlignment = Enum.HorizontalAlignment.Center
 		row.VerticalAlignment = Enum.VerticalAlignment.Center
 
@@ -7004,9 +7026,18 @@ do
 			Menu = opts.Menu or (Library.Windows and Library.Windows[1]) or nil,
 		}
 
+		local function layout()
+			local count = #items
+			local width = padX * 2 + count * buttonWidth + math.max(count - 1, 0) * gap
+			bar.Size = UDim2.fromOffset(math.max(width, buttonWidth + padX * 2), barHeight)
+			return bar.Size
+		end
+
 		local function applyGlass()
 			local glass = Library.Glass == true or Library.LiquidGlass == true
+			bar.BackgroundColor3 = Theme.Window
 			bar.BackgroundTransparency = glass and 0.16 or 0.08
+			barStroke.Color = Theme.WindowBorder
 			sheen.Visible = Library.LiquidGlass == true
 		end
 
@@ -7040,14 +7071,14 @@ do
 		local function addItem(item)
 			item = item or {}
 			local button = New("TextButton", {
-				Size = UDim2.fromOffset(opts.ButtonWidth or 34, opts.ButtonHeight or 40),
+				Size = UDim2.fromOffset(buttonWidth, opts.ButtonHeight or 34),
 				BackgroundColor3 = Theme.Window,
 				BackgroundTransparency = 1,
 				BorderSizePixel = 0,
 				AutoButtonColor = false,
 				Text = "",
 				LayoutOrder = #items + 1,
-				Parent = bar,
+				Parent = content,
 			})
 			Corner(button, 9)
 
@@ -7107,6 +7138,7 @@ do
 			end))
 
 			paint(entry)
+			layout()
 			return entry
 		end
 
@@ -7151,6 +7183,10 @@ do
 				task.wait(0.25)
 			end
 		end)
+
+		function api:Layout()
+			return layout()
+		end
 
 		function api:AddItem(item)
 			return addItem(item)
