@@ -84,6 +84,40 @@ local Settings = Window:Tab({ Title = "settings", Icon = "settings" })
 local settingsOptions = Settings:SubTab({ Title = "options", Icon = "wand-sparkles" })
 local settingsThemes = Settings:SubTab({ Title = "themes", Icon = "palette" })
 
+-- Watermark: built here, before the rest of the menu, so the pill is on screen
+-- from the first frame and its box exists even if something later fails.
+local watermark = Library:Watermark({
+        Title = "orasense",
+        Suffix = ".win",
+        -- below the Roblox topbar buttons, which sit at the very top left
+        Position = UDim2.fromOffset(18, 96),
+})
+watermark:SetVisible(true)
+
+local watermarkSection = settingsOptions:Section("watermark", 1)
+
+local watermarkToggle
+watermarkToggle = watermarkSection:Toggle({
+        Text = "hide watermark",
+        Flag = "overlay_watermark",
+        Hint = "fps, ping, players and region",
+        Default = true,
+        Callback = function(state)
+                watermark:SetVisible(state)
+                if watermarkToggle then
+                        watermarkToggle:SetText(state and "hide watermark" or "show watermark")
+                end
+        end,
+})
+
+watermarkSection:Button({
+        Text = "rename watermark",
+        Tooltip = "the watermark title is editable while the menu runs",
+        Callback = function()
+                watermark:SetTitle("orasense " .. tostring(math.random(100, 999)) .. ".win")
+        end,
+})
+
 -- The touch toggle only exists on mobile, so this sub tab is mobile-only.
 -- Every control carries a Flag, so the whole panel is written to a config file.
 if Library.IsMobile then
@@ -685,41 +719,12 @@ end)
 
 local servers = Library:ServerBrowser()
 
-local watermark = Library:Watermark({
-        Title = "orasense",
-        Suffix = ".win",
-        -- below the Roblox topbar buttons, which sit at the very top left
-        Position = UDim2.fromOffset(18, 96),
-})
-
 -- The keybind list is on from the start: it fills itself as soon as keybinds
 -- exist, and the overlay toggle below turns it off.
-Library:SetKeybindListVisible(true)
+pcall(function() Library:SetKeybindListVisible(true) end)
 
 local overlay = settingsOptions:Section("overlay", 1)
 
-local watermarkToggle
-watermarkToggle = overlay:Toggle({
-        Text = "hide watermark",
-        Flag = "overlay_watermark",
-        Hint = "fps, ping, players and region",
-        Default = true,
-        Callback = function(state)
-                watermark:SetVisible(state)
-                if watermarkToggle then
-                        watermarkToggle:SetText(state and "hide watermark" or "show watermark")
-                end
-        end,
-})
-watermark:SetVisible(true)
-
-overlay:Button({
-        Text = "rename watermark",
-        Tooltip = "the watermark title is editable while the menu runs",
-        Callback = function()
-                watermark:SetTitle("orasense " .. tostring(math.random(100, 999)) .. ".win")
-        end,
-})
 
 overlay:Toggle({
         Text = "server browser",

@@ -6190,7 +6190,6 @@ do
 	end
 
 	local function EnsureLiquidFX(window)
-	local function EnsureLiquidFX(window)
 		if window.LiquidFX and window.LiquidFX.Parent then return window.LiquidFX end
 		local fx = New("Frame", {
 			Name = "OrasenseLiquidFX",
@@ -6256,7 +6255,7 @@ do
 		return fx
 	end
 
-		function Window:ApplyGlass()
+	function Window:ApplyGlass()
 		local useGlass = Library.Glass == true or Library.LiquidGlass == true
 		local shown = self.Visible ~= false and self.Main.Visible ~= false
 		local strength = math.clamp(tonumber(Library.GlassStrength) or 1, 0, 1.5)
@@ -6302,10 +6301,6 @@ do
 		return self.LiquidGlass
 	end
 
-	function Window:SetLiquidGlass(state, strength)
-		return Library:SetLiquidGlass(state, strength)
-	end
-end
 	function Window:SetLiquidGlass(state, strength)
 		return Library:SetLiquidGlass(state, strength)
 	end
