@@ -1,11 +1,11 @@
 
 
 
-return function(Library)
+local function Build(Library)
 	local InterfaceManager = {}
 	InterfaceManager.Library = Library
 	InterfaceManager.Folder = "Orasense"
-	InterfaceManager.Flags = { "interface_menu_key", "interface_scale", "interface_dpi", "interface_transparency", "interface_hotkeys", "orasense_particles", "orasense_particle_custom", "orasense_particle_rate", "orasense_particle_size", "orasense_particle_speed", "orasense_particle_start_speed", "orasense_particle_end_speed", "orasense_particle_spread", "orasense_background", "orasense_background_fade", "orasense_liquid", "orasense_menu_blur", "orasense_menu_blur_strength" }
+	InterfaceManager.Flags = { "interface_menu_key", "interface_scale", "interface_dpi", "interface_transparency", "interface_hotkeys", "interface_cursor", "orasense_particles", "orasense_particle_custom", "orasense_particle_rate", "orasense_particle_size", "orasense_particle_speed", "orasense_particle_start_speed", "orasense_particle_end_speed", "orasense_particle_spread", "orasense_background", "orasense_background_fade", "orasense_liquid", "orasense_menu_blur", "orasense_menu_blur_strength" }
 
 	function InterfaceManager:SetLibrary(lib)
 		self.Library = lib or Library
@@ -114,6 +114,16 @@ local hotkeys = section:Toggle({
 			end,
 		})
 
+		local cursor = section:Toggle({
+			Text = "custom cursor",
+			Flag = "interface_cursor",
+			Hint = "theme coloured cursor while the menu is open",
+			Default = self.Library.ShowCustomCursor ~= false,
+			Callback = function(state)
+				self.Library:SetShowCustomCursor(state)
+			end,
+		})
+
 		section:Button({
 			Text = "unload",
 			Callback = function()
@@ -134,6 +144,7 @@ local hotkeys = section:Toggle({
 		dpi:Set(self.Settings.Dpi or 96, true)
 		transparency:Set(self.Settings.Transparency or 0, true)
 		hotkeys:Set(self.Settings.Hotkeys == true)
+		cursor:Set(self.Library.ShowCustomCursor ~= false)
 		menuBlur:Set(self.Library.MenuBlur == true)
 		menuBlurStrength:Set(self.Library.MenuBlurStrength or 12, true)
 		do
@@ -167,3 +178,32 @@ local hotkeys = section:Toggle({
 
 	return InterfaceManager
 end
+
+local InterfaceManager = {}
+
+function InterfaceManager:SetLibrary(lib)
+	lib = lib or self.Library
+	if not lib then return self end
+	if self._built then
+		self.Library = lib
+		return self
+	end
+	local api = Build(lib)
+	for key, value in pairs(api) do
+		if key ~= "SetLibrary" then
+			self[key] = value
+		end
+	end
+	self._built = true
+	self.Library = lib
+	lib.InterfaceManager = self
+	lib.Addons = lib.Addons or {}
+	lib.Addons.InterfaceManager = self
+	return self
+end
+
+setmetatable(InterfaceManager, {
+	__call = function(self, lib) return self:SetLibrary(lib) end,
+})
+
+return InterfaceManager

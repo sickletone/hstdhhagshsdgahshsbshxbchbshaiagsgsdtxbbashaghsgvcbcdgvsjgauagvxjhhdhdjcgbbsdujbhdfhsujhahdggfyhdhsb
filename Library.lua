@@ -152,7 +152,7 @@ function Library:SafeCallback(label, callback, ...)
 		local _, cut = string.find(message, ":%d+: ")
 		if cut then message = string.sub(message, cut + 1) end
 		warn("Orasense | callback error in '" .. tostring(label) .. "': " .. tostring(err))
-		self:Error("callback error", tostring(label) .. " - " .. message, 7)
+		if self.Error then self:Error("callback error", tostring(label) .. " - " .. message, 7) end
 	end)
 end
 
@@ -206,6 +206,8 @@ function Library:LoadAddon(name)
 	end
 	if type(module) == "function" then
 		module = module(self)
+	elseif type(module) == "table" and type(module.SetLibrary) == "function" then
+		module:SetLibrary(self)
 	end
 	self.Addons[name] = module
 	return module
@@ -1004,6 +1006,26 @@ end
 function Elements:Button(opts)
 	opts = opts or {}
 
+	if opts.Compact == true and not opts.SubButtons then
+		local row = New("Frame", {
+			Size = UDim2.new(1, 0, 0, MSize(24, 32)),
+			BackgroundTransparency = 1,
+			Parent = self.Container,
+		})
+		local btn, state, text = MakeButton(row, opts,
+			UDim2.fromOffset(math.clamp(tonumber(opts.Width) or 72, 44, 180), MSize(22, 30)))
+		btn.AnchorPoint = Vector2.new(0, 0.5)
+		btn.Position = UDim2.new(0, 0, 0.5, 0)
+		local api = Disableable({ Instance = btn }, { text })
+		local baseSetEnabled = api.SetEnabled
+		function api:SetEnabled(value)
+			state.Enabled = value ~= false
+			return baseSetEnabled(self, value)
+		end
+		if opts.Disabled then api:SetEnabled(false) end
+		return api
+	end
+
 	local subs = opts.SubButtons
 	if type(subs) ~= "table" or #subs == 0 then
 		local btn, state, text = MakeButton(self.Container, opts)
@@ -1549,6 +1571,7 @@ function Elements:Dropdown(opts)
 	local flag = FlagOf(opts)
 	local values = opts.Options or {}
 	local multi = opts.Multi == true or opts.MultiSelect == true
+	local compact = opts.Compact == true or opts.Inline == true
 	local selected
 	if multi then
 		selected = {}
@@ -1562,38 +1585,48 @@ function Elements:Dropdown(opts)
 	end
 
 	local block = New("Frame", {
-		Size = UDim2.new(1, 0, 0, 0),
-		AutomaticSize = Enum.AutomaticSize.Y,
+		Size = compact and UDim2.new(1, 0, 0, MSize(24, 32)) or UDim2.new(1, 0, 0, 0),
+		AutomaticSize = compact and Enum.AutomaticSize.None or Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
 		Parent = self.Container,
 	})
-	local blockList = List(block, 5)
+	if not compact then List(block, 5) end
 
 	local caption
 	if opts.Text then
 		caption = Label(block, opts.Text, (LabelColor(opts, Theme.Text)))
-		caption.Size = UDim2.new(1, 0, 0, 15)
+		if compact then
+			caption.AnchorPoint = Vector2.new(0, 0.5)
+			caption.Position = UDim2.new(0, 0, 0.5, 0)
+			caption.Size = UDim2.new(1, -math.clamp(tonumber(opts.Width) or 92, 56, 180) - 8, 1, 0)
+			caption.TextTruncate = Enum.TextTruncate.AtEnd
+		else
+			caption.Size = UDim2.new(1, 0, 0, 15)
+		end
 	end
 
 	local button = New("TextButton", {
-		Size = UDim2.new(1, 0, 0, MSize(32, 38)),
+		Size = compact and UDim2.new(0, math.clamp(tonumber(opts.Width) or 92, 56, 180), 1, 0) or UDim2.new(1, 0, 0, MSize(32, 38)),
+		AnchorPoint = compact and Vector2.new(1, 0.5) or nil,
+		Position = compact and UDim2.new(1, 0, 0.5, 0) or nil,
 		BackgroundColor3 = Theme.Field,
 		AutoButtonColor = false,
 		Text = "",
 		BorderSizePixel = 0,
-		LayoutOrder = 2,
+		LayoutOrder = compact and 1 or 2,
 		Parent = block,
 	})
-	Corner(button, 8)
+	Corner(button, compact and 5 or 8)
 	local buttonStroke = Stroke(button, Theme.Border, 1, 0.25)
 
-	local value = Label(button, "", Theme.TextBright, 13, Theme.Font)
-	value.Position = UDim2.fromOffset(12, 0)
-	value.Size = UDim2.new(1, -40, 1, 0)
+	local value = Label(button, "", Theme.TextBright, compact and 12 or 13, Theme.Font)
+	value.Position = UDim2.fromOffset(compact and 8 or 12, 0)
+	value.Size = UDim2.new(1, compact and -26 or -40, 1, 0)
 	value.TextTruncate = Enum.TextTruncate.AtEnd
+	if compact then value.TextXAlignment = Enum.TextXAlignment.Center end
 	local chev = Chevron(button, Theme.TextDim)
 	chev.AnchorPoint = Vector2.new(1, 0.5)
-	chev.Position = UDim2.new(1, -12, 0.5, 0)
+	chev.Position = UDim2.new(1, compact and -7 or -12, 0.5, 0)
 	Track(button.MouseEnter:Connect(function()
 		Tween(button, { BackgroundColor3 = Theme.FieldHover }, EASE_FAST)
 		Tween(buttonStroke, { Color = Theme.Accent, Transparency = 0.55 }, EASE_FAST)
@@ -3898,7 +3931,10 @@ function Library:Window(opts)
 		end)
 	end))
 
-	if opts.Cursor then
+	local cursorOpt = opts.Cursor
+	if cursorOpt == nil then cursorOpt = opts.ShowCustomCursor end
+	if cursorOpt == nil then cursorOpt = Library.ShowCustomCursor ~= false end
+	if cursorOpt then
 		Library:SetCursor(true, type(opts.Cursor) == "table" and opts.Cursor or nil)
 	end
 
@@ -4671,6 +4707,7 @@ Library.RefreshKeybindList = Library.RefreshHotkeys
 Library.SetKeybindListVisible = Library.SetHotkeysVisible
 
 Library.CursorEnabled = false
+Library.ShowCustomCursor = true
 
 function Library:CreateCursor(opts)
 	if self.CursorGui then return self.CursorGui end
@@ -4731,12 +4768,84 @@ function Library:CreateCursor(opts)
 
 	self.CursorGui = gui
 	self.CursorHolder = holder
+
+	local canDraw = type(Drawing) == "table" and type(Drawing.new) == "function"
+	if canDraw then
+		local built, cursor = pcall(function()
+			local fill = Drawing.new("Triangle")
+			fill.Thickness = 1
+			fill.Filled = true
+			fill.Visible = false
+			fill.Color = opts.Color or Theme.Accent
+
+			local outline = Drawing.new("Triangle")
+			outline.Thickness = 1
+			outline.Filled = false
+			outline.Visible = false
+			outline.Color = Theme.WindowBorder
+
+			return { Fill = fill, Outline = outline }
+		end)
+
+		if built and cursor then
+			self.CursorDrawing = cursor
+			self.CursorOriginalMouseIcon = UserInputService.MouseIconEnabled
+
+			Track(RunService.RenderStepped:Connect(function()
+				local fill, outline = cursor.Fill, cursor.Outline
+				if not (fill and outline) then return end
+				local active = self.CursorEnabled and self.Open and self.ShowCustomCursor ~= false and not MOBILE
+				if not active then
+					fill.Visible = false
+					outline.Visible = false
+					pcall(function() UserInputService.MouseIconEnabled = self.CursorOriginalMouseIcon ~= false end)
+					return
+				end
+
+				pcall(function() UserInputService.MouseIconEnabled = false end)
+				local position = UserInputService:GetMouseLocation()
+				if not gui.IgnoreGuiInset then
+					position = position - GuiService:GetGuiInset()
+				end
+				local x, y = position.X, position.Y
+
+				fill.PointA = Vector2.new(x, y)
+				fill.PointB = Vector2.new(x + 16, y + 6)
+				fill.PointC = Vector2.new(x + 6, y + 16)
+				outline.PointA = fill.PointA
+				outline.PointB = fill.PointB
+				outline.PointC = fill.PointC
+
+				fill.Visible = true
+				outline.Visible = true
+			end))
+
+			Library:OnRepaint(function()
+				if self.CursorDrawing then
+					self.CursorDrawing.Fill.Color = opts.Color or Theme.Accent
+					self.CursorDrawing.Outline.Color = Theme.WindowBorder
+				end
+			end)
+
+			gui.Enabled = false
+		end
+	end
+
 	return gui
 end
 
 function Library:RefreshCursor()
-	if not self.CursorGui then return end
-	self.CursorGui.Enabled = self.CursorEnabled and self.Open
+	local active = self.CursorEnabled and self.Open and self.ShowCustomCursor ~= false and not MOBILE
+	if self.CursorGui then
+		self.CursorGui.Enabled = active and self.CursorDrawing == nil
+	end
+	if self.CursorDrawing then
+		self.CursorDrawing.Fill.Visible = active
+		self.CursorDrawing.Outline.Visible = active
+	end
+	pcall(function()
+		UserInputService.MouseIconEnabled = (not active) and (self.CursorOriginalMouseIcon ~= false)
+	end)
 end
 
 function Library:SetCursor(state, opts)
@@ -4744,6 +4853,16 @@ function Library:SetCursor(state, opts)
 	if self.CursorEnabled then self:CreateCursor(opts) end
 	self:RefreshCursor()
 	return self.CursorEnabled
+end
+
+function Library:SetShowCustomCursor(state)
+	self.ShowCustomCursor = state ~= false
+	if self.ShowCustomCursor and not self.CursorGui then
+		self.CursorEnabled = true
+		self:CreateCursor()
+	end
+	self:RefreshCursor()
+	return self.ShowCustomCursor
 end
 
 function Library:ToggleUI(state)
@@ -4998,6 +5117,12 @@ function Library:Destroy()
 	table.clear(self.Windows)
 	if self.NotifyGui then self.NotifyGui:Destroy() self.NotifyGui = nil end
 	if self.MobileGui then self.MobileGui:Destroy() self.MobileGui = nil self.MobileButton = nil end
+	if self.CursorDrawing then
+		pcall(function() self.CursorDrawing.Fill:Remove() end)
+		pcall(function() self.CursorDrawing.Outline:Remove() end)
+		self.CursorDrawing = nil
+	end
+	pcall(function() UserInputService.MouseIconEnabled = self.CursorOriginalMouseIcon ~= false end)
 	if self.CursorGui then self.CursorGui:Destroy() self.CursorGui = nil self.CursorHolder = nil end
 	if self.HotkeyGui then self.HotkeyGui:Destroy() self.HotkeyGui = nil self.HotkeyPanel = nil end
 	for index = #self.Panels, 1, -1 do
@@ -5013,6 +5138,9 @@ function Library:Destroy()
 	table.clear(self.Windows)
 	table.clear(self.Panels)
 	table.clear(self.Addons)
+	self.SaveManager = nil
+	self.ThemeManager = nil
+	self.InterfaceManager = nil
 	self.Toolbar = nil
 	self._ReferenceWatermark = nil
 	self.NotifyGui = nil
@@ -5134,10 +5262,6 @@ function Library:LoadAddons(names)
 	return self.Addons
 end
 
-Library:LoadAddons({ "Icons", "SaveManager", "InterfaceManager", "ThemeManager" })
-Library.SaveManager = Library.Addons.SaveManager
-Library.InterfaceManager = Library.Addons.InterfaceManager
-Library.ThemeManager = Library.Addons.ThemeManager
 
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
@@ -5543,37 +5667,153 @@ do
 			ZIndex = root.ZIndex,
 			Parent = root,
 		})
-		local body = New("ScrollingFrame", {
+
+		local bodyHost = New("Frame", {
 			Size = UDim2.new(1, -16, 1, -40),
 			Position = UDim2.fromOffset(8, 36),
+			BackgroundTransparency = 1,
+			ClipsDescendants = true,
+			ZIndex = root.ZIndex,
+			Parent = root,
+		})
+		local body = New("ScrollingFrame", {
+			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			CanvasSize = UDim2.new(),
 			AutomaticCanvasSize = Enum.AutomaticSize.Y,
 			ScrollBarThickness = 2,
 			ScrollBarImageColor3 = Theme.AccentDim,
+			VerticalScrollBarInset = Enum.ScrollBarInset.None,
 			ZIndex = root.ZIndex,
-			Parent = root,
+			Parent = bodyHost,
 		})
 		List(body, 8)
 		Pad(body, 2, 2, 2, 2)
 
-		local api = {
+		local overlay = New("Frame", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			ZIndex = root.ZIndex + 20,
+			Parent = root,
+		})
+		local blocker = New("TextButton", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			AutoButtonColor = false,
+			Text = "",
+			Visible = false,
+			ZIndex = 110,
+			Parent = overlay,
+		})
+
+		local api = setmetatable({
 			Frame = root,
-			Body = body,
-			Content = NewContainer(self, body),
+			Body = bodyHost,
+			DefaultPage = body,
+			Main = root,
+			Gui = self.Gui,
+			Scale = self.Scale,
+			Overlay = overlay,
+			Blocker = blocker,
+			ContentScaleValue = self.ContentScaleValue or 1,
+			FloatStack = {},
+			Modals = {},
+			Tabs = {},
+			TabOrder = 0,
+			TabStyle = "top",
 			Open = true,
+			Visible = opts.Visible ~= false,
 			IsSubWindow = true,
-		}
+			Width = w,
+			Height = h,
+			MinWidth = opts.MinWidth or 150,
+			MinHeight = opts.MinHeight or 120,
+			Title = ttl,
+			Bar = bar,
+		}, { __index = Window })
+		api.Content = NewContainer(api, body)
+
+		local function ensureTabs()
+			if api.TabBar then return end
+			local tabBar = New("ScrollingFrame", {
+				Size = UDim2.new(1, -16, 0, 22),
+				Position = UDim2.fromOffset(8, 34),
+				BackgroundTransparency = 1,
+				BorderSizePixel = 0,
+				ClipsDescendants = true,
+				CanvasSize = UDim2.new(),
+				AutomaticCanvasSize = Enum.AutomaticSize.X,
+				ScrollingDirection = Enum.ScrollingDirection.X,
+				ScrollBarThickness = 0,
+				ElasticBehavior = Enum.ElasticBehavior.Never,
+				ZIndex = root.ZIndex,
+				Parent = root,
+			})
+			local list = List(tabBar, 6, Enum.FillDirection.Horizontal)
+			list.VerticalAlignment = Enum.VerticalAlignment.Center
+			api.TabBar = tabBar
+			bodyHost.Position = UDim2.fromOffset(8, 62)
+			bodyHost.Size = UDim2.new(1, -16, 1, -70)
+		end
+
+		function api:Tab(name, icon)
+			ensureTabs()
+			local tab = Window.Tab(self, name, icon)
+			if not api._migrated then
+				api._migrated = true
+				for _, child in ipairs(body:GetChildren()) do
+					if child:IsA("GuiObject") then child.Parent = tab.Page end
+				end
+				body.Visible = false
+			end
+			return tab
+		end
+
+		function api:Section(title, column)
+			local tab = api.ActiveTab or api:Tab({ Title = "main" })
+			return tab:Section(title, column)
+		end
+		api.Groupbox = api.Section
+
 		function api:SetVisible(state)
-			root.Visible = state ~= false
-			api.Open = root.Visible
+			state = state ~= false
+			api.Visible = state
+			api.Open = state
+			root.Visible = state
+			if not state then self:CloseFloating() end
+			return api
 		end
+
+		function api:Toggle()
+			return api:SetVisible(not api.Visible)
+		end
+
+		function api:SetPosition(position)
+			root.Position = position
+			return api
+		end
+
+		function api:SetSize(nw, nh)
+			api.Width = math.max(tonumber(nw) or api.Width, api.MinWidth)
+			api.Height = math.max(tonumber(nh) or api.Height, api.MinHeight)
+			root.Size = UDim2.fromOffset(api.Width, api.Height)
+			return api
+		end
+
 		function api:Destroy()
+			self:CloseFloating()
 			root:Destroy()
+			for index, entry in ipairs(self.SubWindows or {}) do
+				if entry == api then table.remove(self.SubWindows, index) break end
+			end
 		end
+
 		Track(close.Activated:Connect(function()
 			api:SetVisible(false)
+		end))
+		Track(blocker.Activated:Connect(function()
+			api:CloseFloating()
 		end))
 		Track(root.InputBegan:Connect(function()
 			self.SubZ = (self.SubZ or 150) + 1
@@ -5600,6 +5840,7 @@ do
 				end)
 			end))
 		end
+
 		self.SubWindows = self.SubWindows or {}
 		table.insert(self.SubWindows, api)
 		if opts.Visible == false then api:SetVisible(false) end
@@ -5676,9 +5917,15 @@ do
 			Parent = bar,
 		})
 
-		local body = New("ScrollingFrame", {
+		local bodyHost = New("Frame", {
 			Size = UDim2.new(1, -20, 1, -44),
 			Position = UDim2.fromOffset(10, 38),
+			BackgroundTransparency = 1,
+			ClipsDescendants = true,
+			Parent = frame,
+		})
+		local body = New("ScrollingFrame", {
+			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			CanvasSize = UDim2.new(),
@@ -5686,7 +5933,7 @@ do
 			ScrollBarThickness = 2,
 			ScrollBarImageColor3 = Theme.AccentDim,
 			VerticalScrollBarInset = Enum.ScrollBarInset.None,
-			Parent = frame,
+			Parent = bodyHost,
 		})
 		List(body, 8)
 		Pad(body, 2, 2, 10, 2)
@@ -5703,7 +5950,7 @@ do
 			AutoButtonColor = false,
 			Text = "",
 			Visible = false,
-			ZIndex = 310,
+			ZIndex = 110,
 			Parent = overlay,
 		})
 
@@ -5725,10 +5972,55 @@ do
 			ContentScaleValue = 1,
 			Title = heading,
 			Bar = bar,
-			Body = body,
+			Body = bodyHost,
+			DefaultPage = body,
+			Tabs = {},
+			TabOrder = 0,
+			TabStyle = "top",
 		}, { __index = Window })
 
 		api.Content = NewContainer(api, body)
+
+		local function ensureTabs()
+			if api.TabBar then return end
+			local tabBar = New("ScrollingFrame", {
+				Size = UDim2.new(1, -20, 0, 22),
+				Position = UDim2.fromOffset(10, 36),
+				BackgroundTransparency = 1,
+				BorderSizePixel = 0,
+				ClipsDescendants = true,
+				CanvasSize = UDim2.new(),
+				AutomaticCanvasSize = Enum.AutomaticSize.X,
+				ScrollingDirection = Enum.ScrollingDirection.X,
+				ScrollBarThickness = 0,
+				ElasticBehavior = Enum.ElasticBehavior.Never,
+				Parent = frame,
+			})
+			local list = List(tabBar, 6, Enum.FillDirection.Horizontal)
+			list.VerticalAlignment = Enum.VerticalAlignment.Center
+			api.TabBar = tabBar
+			bodyHost.Position = UDim2.fromOffset(10, 62)
+			bodyHost.Size = UDim2.new(1, -20, 1, -68)
+		end
+
+		function api:Tab(name, icon)
+			ensureTabs()
+			local tab = Window.Tab(self, name, icon)
+			if not api._migrated then
+				api._migrated = true
+				for _, child in ipairs(body:GetChildren()) do
+					if child:IsA("GuiObject") then child.Parent = tab.Page end
+				end
+				body.Visible = false
+			end
+			return tab
+		end
+
+		function api:Section(title, column)
+			local tab = api.ActiveTab or api:Tab({ Title = "main" })
+			return tab:Section(title, column)
+		end
+		api.Groupbox = api.Section
 
 		function api:SetVisible(state)
 			state = state ~= false

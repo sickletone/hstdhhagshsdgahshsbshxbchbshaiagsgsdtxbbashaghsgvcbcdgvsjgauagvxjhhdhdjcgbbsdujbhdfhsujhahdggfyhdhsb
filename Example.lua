@@ -1,14 +1,20 @@
 local BASE = "https://raw.githubusercontent.com/sickletone/hstdhhagshsdgahshsbshxbchbshaiagsgsdtxbbashaghsgvcbcdgvsjgauagvxjhhdhdjcgbbsdujbhdfhsujhahdggfyhdhsb/refs/heads/main/"
 
-local source = game:HttpGet(BASE .. "Library.lua")
-assert(#source > 1000 and not string.find(source, "404", 1, true),
-        "Library.lua not found at this URL, check the repo and branch")
+local function Load(path, name)
+        local source = game:HttpGet(BASE .. path)
+        assert(#source > 1000 and not string.find(source, "404", 1, true),
+                (name or path) .. " not found at this URL, check the repo and branch")
 
-local chunk, err = loadstring(source)
-assert(chunk, "Library.lua does not compile: " .. tostring(err))
+        local chunk, err = loadstring(source)
+        assert(chunk, (name or path) .. " does not compile: " .. tostring(err))
 
-local Library = chunk()
-assert(type(Library) == "table", "Library.lua returned nothing; the file is incomplete or truncated")
+        local result = chunk()
+        assert(result ~= nil, (name or path) .. " returned nothing; the file is incomplete or truncated")
+        return result
+end
+
+local Library = Load("Library.lua", "Library.lua")
+assert(type(Library) == "table", "Library.lua did not return the library table")
 
 Library.BaseUrl = BASE
 
@@ -34,12 +40,16 @@ Library:SetFlags({
 
 local Players = game:GetService("Players")
 
-local SaveManager = Library.SaveManager
-local InterfaceManager = Library.InterfaceManager
-local ThemeManager = Library.ThemeManager
+-- Addons load as their own chunks and are handed the library, exactly like the
+-- reference: no hidden auto-loading, every manager is set up here.
+local ThemeManager    = Load("addons/ThemeManager.lua", "ThemeManager")
+local SaveManager     = Load("addons/SaveManager.lua", "SaveManager")
+local InterfaceManager = Load("addons/InterfaceManager.lua", "InterfaceManager")
 
-assert(SaveManager and InterfaceManager and ThemeManager,
-        "addons not found, check Library.BaseUrl and the addons/ folder")
+assert(type(ThemeManager.SetLibrary) == "function"
+        and type(SaveManager.SetLibrary) == "function"
+        and type(InterfaceManager.SetLibrary) == "function",
+        "addon chunks did not return modules, check the addons/ folder")
 
 local Window = Library:Window({
         Title = "orasense",
@@ -642,12 +652,14 @@ Window:Action("Connect", function()
         Library:Notify({ Title = "Connected", Text = "Connected.", Duration = 3 })
 end)
 
+ThemeManager:SetLibrary(Library)
 SaveManager:SetLibrary(Library)
 InterfaceManager:SetLibrary(Library)
 InterfaceManager:SetWindow(Window)
-ThemeManager:SetLibrary(Library)
 
-SaveManager:SetIgnoreIndexes({})
+-- Keep theme and interface flags out of configs, now that both managers know
+-- the library they belong to.
+SaveManager:IgnoreThemeSettings()
 
 InterfaceManager:SetFolder("Orasense")
 ThemeManager:SetFolder("Orasense")
@@ -745,25 +757,45 @@ toolbar:AddItem({
 -- exist, and the overlay toggle below turns it off.
 pcall(function() Library:SetKeybindListVisible(false) end)
 
--- Mini window and sub window demos, opened from the components tab.
+-- Mini window and sub window demos. Both are real window shells: tabs,
+-- sections, columns and every control the main window has work inside them.
 local float = Library:MiniWindow({
         Title = "Mini Window",
-        Width = 230,
-        Height = 250,
+        Width = 250,
+        Height = 300,
         Position = UDim2.fromOffset(24, 120),
 })
-float.Content:Label("Drag to move.", { Style = "dim" })
-float.Content:Button({
+local floatTab = float:Tab({ Title = "Mini" })
+local floatMain = floatTab:Section("Controls", 1)
+floatMain:Label("Drag to move.", { Style = "dim" })
+floatMain:ToggleSwitch({ Text = "Speed", Flag = "mini_speed", Default = true })
+floatMain:Dropdown({
+        Text = "Quality",
+        Flag = "mini_quality",
+        Options = { "low", "mid", "high" },
+        Default = "mid",
+        Compact = true,
+})
+floatMain:Slider({ Text = "FOV", Flag = "mini_fov", Min = 40, Max = 120, Default = 70 })
+floatMain:Button({
         Text = "Notify",
         Callback = function()
-                Library:Notify({ Title = "orasense", Text = "Action ran.", Style = "success", Duration = 2 })
+                Library:Notify({ Title = "orasense", Text = "Mini action ran.", Style = "success", Duration = 2 })
         end,
 })
 float:SetVisible(false)
 
-local sub = Window:SubWindow({ Title = "Sub Window", Width = 250, Height = 170 })
-sub.Content:Label("a window inside the window.", { Style = "dim" })
-sub.Content:Button({ Text = "Ping", Callback = function() Library:Notify({ Title = "orasense", Text = "Pong", Duration = 2 }) end })
+local sub = Window:SubWindow({ Title = "Sub Window", Width = 280, Height = 220 })
+local subTab = sub:Tab({ Title = "Sub" })
+local subMain = subTab:Section("Controls", 1)
+subMain:Label("A window inside the window.", { Style = "dim" })
+subMain:Toggle({ Text = "Enabled", Flag = "sub_enabled", Default = true })
+subMain:RadioGroup({ Text = "Mode", Flag = "sub_mode", Options = { "safe", "fast" }, Default = "safe" })
+subMain:Input({ Text = "Name", Flag = "sub_name", Placeholder = "type here" })
+subMain:ButtonRow({
+        { Text = "Ping", Callback = function() Library:Notify({ Title = "orasense", Text = "Pong", Duration = 2 }) end },
+        { Text = "Close", Callback = function() sub:SetVisible(false) end },
+})
 sub:SetVisible(false)
 
 -- Every component, grouped in sub tabs.
@@ -904,7 +936,19 @@ switchLeft:Checkbox({ Text = "Checkbox", Flag = "cmp_checkbox", Default = false 
 switchLeft:RadioGroup({ Text = "Radio Group", Flag = "cmp_radio", Options = { "low", "medium", "high" }, Default = "medium" })
 
 local switchRight = cSwitches:Section("More Toggles", 2)
-switchRight:ToggleSwitch({ Text = "Second Switch", Flag = "cmp_switch2", Default = false })
+switchRight:ToggleSwitch({ Text = "Speed", Flag = "cmp_switch2", Default = true })
+switchRight:Dropdown({
+        Text = "Profile",
+        Flag = "cmp_compact_drop",
+        Options = { "low", "mid", "high" },
+        Default = "mid",
+        Compact = true,
+})
+switchRight:Button({
+        Text = "FOV",
+        Compact = true,
+        Callback = function() Library:Notify({ Title = "orasense", Text = "FOV clicked.", Duration = 2 }) end,
+})
 switchRight:Segmented({ Text = "Quality", Flag = "cmp_segmented", Options = { "low", "mid", "high" }, Default = "mid" })
 switchRight:Segmented({ Flag = "cmp_segmented2", Options = { "one", "two" }, Default = "one" })
 switchRight:RadioGroup({ Text = "Mode", Flag = "cmp_radio2", Options = { "safe", "fast" }, Default = "safe" })

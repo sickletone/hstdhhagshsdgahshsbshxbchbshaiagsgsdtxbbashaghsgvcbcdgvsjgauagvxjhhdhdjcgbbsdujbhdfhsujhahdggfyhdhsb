@@ -1,6 +1,6 @@
 
 
-return function(Library)
+local function Build(Library)
 	local HttpService = game:GetService("HttpService")
 	local Theme = Library.Theme
 
@@ -36,6 +36,12 @@ return function(Library)
 		{ "TextCode", "Text Success" },
 		{ "Danger", "Text Danger" },
 	}
+
+	for _, entry in ipairs(ThemeManager.Keys) do
+		table.insert(ThemeManager.Flags, "theme_color_" .. entry[1])
+	end
+	table.insert(ThemeManager.Flags, "theme_liquid")
+	table.insert(ThemeManager.Flags, "theme_strength")
 
 	ThemeManager.Order = {
 		"orasense", "darker", "typewriter", "aqua",
@@ -181,21 +187,21 @@ return function(Library)
 		return true
 	end
 
-	local function applyData(data)
+	local function applyData(manager, data)
 		if type(data) ~= "table" then return false end
-		if data.Preset then ThemeManager:Apply(data.Preset) end
+		if data.Preset then manager:Apply(data.Preset) end
 		for key, hex in pairs(data.Colors or {}) do
 			local color, alpha = fromHex(hex)
 			if color and Theme[key] ~= nil then
-				ThemeManager.Library:SetColor(key, color, alpha)
+				manager.Library:SetColor(key, color, alpha)
 			end
 		end
-		if ThemeManager.Library.SetLiquidGlass and data.LiquidGlass ~= nil then
-			ThemeManager.Library:SetLiquidGlass(data.LiquidGlass == true)
+		if manager.Library.SetLiquidGlass and data.LiquidGlass ~= nil then
+			manager.Library:SetLiquidGlass(data.LiquidGlass == true)
 		end
-		ThemeManager.Library:Repaint()
-		if ThemeManager.SyncPickers then ThemeManager.SyncPickers() end
-		if ThemeManager.AutoSave then ThemeManager:Save() end
+		manager.Library:Repaint()
+		if manager.SyncPickers then manager.SyncPickers() end
+		if manager.AutoSave then manager:Save() end
 		return true
 	end
 
@@ -215,7 +221,7 @@ return function(Library)
 		if not ok or type(data) ~= "table" then return false end
 
 
-		return applyData(data)
+		return applyData(self, data)
 	end
 
 	function ThemeManager:Encode()
@@ -298,7 +304,7 @@ return function(Library)
 		if not raw or raw == "" then return false, "not found" end
 		local ok, data = pcall(function() return HttpService:JSONDecode(raw) end)
 		if not ok or type(data) ~= "table" then return false, "corrupted file" end
-		if not applyData(data) then return false, "corrupted file" end
+		if not applyData(self, data) then return false, "corrupted file" end
 		return true, tostring(file)
 	end
 
@@ -343,7 +349,7 @@ return function(Library)
 		if not reader then return false, "clipboard unavailable" end
 		local ok, data = pcall(function() return HttpService:JSONDecode(reader()) end)
 		if not ok or type(data) ~= "table" then return false, "invalid clipboard" end
-		if not applyData(data) then return false, "invalid clipboard" end
+		if not applyData(self, data) then return false, "invalid clipboard" end
 		return true, "imported"
 	end
 
@@ -500,6 +506,10 @@ return function(Library)
 
 		self.ConfigSection = section
 		return section
+	end
+
+	function ThemeManager:ApplyToTab(tab, column)
+		return self:BuildThemeConfigSection(tab, column)
 	end
 
 	function ThemeManager:Mount(window, container)
@@ -696,3 +706,32 @@ return function(Library)
 
 	return ThemeManager
 end
+
+local ThemeManager = {}
+
+function ThemeManager:SetLibrary(lib)
+	lib = lib or self.Library
+	if not lib then return self end
+	if self._built then
+		self.Library = lib
+		return self
+	end
+	local api = Build(lib)
+	for key, value in pairs(api) do
+		if key ~= "SetLibrary" then
+			self[key] = value
+		end
+	end
+	self._built = true
+	self.Library = lib
+	lib.ThemeManager = self
+	lib.Addons = lib.Addons or {}
+	lib.Addons.ThemeManager = self
+	return self
+end
+
+setmetatable(ThemeManager, {
+	__call = function(self, lib) return self:SetLibrary(lib) end,
+})
+
+return ThemeManager

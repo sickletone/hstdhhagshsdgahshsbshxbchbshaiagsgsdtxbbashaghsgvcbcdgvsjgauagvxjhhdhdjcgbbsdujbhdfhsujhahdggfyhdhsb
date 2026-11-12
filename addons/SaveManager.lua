@@ -1,7 +1,7 @@
 
 
 
-return function(Library)
+local function Build(Library)
 	local HttpService = game:GetService("HttpService")
 	local FileSystem = Library.FileSystem
 	local Theme = Library.Theme
@@ -27,6 +27,14 @@ return function(Library)
 		end
 		if library.ThemeManager then
 			self:SetIgnoreIndexes(library.ThemeManager.Flags)
+		end
+		for flag in pairs(library.Registry or {}) do
+			if type(flag) == "string"
+				and (string.find(flag, "theme_", 1, true) == 1
+					or string.find(flag, "interface_", 1, true) == 1
+					or string.find(flag, "orasense_", 1, true) == 1) then
+				self.Ignore[flag] = true
+			end
 		end
 	end
 
@@ -339,3 +347,32 @@ return function(Library)
 	Library.DirtyIgnore = SaveManager.Ignore
 	return SaveManager
 end
+
+local SaveManager = {}
+
+function SaveManager:SetLibrary(lib)
+	lib = lib or self.Library
+	if not lib then return self end
+	if self._built then
+		self.Library = lib
+		return self
+	end
+	local api = Build(lib)
+	for key, value in pairs(api) do
+		if key ~= "SetLibrary" then
+			self[key] = value
+		end
+	end
+	self._built = true
+	self.Library = lib
+	lib.SaveManager = self
+	lib.Addons = lib.Addons or {}
+	lib.Addons.SaveManager = self
+	return self
+end
+
+setmetatable(SaveManager, {
+	__call = function(self, lib) return self:SetLibrary(lib) end,
+})
+
+return SaveManager
