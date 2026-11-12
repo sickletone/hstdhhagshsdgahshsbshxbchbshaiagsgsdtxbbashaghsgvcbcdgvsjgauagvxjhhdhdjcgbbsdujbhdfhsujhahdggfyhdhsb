@@ -5122,7 +5122,10 @@ function Library:Destroy()
 		pcall(function() self.CursorDrawing.Outline:Remove() end)
 		self.CursorDrawing = nil
 	end
-	pcall(function() UserInputService.MouseIconEnabled = self.CursorOriginalMouseIcon ~= false end)
+	if self.CursorOriginalMouseIcon ~= nil then
+		pcall(function() UserInputService.MouseIconEnabled = self.CursorOriginalMouseIcon ~= false end)
+		self.CursorOriginalMouseIcon = nil
+	end
 	if self.CursorGui then self.CursorGui:Destroy() self.CursorGui = nil self.CursorHolder = nil end
 	if self.HotkeyGui then self.HotkeyGui:Destroy() self.HotkeyGui = nil self.HotkeyPanel = nil end
 	for index = #self.Panels, 1, -1 do
