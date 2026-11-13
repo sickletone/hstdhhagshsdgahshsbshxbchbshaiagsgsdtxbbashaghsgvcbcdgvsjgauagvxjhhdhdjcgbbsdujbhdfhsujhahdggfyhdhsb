@@ -130,6 +130,8 @@ Library.Defaults = {}
 Library.Pending = {}
 Library.NotificationsEnabled = true
 Library.NotificationLimit = 5
+Library.SilentLoad = false
+Library.AutoLoad = false
 Library.Dirty = false
 Library.BaseUrl = "https://raw.githubusercontent.com/sickletone/hstdhhagshsdgahshsbshxbchbshaiagsgsdtxbbashaghsgvcbcdgvsjgauagvxjhhdhdjcgbbsdujbhdfhsujhahdggfyhdhsb/refs/heads/main/"
 Library.AddonPaths = {
@@ -534,11 +536,25 @@ local function Chevron(parent, color)
 	return holder
 end
 
+local MOUSE_INPUT_NAMES = {}
+for _, inputType in ipairs(Enum.UserInputType:GetEnumItems()) do
+	local number = string.match(inputType.Name, "^MouseButton(%d+)$")
+	if number then
+		MOUSE_INPUT_NAMES[inputType] = "MB" .. number
+	end
+end
+
 local function KeyName(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then return "MB1" end
-	if input.UserInputType == Enum.UserInputType.MouseButton2 then return "MB2" end
-	if input.UserInputType == Enum.UserInputType.MouseButton3 then return "MB3" end
-	if input.UserInputType == Enum.UserInputType.Keyboard then return input.KeyCode.Name end
+	local inputType = input.UserInputType
+	local mouseName = MOUSE_INPUT_NAMES[inputType]
+	if mouseName then return mouseName end
+
+	local gamepad = string.match(inputType.Name, "^Gamepad(%d+)$")
+	if gamepad and input.KeyCode then
+		return "GP" .. gamepad .. "_" .. input.KeyCode.Name
+	end
+
+	if inputType == Enum.UserInputType.Keyboard then return input.KeyCode.Name end
 	return nil
 end
 
@@ -1419,6 +1435,9 @@ function Elements:Toggle(opts)
 
 		local bindFlag = bindOpts.Flag
 		local listening = false
+		local hovering = false
+		local suppressActivate = false
+		local mouse2At = 0
 		local function refresh()
 			if listening then
 				pl.Text = 'key: <font color="' .. AccentHex() .. '">...</font>'
@@ -1432,6 +1451,10 @@ function Elements:Toggle(opts)
 				Library:MarkDirty(bindFlag)
 			end
 			Library:RefreshHotkeys()
+		end
+		local function apply()
+			refresh()
+			Library:SafeCallback(bindOpts.Text or opts.Text or "keybind", bindOpts.OnChanged, key)
 		end
 		refresh()
 
@@ -1454,43 +1477,49 @@ function Elements:Toggle(opts)
 				Set = function(v)
 					key = (v ~= "" and v) or nil
 					listening = false
-					refresh()
+					apply()
 				end,
 			})
 		end
 
+		Track(pill.MouseEnter:Connect(function() hovering = true end))
+		Track(pill.MouseLeave:Connect(function() hovering = false end))
 		Track(pill.Activated:Connect(function()
+			if suppressActivate then
+				suppressActivate = false
+				return
+			end
 			listening = true
 			Library.Binding = true
 			refresh()
 			Tween(pill, { BackgroundColor3 = Theme.FieldHover }, EASE_FAST)
 		end))
 		Track(pill.MouseButton2Click:Connect(function()
+			if listening and hovering then return end
+			if os.clock() - mouse2At < 0.2 then
+				mouse2At = 0
+				return
+			end
 			key = nil
 			listening = false
 			Library.Binding = false
-			refresh()
+			apply()
 		end))
 		Track(UserInputService.InputBegan:Connect(function(input, gpe)
 			local name = KeyName(input)
 			if listening then
-				if input.UserInputType == Enum.UserInputType.MouseButton1 then
-					listening = false
-					Library.Binding = false
-					Tween(pill, { BackgroundColor3 = Theme.Field }, EASE_FAST)
-					refresh()
-					return
-				end
 				if input.KeyCode == Enum.KeyCode.Escape then
 					key = nil
 				elseif name then
 					key = name
+					if name == "MB1" and hovering then suppressActivate = true end
+					if name == "MB2" then mouse2At = os.clock() end
 				else
 					return
 				end
 				listening = false
 				Library.Binding = false
-				refresh()
+				apply()
 				Tween(pill, { BackgroundColor3 = Theme.Field }, EASE_FAST)
 				return
 			end
@@ -2379,11 +2408,16 @@ function Elements:Keybind(opts)
 	Corner(pill, 7)
 	local pillStroke = Stroke(pill, Theme.Border, 1, 0.25)
 	Pad(pill, MSize(0, 4), 10)
+	local hovering = false
+	local suppressActivate = false
+	local mouse2At = 0
 	Track(pill.MouseEnter:Connect(function()
+		hovering = true
 		Tween(pill, { BackgroundColor3 = Theme.FieldHover }, EASE_FAST)
 		Tween(pillStroke, { Color = Theme.Accent, Transparency = 0.55 }, EASE_FAST)
 	end))
 	Track(pill.MouseLeave:Connect(function()
+		hovering = false
 		Tween(pill, { BackgroundColor3 = Theme.Field }, EASE_FAST)
 		Tween(pillStroke, { Color = Theme.Border, Transparency = 0.25 }, EASE_FAST)
 	end))
@@ -2437,6 +2471,10 @@ function Elements:Keybind(opts)
 	end
 
 	Track(pill.Activated:Connect(function()
+		if suppressActivate then
+			suppressActivate = false
+			return
+		end
 		if api and api.Enabled == false then return end
 		listening = true
 		Library.Binding = true
@@ -2445,6 +2483,11 @@ function Elements:Keybind(opts)
 	end))
 
 	Track(pill.MouseButton2Click:Connect(function()
+		if listening then return end
+		if os.clock() - mouse2At < 0.2 then
+			mouse2At = 0
+			return
+		end
 		local now = os.clock()
 		if now - lastRight <= 0.4 then
 			lastRight = 0
@@ -2456,17 +2499,12 @@ function Elements:Keybind(opts)
 	Track(UserInputService.InputBegan:Connect(function(input, gpe)
 		local n = KeyName(input)
 		if listening then
-			if input.UserInputType == Enum.UserInputType.MouseButton1 then
-				listening = false
-				Library.Binding = false
-				refresh()
-				Tween(pill, { BackgroundColor3 = Theme.Field }, EASE_FAST)
-				return
-			end
 			if input.KeyCode == Enum.KeyCode.Escape then
 				key = nil
 			elseif n then
 				key = n
+				if n == "MB1" and hovering then suppressActivate = true end
+				if n == "MB2" then mouse2At = os.clock() end
 			else
 				return
 			end
@@ -3952,6 +3990,11 @@ function Library:Window(opts)
 	if (Library.MenuTransparency or 0) > 0 then
 		window:SetMenuTransparency(Library.MenuTransparency)
 	end
+	if opts.Visible == false then
+		window.Visible = false
+		main.Visible = false
+		self.Open = false
+	end
 	return window
 end
 
@@ -4182,11 +4225,18 @@ function Library:Notify(opts, text, duration)
 	return api
 end
 
-local MOUSE_KEYS = {
-	MB1 = Enum.UserInputType.MouseButton1,
-	MB2 = Enum.UserInputType.MouseButton2,
-	MB3 = Enum.UserInputType.MouseButton3,
-}
+local MOUSE_INPUTS = {}
+local GAMEPAD_INPUTS = {}
+for _, inputType in ipairs(Enum.UserInputType:GetEnumItems()) do
+	local mouse = string.match(inputType.Name, "^MouseButton(%d+)$")
+	if mouse then
+		MOUSE_INPUTS["MB" .. mouse] = inputType
+	end
+	local gamepad = string.match(inputType.Name, "^Gamepad(%d+)$")
+	if gamepad then
+		GAMEPAD_INPUTS[tonumber(gamepad)] = inputType
+	end
+end
 
 function Library:SetToggleKey(key)
 	self.ToggleKey = nil
@@ -4198,11 +4248,19 @@ function Library:SetToggleKey(key)
 			self.ToggleKey = key
 		end
 	elseif type(key) == "string" then
-		if MOUSE_KEYS[key] then
-			self.ToggleInput = MOUSE_KEYS[key]
+		if MOUSE_INPUTS[key] then
+			self.ToggleInput = MOUSE_INPUTS[key]
 		else
-			local ok, code = pcall(function() return Enum.KeyCode[key] end)
-			self.ToggleKey = ok and code or nil
+			local gamepad, code = string.match(key, "^GP(%d+)_(.+)$")
+			local inputType = gamepad and GAMEPAD_INPUTS[tonumber(gamepad)]
+			local okCode, keyCode = pcall(function() return code and Enum.KeyCode[code] end)
+			if inputType and okCode and keyCode then
+				self.ToggleInput = inputType
+				self.ToggleKey = keyCode
+			else
+				local ok, enum = pcall(function() return Enum.KeyCode[key] end)
+				self.ToggleKey = ok and enum or nil
+			end
 		end
 	end
 	return self.ToggleKey or self.ToggleInput
@@ -5109,8 +5167,13 @@ end
 
 Track(UserInputService.InputBegan:Connect(function(input, gpe)
 	if gpe or Library.Binding then return end
-	local hit = (Library.ToggleKey ~= nil and input.KeyCode == Library.ToggleKey)
-		or (Library.ToggleInput ~= nil and input.UserInputType == Library.ToggleInput)
+	local hit
+	if Library.ToggleKey ~= nil and Library.ToggleInput ~= nil then
+		hit = input.KeyCode == Library.ToggleKey and input.UserInputType == Library.ToggleInput
+	else
+		hit = (Library.ToggleKey ~= nil and input.KeyCode == Library.ToggleKey)
+			or (Library.ToggleInput ~= nil and input.UserInputType == Library.ToggleInput)
+	end
 	if hit then
 		Library:ToggleUI()
 	end
@@ -5252,6 +5315,93 @@ function Library:BuildFolders(folder)
 end
 
 Library.FileSystem = FileSystem
+Library.StartupFile = "Orasense/settings/startup.json"
+
+function Library:LoadStartupSettings()
+	self:BuildFolders("Orasense")
+	local raw = self.FileSystem:Read(self.StartupFile)
+	local data = {}
+	if raw and raw ~= "" then
+		local ok, decoded = pcall(function()
+			return game:GetService("HttpService"):JSONDecode(raw)
+		end)
+		if ok and type(decoded) == "table" then data = decoded end
+	end
+	self.SilentLoad = data.SilentLoad == true
+	self.AutoLoad = data.AutoLoad == true
+	self.NotificationsEnabled = not self.SilentLoad
+	return data
+end
+
+function Library:SaveStartupSettings()
+	self:BuildFolders("Orasense")
+	local ok, encoded = pcall(function()
+		return game:GetService("HttpService"):JSONEncode({
+			SilentLoad = self.SilentLoad == true,
+			AutoLoad = self.AutoLoad == true,
+		})
+	end)
+	if ok then
+		self.FileSystem:Write(self.StartupFile, encoded)
+	end
+	return ok
+end
+
+function Library:SetSilentLoad(state)
+	self.SilentLoad = state ~= false
+	self.NotificationsEnabled = not self.SilentLoad
+	if self.NotifyGui then
+		self.NotifyGui.Enabled = not self.SilentLoad
+	end
+	return self.SilentLoad
+end
+
+local function FindQueueOnTeleport()
+	if type(queue_on_teleport) == "function" then return queue_on_teleport, "queue_on_teleport" end
+	if type(queueonteleport) == "function" then return queueonteleport, "queueonteleport" end
+	local env = type(getgenv) == "function" and getgenv() or nil
+	if type(env) == "table" then
+		if type(env.queue_on_teleport) == "function" then return env.queue_on_teleport, "queue_on_teleport" end
+		if type(env.queueonteleport) == "function" then return env.queueonteleport, "queueonteleport" end
+		local syn = env.syn
+		if type(syn) == "table" and type(syn.queue_on_teleport) == "function" then
+			return syn.queue_on_teleport, "syn.queue_on_teleport"
+		end
+		local fluxus = env.fluxus
+		if type(fluxus) == "table" and type(fluxus.queue_on_teleport) == "function" then
+			return fluxus.queue_on_teleport, "fluxus.queue_on_teleport"
+		end
+	end
+end
+
+function Library:SetAutoLoad(state, scriptUrl)
+	self.AutoLoad = state ~= false
+	if scriptUrl then self.AutoLoadUrl = scriptUrl end
+	self.AutoLoadUrl = self.AutoLoadUrl or (tostring(self.BaseUrl or "") .. "Example.lua")
+
+	local queue, queueName = FindQueueOnTeleport()
+	if not self.AutoLoad then
+		if queue then pcall(queue, "") end
+		self.AutoLoadQueued = nil
+		return true, "disabled"
+	end
+	if not queue then
+		self.AutoLoadQueued = nil
+		return false, "queue_on_teleport is unavailable in this executor"
+	end
+	if self.AutoLoadQueued == self.AutoLoadUrl then
+		return true, "already queued"
+	end
+
+	local loader = "loadstring(game:HttpGet(" .. string.format("%q", self.AutoLoadUrl) .. "))()"
+	local ok, err = pcall(queue, loader)
+	if not ok then
+		self.AutoLoadQueued = nil
+		return false, tostring(err)
+	end
+	self.AutoLoadQueued = self.AutoLoadUrl
+	return true, queueName
+end
 
 if getgenv then
 	pcall(function()
@@ -5864,6 +6014,103 @@ do
 				end)
 			end))
 		end
+
+		local gripBars = {}
+		local grip = New("Frame", {
+			Size = UDim2.fromOffset(16, 16),
+			AnchorPoint = Vector2.new(1, 1),
+			Position = UDim2.new(1, -4, 1, -4),
+			BackgroundTransparency = 1,
+			ClipsDescendants = true,
+			ZIndex = root.ZIndex + 15,
+			Parent = root,
+		})
+		for index, distance in ipairs({ 3, 7, 11 }) do
+			local piece = New("Frame", {
+				Size = UDim2.fromOffset(distance * 2, 2),
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromOffset(16 - distance, 16 - distance),
+				Rotation = -45,
+				BackgroundColor3 = Theme.Border,
+				BorderSizePixel = 0,
+				ZIndex = root.ZIndex + 15,
+				Parent = grip,
+			})
+			Corner(piece, 1)
+			gripBars[index] = piece
+		end
+		local gripHit = New("TextButton", {
+			Size = UDim2.fromOffset(MSize(30, 42), MSize(30, 42)),
+			AnchorPoint = Vector2.new(1, 1),
+			Position = UDim2.new(1, -1, 1, -1),
+			BackgroundTransparency = 1,
+			AutoButtonColor = false,
+			Text = "",
+			ZIndex = root.ZIndex + 16,
+			Parent = root,
+		})
+		api.ResizeGrip = grip
+
+		local function tintGrip(color)
+			for _, piece in ipairs(gripBars) do Tween(piece, { BackgroundColor3 = color }, EASE_FAST) end
+		end
+
+		local resizing, resizeMove, resizeEnd, resizeTouch
+		local resizeOrigin, resizeStartW, resizeStartH
+		Track(gripHit.InputBegan:Connect(function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1
+				and input.UserInputType ~= Enum.UserInputType.Touch then return end
+			if resizing then return end
+			resizing = true
+			api.Resizing = true
+			api:CloseFloating()
+			local buildScale = math.max((self.Scale and self.Scale.Scale) or 1, 0.05)
+			resizeOrigin = input.Position
+			resizeStartW = root.AbsoluteSize.X / buildScale
+			resizeStartH = root.AbsoluteSize.Y / buildScale
+			resizeTouch = input.UserInputType == Enum.UserInputType.Touch and input or nil
+			tintGrip(Theme.Accent)
+
+			resizeMove = UserInputService.InputChanged:Connect(function(move)
+				if not resizing then return end
+				if resizeTouch then
+					if move ~= resizeTouch then return end
+				elseif move.UserInputType ~= Enum.UserInputType.MouseMovement then
+					return
+				end
+				local delta = move.Position - resizeOrigin
+				local s = math.max((self.Scale and self.Scale.Scale) or 1, 0.05)
+				local viewport = (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize) or Vector2.new(1280, 720)
+				local absolute = root.AbsolutePosition
+				local maxW = math.max(api.MinWidth, (viewport.X - absolute.X - 8) / s)
+				local maxH = math.max(api.MinHeight, (viewport.Y - absolute.Y - 8) / s)
+				api.Width = math.clamp(resizeStartW + delta.X / s, api.MinWidth, maxW)
+				api.Height = math.clamp(resizeStartH + delta.Y / s, api.MinHeight, maxH)
+				root.Size = UDim2.fromOffset(api.Width, api.Height)
+			end)
+
+			resizeEnd = UserInputService.InputEnded:Connect(function(ended)
+				if resizeTouch then
+					if ended ~= resizeTouch then return end
+				elseif ended.UserInputType ~= input.UserInputType then
+					return
+				end
+				resizing = false
+				api.Resizing = false
+				resizeTouch = nil
+				if resizeMove then resizeMove:Disconnect() resizeMove = nil end
+				if resizeEnd then resizeEnd:Disconnect() resizeEnd = nil end
+				tintGrip(Theme.Border)
+			end)
+		end))
+		Track(gripHit.MouseEnter:Connect(function()
+			if resizing then return end
+			tintGrip(Theme.AccentSoft)
+		end))
+		Track(gripHit.MouseLeave:Connect(function()
+			if resizing then return end
+			tintGrip(Theme.Border)
+		end))
 
 		self.SubWindows = self.SubWindows or {}
 		table.insert(self.SubWindows, api)
@@ -7654,11 +7901,13 @@ do
 				if entry.OnClick then
 					Library:SafeCallback(entry.Title or "toolbar", entry.OnClick, entry, active)
 				elseif entry.Window then
+					local show = not active
 					if entry.Window.SetVisible then
-						entry.Window:SetVisible(not active)
+						entry.Window:SetVisible(show)
 					else
-						entry.Window.Visible = not active
+						entry.Window.Visible = show
 					end
+					if entry.Window == Library.Windows[1] then Library.Open = show end
 				end
 				paint(entry)
 			end))

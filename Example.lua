@@ -18,6 +18,19 @@ assert(type(Library) == "table", "Library.lua did not return the library table")
 
 Library.BaseUrl = BASE
 
+Library:LoadStartupSettings()
+local silentLoad = Library.SilentLoad == true
+local autoLoad = Library.AutoLoad == true
+if silentLoad then
+        Library.Open = false
+end
+if autoLoad then
+        local queued, queueError = Library:SetAutoLoad(true, BASE .. "Example.lua")
+        if not queued then
+                warn("Orasense | auto load: " .. tostring(queueError))
+        end
+end
+
 -- Tab, sub tab and control icons come from the Molto lucide provider.
 Library.IconProvider = "lucide"
 
@@ -58,6 +71,7 @@ local Window = Library:Window({
         Height = 620,
         MinWidth = 520,
         MinHeight = 340,
+        Visible = not silentLoad,
 
         TabStyle = "top",    -- "top" (default) or "side"; CategoryMod = 1 / 2 also works
         TabWidth = 140,
@@ -133,6 +147,35 @@ local toolbar = Library:FloatingToolbar({
                         IsActive = function() return Library.HotkeysEnabled ~= false end,
                 },
         },
+})
+
+-- Startup settings are global and live in their own file, not in a saved config.
+local startupSection = settingsOptions:Section("Startup", 1)
+
+startupSection:Toggle({
+        Text = "Silent Load",
+        Flag = false,
+        Hint = "Hides the menu on load and mutes notifications",
+        Default = silentLoad,
+        Callback = function(state)
+                Library:SetSilentLoad(state)
+                Library:SaveStartupSettings()
+        end,
+})
+
+startupSection:Toggle({
+        Text = "Auto Load",
+        Flag = false,
+        Hint = "Runs Example.lua again after teleports and server hops",
+        Default = autoLoad,
+        Callback = function(state)
+                local ok, err = Library:SetAutoLoad(state, BASE .. "Example.lua")
+                Library:SaveStartupSettings()
+                if state and not ok then
+                        warn("Orasense | auto load: " .. tostring(err))
+                        Library:Notify({ Title = "Auto Load Unavailable", Text = tostring(err), Style = "warning", Duration = 5 })
+                end
+        end,
 })
 
 local toolbarSection = settingsOptions:Section("Floating Toolbar", 1)
