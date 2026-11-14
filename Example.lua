@@ -883,6 +883,7 @@ inputsRight:Slider({ Text = "Slider", Flag = "cmp_slider", Min = 0, Max = 100, S
 local alwaysBind = inputsRight:Keybind({ Text = "Always Keybind", Flag = "cmp_always", Default = "Z", Mode = "always" })
 local holdBind = inputsRight:Keybind({ Text = "Hold Keybind", Flag = "cmp_hold", Default = "Q", Mode = "hold" })
 local toggleBind = inputsRight:Keybind({ Text = "Toggle Keybind", Flag = "cmp_toggle_key", Default = "T", Mode = "toggle" })
+inputsRight:Keybind({ Text = "Controller Keybind", Flag = "cmp_controller_key", Default = "ButtonY", Mode = "toggle" })
 -- In game: one right click on a key pill removes its key, a double right click
 -- opens the always / hold / toggle picker. The same editing works from code:
 inputsRight:ButtonRow({

@@ -558,6 +558,74 @@ local function KeyName(input)
 	return nil
 end
 
+local GAMEPAD_LABELS = {
+	ButtonA = "A",
+	ButtonB = "B",
+	ButtonX = "X",
+	ButtonY = "Y",
+	ButtonL1 = "LB",
+	ButtonL2 = "LT",
+	ButtonL3 = "LS",
+	ButtonR1 = "RB",
+	ButtonR2 = "RT",
+	ButtonR3 = "RS",
+	ButtonStart = "Start",
+	ButtonSelect = "Select",
+	DPadUp = "D-Up",
+	DPadDown = "D-Down",
+	DPadLeft = "D-Left",
+	DPadRight = "D-Right",
+}
+local GAMEPAD_LABEL_CODES = {}
+for code, label in pairs(GAMEPAD_LABELS) do
+	GAMEPAD_LABEL_CODES[string.lower(label)] = code
+	GAMEPAD_LABEL_CODES[string.lower(code)] = code
+end
+
+local function ResolveGamepadCode(code)
+	return code and (GAMEPAD_LABEL_CODES[string.lower(code)] or code)
+end
+
+local function GenericGamepadCode(key)
+	if type(key) ~= "string" or #key <= 1 then return nil end
+	local code = ResolveGamepadCode(key)
+	if GAMEPAD_LABELS[code] then return code end
+	return nil
+end
+
+local function KeyMatches(input, key)
+	if type(key) ~= "string" or key == "" then return false end
+	local name = KeyName(input)
+	if not name then return false end
+	if name == key then return true end
+
+	local pad, code = string.match(name, "^GP(%d+)_(.+)$")
+	if not pad then return false end
+	if key == code then return true end
+	local generic = GenericGamepadCode(key)
+	if generic and generic == code then return true end
+
+	local keyPad, keyCode = string.match(key, "^Gamepad(%d+)_(.+)$")
+	if not keyPad then keyPad, keyCode = string.match(key, "^GP(%d+)_(.+)$") end
+	if not keyPad or keyPad ~= pad then return false end
+	return ResolveGamepadCode(keyCode) == code
+end
+
+local function KeyDisplay(key)
+	if type(key) ~= "string" then return key end
+	local pad, code = string.match(key, "^GP(%d+)_(.+)$")
+	if not pad then pad, code = string.match(key, "^Gamepad(%d+)_(.+)$") end
+	if pad then
+		local resolved = ResolveGamepadCode(code)
+		return "P" .. pad .. " " .. (GAMEPAD_LABELS[resolved] or resolved)
+	end
+	local generic = GenericGamepadCode(key)
+	if generic then
+		return "Pad " .. GAMEPAD_LABELS[generic]
+	end
+	return GAMEPAD_LABELS[ResolveGamepadCode(key)] or key
+end
+
 local function Hover(button, target, baseKey, hoverKey)
 	Track(button.MouseEnter:Connect(function()
 		Tween(target, { BackgroundColor3 = Theme[hoverKey] }, EASE_FAST)
@@ -1423,6 +1491,7 @@ function Elements:Toggle(opts)
 			AutoButtonColor = false,
 			Text = "",
 			BorderSizePixel = 0,
+			Selectable = true,
 			LayoutOrder = 20,
 			Parent = right,
 		})
@@ -1437,12 +1506,13 @@ function Elements:Toggle(opts)
 		local listening = false
 		local hovering = false
 		local suppressActivate = false
+		local suppressUntil = 0
 		local mouse2At = 0
 		local function refresh()
 			if listening then
 				pl.Text = 'key: <font color="' .. AccentHex() .. '">...</font>'
 			elseif key then
-				pl.Text = 'key: <font color="' .. AccentHex() .. '">' .. key .. "</font>"
+				pl.Text = 'key: <font color="' .. AccentHex() .. '">' .. KeyDisplay(key) .. "</font>"
 			else
 				pl.Text = "key: NONE"
 			end
@@ -1487,7 +1557,7 @@ function Elements:Toggle(opts)
 		Track(pill.Activated:Connect(function()
 			if suppressActivate then
 				suppressActivate = false
-				return
+				if os.clock() <= suppressUntil then return end
 			end
 			listening = true
 			Library.Binding = true
@@ -1512,7 +1582,10 @@ function Elements:Toggle(opts)
 					key = nil
 				elseif name then
 					key = name
-					if name == "MB1" and hovering then suppressActivate = true end
+					if (name == "MB1" and hovering) or KeyMatches(input, "ButtonA") then
+						suppressActivate = true
+						suppressUntil = os.clock() + 0.35
+					end
 					if name == "MB2" then mouse2At = os.clock() end
 				else
 					return
@@ -1523,16 +1596,16 @@ function Elements:Toggle(opts)
 				Tween(pill, { BackgroundColor3 = Theme.Field }, EASE_FAST)
 				return
 			end
-			if gpe or not key or name ~= key then return end
+			if gpe or not key or not KeyMatches(input, key) then return end
 			if bindOpts.Mode == "hold" then return end
 			api:Set(not state)
 		end))
 		if bindOpts.Mode == "hold" then
 			Track(UserInputService.InputEnded:Connect(function(input)
-				if key and KeyName(input) == key then api:Set(false) end
+				if key and KeyMatches(input, key) then api:Set(false) end
 			end))
 			Track(UserInputService.InputBegan:Connect(function(input, gpe)
-				if not gpe and key and KeyName(input) == key then api:Set(true) end
+				if not gpe and key and KeyMatches(input, key) then api:Set(true) end
 			end))
 		end
 		return api
@@ -2403,6 +2476,7 @@ function Elements:Keybind(opts)
 		AutoButtonColor = false,
 		Text = "",
 		BorderSizePixel = 0,
+		Selectable = true,
 		Parent = row,
 	})
 	Corner(pill, 7)
@@ -2410,6 +2484,7 @@ function Elements:Keybind(opts)
 	Pad(pill, MSize(0, 4), 10)
 	local hovering = false
 	local suppressActivate = false
+	local suppressUntil = 0
 	local mouse2At = 0
 	Track(pill.MouseEnter:Connect(function()
 		hovering = true
@@ -2438,7 +2513,7 @@ function Elements:Keybind(opts)
 			pl.Text = 'key: <font color="' .. AccentHex() .. '">...</font>'
 			return
 		end
-		local shown = key and ('<font color="' .. AccentHex() .. '">' .. key .. "</font>") or "NONE"
+		local shown = key and ('<font color="' .. AccentHex() .. '">' .. KeyDisplay(key) .. "</font>") or "NONE"
 		pl.Text = "key: " .. shown .. ' <font color="' .. KeyModeHex(Theme.TextDim) .. '">' .. mode .. "</font>"
 	end
 	refresh()
@@ -2473,7 +2548,7 @@ function Elements:Keybind(opts)
 	Track(pill.Activated:Connect(function()
 		if suppressActivate then
 			suppressActivate = false
-			return
+			if os.clock() <= suppressUntil then return end
 		end
 		if api and api.Enabled == false then return end
 		listening = true
@@ -2503,7 +2578,10 @@ function Elements:Keybind(opts)
 				key = nil
 			elseif n then
 				key = n
-				if n == "MB1" and hovering then suppressActivate = true end
+				if (n == "MB1" and hovering) or KeyMatches(input, "ButtonA") then
+					suppressActivate = true
+					suppressUntil = os.clock() + 0.35
+				end
 				if n == "MB2" then mouse2At = os.clock() end
 			else
 				return
@@ -2515,7 +2593,7 @@ function Elements:Keybind(opts)
 			apply()
 			return
 		end
-		if gpe or not key or n ~= key then return end
+		if gpe or not key or not KeyMatches(input, key) then return end
 		if api and api.Enabled == false then return end
 		if mode == "always" then return end
 		if mode == "toggle" then
@@ -2528,7 +2606,7 @@ function Elements:Keybind(opts)
 	end))
 	Track(UserInputService.InputEnded:Connect(function(input)
 		if mode ~= "hold" or not held then return end
-		if key and KeyName(input) == key then
+		if key and KeyMatches(input, key) then
 			held = false
 			Library:RefreshHotkeys()
 			Library:SafeCallback(opts.Text or "keybind", opts.Callback, false)
@@ -4238,6 +4316,18 @@ for _, inputType in ipairs(Enum.UserInputType:GetEnumItems()) do
 	end
 end
 
+local function ParseGamepadKey(key)
+	local pad, code = string.match(key, "^GP(%d+)_(.+)$")
+	if not pad then pad, code = string.match(key, "^Gamepad(%d+)_(.+)$") end
+	if not pad then return nil end
+	local inputType = GAMEPAD_INPUTS[tonumber(pad)]
+	if not inputType then return nil end
+	local resolved = ResolveGamepadCode(code)
+	local ok, keyCode = pcall(function() return Enum.KeyCode[resolved] end)
+	if ok and keyCode then return inputType, keyCode end
+	return nil
+end
+
 function Library:SetToggleKey(key)
 	self.ToggleKey = nil
 	self.ToggleInput = nil
@@ -4251,14 +4341,13 @@ function Library:SetToggleKey(key)
 		if MOUSE_INPUTS[key] then
 			self.ToggleInput = MOUSE_INPUTS[key]
 		else
-			local gamepad, code = string.match(key, "^GP(%d+)_(.+)$")
-			local inputType = gamepad and GAMEPAD_INPUTS[tonumber(gamepad)]
-			local okCode, keyCode = pcall(function() return code and Enum.KeyCode[code] end)
-			if inputType and okCode and keyCode then
+			local inputType, keyCode = ParseGamepadKey(key)
+			if inputType and keyCode then
 				self.ToggleInput = inputType
 				self.ToggleKey = keyCode
 			else
-				local ok, enum = pcall(function() return Enum.KeyCode[key] end)
+				local enumKey = GenericGamepadCode(key) or key
+				local ok, enum = pcall(function() return Enum.KeyCode[enumKey] end)
 				self.ToggleKey = ok and enum or nil
 			end
 		end
@@ -4706,7 +4795,7 @@ function Library:RefreshHotkeys()
 		if mode ~= "active" or entry.Active == true then
 			shown = shown + 1
 			local text = string.format("[%s] %s (%s)",
-				tostring(entry.Key),
+				tostring(KeyDisplay(entry.Key)),
 				tostring(entry.Label or "action"),
 				tostring(entry.Mode or "toggle"))
 
