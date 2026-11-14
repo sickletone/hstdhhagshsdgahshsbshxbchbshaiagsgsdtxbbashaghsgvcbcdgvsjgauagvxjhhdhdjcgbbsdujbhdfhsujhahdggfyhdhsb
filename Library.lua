@@ -124,6 +124,7 @@ Library.Connections = {}
 Library.Open = true
 Library.ToggleKey = Enum.KeyCode.RightShift
 Library.ToggleInput = nil
+Library.ToggleStick = nil
 Library.Binding = false
 Library.Registry = {}
 Library.Defaults = {}
@@ -593,8 +594,139 @@ local function GenericGamepadCode(key)
 	return nil
 end
 
+local STICK_AXES = {
+	LSUp = { stick = "LS", dir = "Up", label = "LS-Up" },
+	LSDown = { stick = "LS", dir = "Down", label = "LS-Down" },
+	LSLeft = { stick = "LS", dir = "Left", label = "LS-Left" },
+	LSRight = { stick = "LS", dir = "Right", label = "LS-Right" },
+	RSUp = { stick = "RS", dir = "Up", label = "RS-Up" },
+	RSDown = { stick = "RS", dir = "Down", label = "RS-Down" },
+	RSLeft = { stick = "RS", dir = "Left", label = "RS-Left" },
+	RSRight = { stick = "RS", dir = "Right", label = "RS-Right" },
+}
+local STICK_ALIASES = {}
+local function NormalizeCode(value)
+	return string.lower(value):gsub("[%s_%-]", "")
+end
+local function AddStickAlias(alias, code)
+	STICK_ALIASES[NormalizeCode(alias)] = code
+end
+for code, info in pairs(STICK_AXES) do
+	local side = info.stick == "LS" and "Left" or "Right"
+	local thumb = info.stick == "LS" and "1" or "2"
+	AddStickAlias(code, code)
+	AddStickAlias(info.label, code)
+	AddStickAlias(info.stick .. "Stick" .. info.dir, code)
+	AddStickAlias(side .. "Stick" .. info.dir, code)
+	AddStickAlias(side .. "Thumbstick" .. info.dir, code)
+	AddStickAlias("Thumbstick" .. thumb .. info.dir, code)
+end
+
+local function ResolveStickCode(code)
+	if type(code) ~= "string" then return nil end
+	return STICK_ALIASES[NormalizeCode(code)]
+end
+
+local function GenericStickCode(key)
+	return ResolveStickCode(key)
+end
+
+local function StickKeyInfo(key)
+	if type(key) ~= "string" then return nil end
+	local pad, code = string.match(key, "^GP(%d+)_(.+)$")
+	if not pad then pad, code = string.match(key, "^Gamepad(%d+)_(.+)$") end
+	if pad then
+		local canonical = ResolveStickCode(code)
+		if not canonical then return nil end
+		return tonumber(pad), canonical
+	end
+	local canonical = ResolveStickCode(key)
+	if canonical then return nil, canonical end
+	return nil
+end
+
+local STICK_THRESHOLD = 0.55
+local function StickInputInfo(input)
+	if not input or not input.KeyCode or not input.UserInputType then return nil end
+	local pad = string.match(input.UserInputType.Name, "^Gamepad(%d+)$")
+	if not pad then return nil end
+	local stick
+	if input.KeyCode == Enum.KeyCode.Thumbstick1 then
+		stick = "LS"
+	elseif input.KeyCode == Enum.KeyCode.Thumbstick2 then
+		stick = "RS"
+	end
+	if not stick then return nil end
+	return tonumber(pad), stick
+end
+
+local function StickInputMatches(key, input)
+	local keyPad, keyCode = StickKeyInfo(key)
+	if not keyCode then return false end
+	local pad, stick = StickInputInfo(input)
+	if not stick or stick ~= STICK_AXES[keyCode].stick then return false end
+	return not keyPad or keyPad == pad
+end
+
+local function StickDescriptor(input)
+	local pad, stick = StickInputInfo(input)
+	if not pad then return nil end
+	local position = input.Position
+	if not position then return nil end
+	local x, y = position.X or 0, position.Y or 0
+	local ax, ay = math.abs(x), math.abs(y)
+	if ax < STICK_THRESHOLD and ay < STICK_THRESHOLD then return nil end
+	local direction
+	if ay >= ax then
+		direction = y > 0 and "Up" or "Down"
+	else
+		direction = x > 0 and "Right" or "Left"
+	end
+	local code = stick .. direction
+	return "GP" .. pad .. "_" .. code, pad, code
+end
+
+local function KeyGamepadPad(key)
+	if type(key) ~= "string" then return nil end
+	local pad = string.match(key, "^GP(%d+)_") or string.match(key, "^Gamepad(%d+)_")
+	if pad then return tonumber(pad) end
+	if GenericGamepadCode(key) or GenericStickCode(key) then return "*" end
+	return nil
+end
+
+local function KeyOnGamepad(key, gamepad)
+	local pad = KeyGamepadPad(key)
+	if pad == "*" then return true end
+	if not pad or not gamepad then return false end
+	local number = string.match(gamepad.Name, "^Gamepad(%d+)$")
+	return number ~= nil and tonumber(number) == pad
+end
+
+local function IsGamepadInput(input)
+	return input ~= nil and input.UserInputType ~= nil
+		and string.match(input.UserInputType.Name, "^Gamepad(%d+)$") ~= nil
+end
+
+local function InputBlocked(input, gpe)
+	if not gpe then return false end
+	if not IsGamepadInput(input) then return true end
+	local selected = GuiService.SelectedObject
+	if selected then
+		local ok, gui = pcall(function() return selected:FindFirstAncestorOfClass("ScreenGui") end)
+		if not ok or not gui or gui.Enabled then return true end
+	end
+	local textOk, textBox = pcall(function() return UserInputService:GetFocusedTextBox() end)
+	return textOk and textBox ~= nil
+end
+
 local function KeyMatches(input, key)
 	if type(key) ~= "string" or key == "" then return false end
+	local stickName, stickPad, stickCode = StickDescriptor(input)
+	if stickName then
+		if stickName == key then return true end
+		local keyPad, keyCode = StickKeyInfo(key)
+		if keyCode and (not keyPad or keyPad == stickPad) and keyCode == stickCode then return true end
+	end
 	local name = KeyName(input)
 	if not name then return false end
 	if name == key then return true end
@@ -616,9 +748,13 @@ local function KeyDisplay(key)
 	local pad, code = string.match(key, "^GP(%d+)_(.+)$")
 	if not pad then pad, code = string.match(key, "^Gamepad(%d+)_(.+)$") end
 	if pad then
+		local stickCode = ResolveStickCode(code)
+		if stickCode then return "P" .. pad .. " " .. STICK_AXES[stickCode].label end
 		local resolved = ResolveGamepadCode(code)
 		return "P" .. pad .. " " .. (GAMEPAD_LABELS[resolved] or resolved)
 	end
+	local stickCode = GenericStickCode(key)
+	if stickCode then return "Pad " .. STICK_AXES[stickCode].label end
 	local generic = GenericGamepadCode(key)
 	if generic then
 		return "Pad " .. GAMEPAD_LABELS[generic]
@@ -1504,6 +1640,9 @@ function Elements:Toggle(opts)
 
 		local bindFlag = bindOpts.Flag
 		local listening = false
+		local holding = false
+		local stickHeld = false
+		local captureAt = 0
 		local hovering = false
 		local suppressActivate = false
 		local suppressUntil = 0
@@ -1547,6 +1686,11 @@ function Elements:Toggle(opts)
 				Set = function(v)
 					key = (v ~= "" and v) or nil
 					listening = false
+					if holding then
+						holding = false
+						api:Set(false)
+					end
+					stickHeld = false
 					apply()
 				end,
 			})
@@ -1573,6 +1717,11 @@ function Elements:Toggle(opts)
 			key = nil
 			listening = false
 			Library.Binding = false
+			if holding then
+				holding = false
+				api:Set(false)
+			end
+			stickHeld = false
 			apply()
 		end))
 		Track(UserInputService.InputBegan:Connect(function(input, gpe)
@@ -1582,6 +1731,7 @@ function Elements:Toggle(opts)
 					key = nil
 				elseif name then
 					key = name
+					captureAt = os.clock()
 					if (name == "MB1" and hovering) or KeyMatches(input, "ButtonA") then
 						suppressActivate = true
 						suppressUntil = os.clock() + 0.35
@@ -1596,18 +1746,81 @@ function Elements:Toggle(opts)
 				Tween(pill, { BackgroundColor3 = Theme.Field }, EASE_FAST)
 				return
 			end
-			if gpe or not key or not KeyMatches(input, key) then return end
+			if InputBlocked(input, gpe) or not key or os.clock() - captureAt < 0.2 or not KeyMatches(input, key) then return end
 			if bindOpts.Mode == "hold" then return end
 			api:Set(not state)
 		end))
+		Track(UserInputService.InputChanged:Connect(function(input)
+			if input.KeyCode ~= Enum.KeyCode.Thumbstick1 and input.KeyCode ~= Enum.KeyCode.Thumbstick2 then return end
+			if not listening then return end
+			local stick = StickDescriptor(input)
+			if not stick then return end
+			key = stick
+			captureAt = os.clock()
+			stickHeld = true
+			listening = false
+			Library.Binding = false
+			apply()
+			Tween(pill, { BackgroundColor3 = Theme.Field }, EASE_FAST)
+		end))
 		if bindOpts.Mode == "hold" then
 			Track(UserInputService.InputEnded:Connect(function(input)
-				if key and KeyMatches(input, key) then api:Set(false) end
+				if not holding or not key then return end
+				if not StickInputMatches(key, input) and not KeyMatches(input, key) then return end
+				holding = false
+				api:Set(false)
 			end))
 			Track(UserInputService.InputBegan:Connect(function(input, gpe)
-				if not gpe and key and KeyMatches(input, key) then api:Set(true) end
+				if InputBlocked(input, gpe) or holding or os.clock() - captureAt < 0.2 then return end
+				if key and KeyMatches(input, key) then
+					holding = true
+					api:Set(true)
+				end
 			end))
 		end
+
+		Track(UserInputService.InputChanged:Connect(function(input, gpe)
+			if input.KeyCode ~= Enum.KeyCode.Thumbstick1 and input.KeyCode ~= Enum.KeyCode.Thumbstick2 then return end
+			if bindOpts.Mode == "always" or not key then return end
+			if not StickInputMatches(key, input) then return end
+			local pressed = not InputBlocked(input, gpe) and KeyMatches(input, key)
+			if os.clock() - captureAt < 0.2 then
+				if not pressed then stickHeld = false end
+				return
+			end
+			if pressed then
+				if not stickHeld then
+					stickHeld = true
+					if bindOpts.Mode == "hold" then
+						holding = true
+						api:Set(true)
+					else
+						api:Set(not state)
+					end
+				end
+			elseif stickHeld then
+				stickHeld = false
+				if bindOpts.Mode == "hold" and holding then
+					holding = false
+					api:Set(false)
+				end
+			end
+		end))
+
+		Track(UserInputService.GamepadDisconnected:Connect(function(gamepad)
+			local affected = not key or KeyOnGamepad(key, gamepad)
+			if listening then
+				listening = false
+				Library.Binding = false
+				refresh()
+				Tween(pill, { BackgroundColor3 = Theme.Field }, EASE_FAST)
+			end
+			if holding and key and affected then
+				holding = false
+				api:Set(false)
+			end
+			if affected then stickHeld = false end
+		end))
 		return api
 	end
 
@@ -2507,6 +2720,8 @@ function Elements:Keybind(opts)
 	local mode = NormalizeKeyMode(opts.Mode)
 	local modeMenu
 	local lastRight = 0
+	local stickHeld = false
+	local captureAt = 0
 
 	local function refresh()
 		if listening then
@@ -2532,6 +2747,13 @@ function Elements:Keybind(opts)
 		if api then api.Active = active end
 		Library:RefreshHotkeys()
 		Library:SafeCallback(opts.Text or "keybind", opts.Callback, active)
+	end
+
+	local function releaseHeld()
+		if not held then return end
+		held = false
+		Library:RefreshHotkeys()
+		Library:SafeCallback(opts.Text or "keybind", opts.Callback, false)
 	end
 
 	local function openModes()
@@ -2578,6 +2800,7 @@ function Elements:Keybind(opts)
 				key = nil
 			elseif n then
 				key = n
+				captureAt = os.clock()
 				if (n == "MB1" and hovering) or KeyMatches(input, "ButtonA") then
 					suppressActivate = true
 					suppressUntil = os.clock() + 0.35
@@ -2593,7 +2816,7 @@ function Elements:Keybind(opts)
 			apply()
 			return
 		end
-		if gpe or not key or not KeyMatches(input, key) then return end
+		if InputBlocked(input, gpe) or not key or os.clock() - captureAt < 0.2 or not KeyMatches(input, key) then return end
 		if api and api.Enabled == false then return end
 		if mode == "always" then return end
 		if mode == "toggle" then
@@ -2604,13 +2827,71 @@ function Elements:Keybind(opts)
 			Library:SafeCallback(opts.Text or "keybind", opts.Callback, true)
 		end
 	end))
+	Track(UserInputService.InputChanged:Connect(function(input)
+		if input.KeyCode ~= Enum.KeyCode.Thumbstick1 and input.KeyCode ~= Enum.KeyCode.Thumbstick2 then return end
+		if not listening then return end
+		local stick = StickDescriptor(input)
+		if not stick then return end
+		key = stick
+		captureAt = os.clock()
+		stickHeld = true
+		listening = false
+		Library.Binding = false
+		refresh()
+		Tween(pill, { BackgroundColor3 = Theme.Field }, EASE_FAST)
+		apply()
+	end))
 	Track(UserInputService.InputEnded:Connect(function(input)
-		if mode ~= "hold" or not held then return end
-		if key and KeyMatches(input, key) then
+		if mode ~= "hold" or not held or not key then return end
+		if not StickInputMatches(key, input) and not KeyMatches(input, key) then return end
+		held = false
+		Library:RefreshHotkeys()
+		Library:SafeCallback(opts.Text or "keybind", opts.Callback, false)
+	end))
+	Track(UserInputService.InputChanged:Connect(function(input, gpe)
+		if input.KeyCode ~= Enum.KeyCode.Thumbstick1 and input.KeyCode ~= Enum.KeyCode.Thumbstick2 then return end
+		if api and api.Enabled == false then return end
+		if mode == "always" or not key then return end
+		if not StickInputMatches(key, input) then return end
+		local pressed = not InputBlocked(input, gpe) and KeyMatches(input, key)
+		if os.clock() - captureAt < 0.2 then
+			if not pressed then stickHeld = false end
+			return
+		end
+		if pressed then
+			if not stickHeld then
+				stickHeld = true
+				if mode == "hold" then
+					held = true
+					Library:RefreshHotkeys()
+					Library:SafeCallback(opts.Text or "keybind", opts.Callback, true)
+				else
+					setActive(not active)
+				end
+			end
+		elseif stickHeld then
+			stickHeld = false
+			if mode == "hold" and held then
+				held = false
+				Library:RefreshHotkeys()
+				Library:SafeCallback(opts.Text or "keybind", opts.Callback, false)
+			end
+		end
+	end))
+	Track(UserInputService.GamepadDisconnected:Connect(function(gamepad)
+		local affected = not key or KeyOnGamepad(key, gamepad)
+		if listening then
+			listening = false
+			Library.Binding = false
+			refresh()
+			Tween(pill, { BackgroundColor3 = Theme.Field }, EASE_FAST)
+		end
+		if held and key and affected then
 			held = false
 			Library:RefreshHotkeys()
 			Library:SafeCallback(opts.Text or "keybind", opts.Callback, false)
 		end
+		if affected then stickHeld = false end
 	end))
 
 	api = {
@@ -2619,6 +2900,8 @@ function Elements:Keybind(opts)
 		Get = function() return key or "" end,
 		Set = function(_, k)
 			key = (k ~= "" and k) or nil
+			releaseHeld()
+			stickHeld = false
 			refresh()
 			apply()
 		end,
@@ -2630,6 +2913,7 @@ function Elements:Keybind(opts)
 		next = NormalizeKeyMode(next)
 		if next == mode then return mode end
 		mode = next
+		stickHeld = false
 		if mode == "always" then
 			held = false
 			if not active then setActive(true) end
@@ -2649,6 +2933,8 @@ function Elements:Keybind(opts)
 		key = nil
 		listening = false
 		Library.Binding = false
+		releaseHeld()
+		stickHeld = false
 		refresh()
 		apply()
 		return api
@@ -4328,9 +4614,21 @@ local function ParseGamepadKey(key)
 	return nil
 end
 
+local function ParseGamepadStickKey(key)
+	local pad, code = string.match(key, "^GP(%d+)_(.+)$")
+	if not pad then pad, code = string.match(key, "^Gamepad(%d+)_(.+)$") end
+	if not pad then return nil end
+	local inputType = GAMEPAD_INPUTS[tonumber(pad)]
+	if not inputType then return nil end
+	local canonical = ResolveStickCode(code)
+	if canonical then return inputType, canonical end
+	return nil
+end
+
 function Library:SetToggleKey(key)
 	self.ToggleKey = nil
 	self.ToggleInput = nil
+	self.ToggleStick = nil
 	if typeof(key) == "EnumItem" then
 		if key.EnumType == Enum.UserInputType then
 			self.ToggleInput = key
@@ -4341,18 +4639,29 @@ function Library:SetToggleKey(key)
 		if MOUSE_INPUTS[key] then
 			self.ToggleInput = MOUSE_INPUTS[key]
 		else
-			local inputType, keyCode = ParseGamepadKey(key)
-			if inputType and keyCode then
-				self.ToggleInput = inputType
-				self.ToggleKey = keyCode
+			local stickInput, stickCode = ParseGamepadStickKey(key)
+			if stickCode then
+				self.ToggleInput = stickInput
+				self.ToggleStick = stickCode
 			else
-				local enumKey = GenericGamepadCode(key) or key
-				local ok, enum = pcall(function() return Enum.KeyCode[enumKey] end)
-				self.ToggleKey = ok and enum or nil
+				local inputType, keyCode = ParseGamepadKey(key)
+				if inputType and keyCode then
+					self.ToggleInput = inputType
+					self.ToggleKey = keyCode
+				else
+					local genericStick = GenericStickCode(key)
+					if genericStick then
+						self.ToggleStick = genericStick
+					else
+						local enumKey = GenericGamepadCode(key) or key
+						local ok, enum = pcall(function() return Enum.KeyCode[enumKey] end)
+						self.ToggleKey = ok and enum or nil
+					end
+				end
 			end
 		end
 	end
-	return self.ToggleKey or self.ToggleInput
+	return self.ToggleStick or self.ToggleKey or self.ToggleInput
 end
 
 Library.Panels = {}
@@ -5255,7 +5564,7 @@ function Library:SetMobileButtonVisible(state)
 end
 
 Track(UserInputService.InputBegan:Connect(function(input, gpe)
-	if gpe or Library.Binding then return end
+	if InputBlocked(input, gpe) or Library.Binding or Library.ToggleStick then return end
 	local hit
 	if Library.ToggleKey ~= nil and Library.ToggleInput ~= nil then
 		hit = input.KeyCode == Library.ToggleKey and input.UserInputType == Library.ToggleInput
@@ -5265,6 +5574,31 @@ Track(UserInputService.InputBegan:Connect(function(input, gpe)
 	end
 	if hit then
 		Library:ToggleUI()
+	end
+end))
+
+local menuStickReady = true
+Track(UserInputService.GamepadDisconnected:Connect(function()
+	menuStickReady = true
+end))
+Track(UserInputService.InputChanged:Connect(function(input, gpe)
+	local target = Library.ToggleStick and STICK_AXES[Library.ToggleStick]
+	if not target then
+		menuStickReady = true
+		return
+	end
+	if input.KeyCode ~= Enum.KeyCode.Thumbstick1 and input.KeyCode ~= Enum.KeyCode.Thumbstick2 then return end
+	local pad, stick = StickInputInfo(input)
+	if not pad or stick ~= target.stick then return end
+	if Library.ToggleInput and input.UserInputType ~= Library.ToggleInput then return end
+	local _, _, code = StickDescriptor(input)
+	if code == Library.ToggleStick then
+		if menuStickReady then
+			menuStickReady = false
+			if not InputBlocked(input, gpe) and not Library.Binding then Library:ToggleUI() end
+		end
+	else
+		menuStickReady = true
 	end
 end))
 
