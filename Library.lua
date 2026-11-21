@@ -3854,23 +3854,27 @@ function Window:Confirm(opts)
 end
 
 function Window:SetVisible(state)
+	state = state ~= false
+	if self.Visible == state and self.Main.Visible == state and self.Gui.Enabled == state then return end
 	self.Visible = state
+	if self.VisibilityTween then
+		pcall(function() self.VisibilityTween:Cancel() end)
+		self.VisibilityTween = nil
+	end
 	if state then
+		self.Gui.Enabled = true
 		self.Main.Visible = true
-
 		if self.ApplyGlass then self:ApplyGlass() end
-
-		self.Scale.Scale = self.BaseScale * 0.92
-		Tween(self.Scale, { Scale = self.BaseScale }, EASE_SPRING)
+		self.Scale.Scale = self.BaseScale * 0.96
+		self.VisibilityTween = Tween(self.Scale, { Scale = self.BaseScale }, EASE_FAST)
 	else
 		self:CloseFloating()
 		for _, modal in ipairs(self.Modals or {}) do modal:SetOpen(false) end
-		Tween(self.Scale, { Scale = self.BaseScale * 0.94 }, EASE_SMOOTH).Completed:Once(function()
-			if not self.Visible then self.Main.Visible = false end
-		end)
+		self.Main.Visible = false
+		self.Gui.Enabled = false
+		self.Scale.Scale = self.BaseScale
+		if Library.SyncMenuBlur then Library:SyncMenuBlur() end
 	end
-
-	if Library.SyncMenuBlur then Library:SyncMenuBlur() end
 end
 
 function Library:Window(opts)
@@ -4357,6 +4361,7 @@ function Library:Window(opts)
 	if opts.Visible == false then
 		window.Visible = false
 		main.Visible = false
+		gui.Enabled = false
 		self.Open = false
 	end
 	return window
@@ -7287,6 +7292,8 @@ do
 	Library.MenuBlurStrength = math.clamp(tonumber(Library.MenuBlurStrength) or 12, 0, 30)
 
 	local sharedBlur
+	local lastBlurTarget
+	local blurTween
 	local modalBlurs = {}
 	local modalBlur = 0
 
@@ -7318,13 +7325,32 @@ do
 
 	function Library:SyncMenuBlur()
 		local target = math.max(MenuBlurSize(), modalBlur)
-		local effect = BlurInstance()
-		if not effect then return 0 end
 		if target <= 0.05 then
-			if effect.Size > 0.05 then Tween(effect, { Size = 0 }) else effect.Size = 0 end
+			local blur = sharedBlur
+			sharedBlur = nil
+			lastBlurTarget = nil
+			if blurTween then
+				pcall(function() blurTween:Cancel() end)
+				blurTween = nil
+			end
+			if blur then
+				pcall(function()
+					if blur.Parent then blur:Destroy() end
+				end)
+			end
 			return 0
 		end
-		Tween(effect, { Size = target })
+		if lastBlurTarget == target and sharedBlur and sharedBlur.Parent then return target end
+		local effect = BlurInstance()
+		if not effect then return 0 end
+		lastBlurTarget = target
+		if blurTween then
+			pcall(function() blurTween:Cancel() end)
+			blurTween = nil
+		end
+		if math.abs((effect.Size or 0) - target) > 0.01 then
+			blurTween = Tween(effect, { Size = target })
+		end
 		return target
 	end
 
@@ -7432,7 +7458,7 @@ do
 		end
 		if Library.LiquidGlass == true then
 			local fx = EnsureLiquidFX(self)
-			fx.Visible = true
+			fx.Visible = self.Visible ~= false
 		elseif self.LiquidFX then
 			self.LiquidFX.Visible = false
 		end
@@ -7726,7 +7752,8 @@ do
 
 			local clock = 0
 			while token == self.ParticleToken and self.ParticleMode == mode do
-				local dt = task.wait(0.033)
+				local dt = task.wait(gui.Enabled and 0.033 or 0.2)
+				if not gui.Enabled then continue end
 				clock = clock + dt
 				area = layer.AbsoluteSize
 				w = math.max(area.X, 1)
@@ -7818,7 +7845,6 @@ do
 		function Window:SetVisible(state)
 			OrigSetVisible(self, state)
 			if self.RefreshParticles then self:RefreshParticles() end
-			if self.ApplyGlass then self:ApplyGlass() end
 		end
 	end
 end
