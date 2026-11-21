@@ -3857,16 +3857,11 @@ function Window:SetVisible(state)
 	state = state ~= false
 	if self.Visible == state and self.Main.Visible == state and self.Gui.Enabled == state then return end
 	self.Visible = state
-	if self.VisibilityTween then
-		pcall(function() self.VisibilityTween:Cancel() end)
-		self.VisibilityTween = nil
-	end
 	if state then
 		self.Gui.Enabled = true
 		self.Main.Visible = true
 		if self.ApplyGlass then self:ApplyGlass() end
-		self.Scale.Scale = self.BaseScale * 0.96
-		self.VisibilityTween = Tween(self.Scale, { Scale = self.BaseScale }, EASE_FAST)
+		self.Scale.Scale = self.BaseScale
 	else
 		self:CloseFloating()
 		for _, modal in ipairs(self.Modals or {}) do modal:SetOpen(false) end
